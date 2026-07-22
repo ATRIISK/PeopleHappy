@@ -1,0 +1,76 @@
+version: "3.8"
+
+services:
+  # ===== 数据库 =====
+  mysql:
+    image: mysql:8.0
+    container_name: happy-mart-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: 123456
+      MYSQL_DATABASE: happy_mart
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./happy_mart/sql/init.sql:/docker-entrypoint-initdb.d/init.sql
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+
+  # ===== 缓存 =====
+  redis:
+    image: redis:7-alpine
+    container_name: happy-mart-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+
+  # ===== 消息队列 =====
+  rabbitmq:
+    image: rabbitmq:3.13-management
+    container_name: happy-mart-rabbitmq
+    restart: unless-stopped
+    ports:
+      - "5672:5672"   # AMQP
+      - "15672:15672" # 管理界面
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+
+  # ===== Spring Boot 后端 =====
+  backend:
+    build:
+      context: ./happy_mart
+      dockerfile: Dockerfile
+    container_name: happy-mart-backend
+    restart: unless-stopped
+    ports:
+      - "8074:8074"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/happy_mart?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: 123456
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_RABBITMQ_HOST: rabbitmq
+    depends_on:
+      - mysql
+      - redis
+      - rabbitmq
+
+  # ===== Nginx 前端 + 反向代理 =====
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: happy-mart-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/conf/happy-mart.conf:/etc/nginx/conf.d/default.conf
+      - ./happy-mart-web/dist:/usr/share/nginx/html
+    depends_on:
+      - backend
+
+volumes:
+  mysql-data:
+  redis-data:
+  rabbitmq-data:

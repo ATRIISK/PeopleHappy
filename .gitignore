@@ -1,0 +1,27 @@
+# ===== Java / Maven (Backend) =====
+target/
+*.class
+*.jar
+*.war
+*.log
+happy_mart/.mvn/wrapper/maven-wrapper.jar
+
+# ===== Node / Vite (Frontend) =====
+happy-mart-web/node_modules/
+happy-mart-web/dist/
+
+# ===== IDE =====
+.idea/
+*.iml
+.vscode/
+*.swp
+*.swo
+*~
+
+# ===== OS =====
+.DS_Store
+Thumbs.db
+
+# ===== Environment =====
+.env
+.env.local
