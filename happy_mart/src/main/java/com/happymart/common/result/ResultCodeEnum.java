@@ -17,6 +17,9 @@ public enum ResultCodeEnum {
     PARAM_ERROR(400, "参数错误"),
     PARAM_MISSING(400, "缺少必要参数"),
 
+    // 通用
+    NOT_FOUND(404, "资源不存在"),
+
     // 业务
     USER_EXIST(1001, "用户已存在"),
     USER_NOT_EXIST(1002, "用户不存在"),
