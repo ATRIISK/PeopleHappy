@@ -6,7 +6,8 @@
  */
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { mockProducts, categories } from '@/mock/products'
+import { getHotProducts } from '@/api/product'
+import { getCategoryTree } from '@/api/category'
 
 // 路由实例，用于页面跳转
 const router = useRouter()
@@ -39,13 +40,13 @@ const banners = [
 
 /**
  * 分类列表
- * 从 mock 数据中取前 8 个分类，用于快捷入口展示
+ * 从后端 API 获取全部分类，取前 8 个一级分类用于快捷入口展示
  */
-const categoryList = categories.slice(0, 8)
+const categoryList = ref([])
 
 /**
  * 热门商品列表
- * 从 mock 数据中取前 8 个商品，用于热门推荐展示
+ * 从后端 API 获取销量 Top 8 商品，用于热门推荐展示
  */
 const hotProducts = ref([])
 
@@ -66,12 +67,25 @@ function goToProduct(id) {
 }
 
 /**
- * 组件挂载时加载热门商品数据
- * mockProducts 为同步数据，但使用 async 保持与 Mock 函数一致性
+ * 组件挂载时加载分类和热门商品数据
  */
 onMounted(async () => {
-  // 取前 8 个商品作为热门推荐
-  hotProducts.value = mockProducts.slice(0, 8)
+  try {
+    // 获取分类树，取前 8 个一级分类作为快捷入口
+    const tree = await getCategoryTree()
+    categoryList.value = tree.slice(0, 8)
+  } catch (err) {
+    console.error('加载分类数据失败:', err)
+    categoryList.value = []
+  }
+
+  try {
+    // 获取热门商品 Top 8
+    hotProducts.value = await getHotProducts()
+  } catch (err) {
+    console.error('加载热门商品失败:', err)
+    hotProducts.value = []
+  }
 })
 </script>
 

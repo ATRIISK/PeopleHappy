@@ -1,5 +1,6 @@
 package com.happymart.config;                    // 包声明 → 配置类统一放 config 包
 
+import com.happymart.interceptor.JwtAuthInterceptor; // 拦截器 → 从 interceptor 包导入
 import lombok.RequiredArgsConstructor;             // @RequiredArgsConstructor → 自动构造器注入
 import org.springframework.context.annotation.Configuration; // @Configuration → 标记这是一个配置类
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry; // 拦截器注册器 → 注册拦截器用的
@@ -35,10 +36,17 @@ public class WebMvcConfig implements WebMvcConfigurer {
         registry.addInterceptor(jwtAuthInterceptor)          // 注册拦截器
                 .addPathPatterns("/**")                      // 拦截所有请求
                 .excludePathPatterns(                        // 不拦截以下路径
-                        "/api/user/register",                // 注册接口
-                        "/api/user/login"                    // 登录接口
-                        // 以后其他不需要登录的接口也加在这里↓
-                        // "/api/product/list",              // 商品列表（以后开放）
+                        "/api/user/register",                // 注册接口 → 没登录也能注册
+                        "/api/user/login",                   // 登录接口 → 没登录也能登录
+                        "/api/product/list",                 // 商品列表 → 游客也能看
+                        "/api/product/detail/**",            // 商品详情 → 游客也能看
+                        "/api/product/hot",                  // 热门商品 → 游客也能看
+                        "/api/category/**"                   // 分类查询 → 游客也能看
+                        // ⚠️ 新增公开接口一定要加在这里！
+                        // 否则会被 JWT 拦截器拦截，返回 401 未登录
+                        // 比如：
+                        // "/api/cart/list",   ← 这个不能加！购物车需要登录才能看
+                        // "/api/order/**",    ← 这个不能加！订单需要登录才能看
                 );
     }
 }

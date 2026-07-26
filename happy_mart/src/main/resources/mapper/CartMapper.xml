@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!--
+购物车 Mapper XML
+放了 3 个自定义 SQL：
+1. selectCartVOList → 联表查购物车 + 商品信息
+2. deleteByUserIdAndProductId → 按 userId + productId 删除
+3. deleteByUserId → 按 userId 清空
+4. updateQuantityByUserIdAndProductId → 按 userId + productId 更新数量
+
+BaseMapper 自带的方法不需要在这里写 SQL（MyBatis-Plus 自动生成）。
+-->
+<mapper namespace="com.happymart.mapper.CartMapper">
+
+    <!--
+    ========== 1. 购物车列表联表查询 ==========
+    查询某个用户的购物车，JOIN product 表拿商品名称/图片/价格/库存。
+    返回结果映射到 CartVO 对象。
+
+    resultMap 的作用：
+    告诉 MyBatis"查询结果的每一列对应 Java 对象的哪个字段"。
+    因为 SQL 查出来的列名是 product_id、create_time，
+    但 Java 字段名是 productId、createTime，需要映射。
+
+    注意：
+    - cart 表的字段 → 映射到 CartVO 的对应字段
+    - product 表的字段 → 也映射到 CartVO 的对应字段（VO 里包含了商品信息）
+    - 不需要映射的字段（比如 cart.user_id）没写在结果里，因为 VO 不需要它
+    -->
+    <resultMap id="CartVOResultMap" type="com.happymart.vo.CartVO">
+        <!-- cart 表字段 -->
+        <id column="id" property="id"/>                     <!-- cart.id → CartVO.id -->
+        <result column="product_id" property="productId"/>  <!-- cart.product_id → CartVO.productId -->
+        <result column="quantity" property="quantity"/>     <!-- cart.quantity → CartVO.quantity -->
+        <result column="create_time" property="createTime"/><!-- cart.create_time → CartVO.createTime -->
+
+        <!-- product 表字段 -->
+        <result column="name" property="name"/>             <!-- product.name → CartVO.name -->
+        <result column="image" property="image"/>           <!-- product.image → CartVO.image -->
+        <result column="price" property="price"/>           <!-- product.price → CartVO.price -->
+        <result column="stock" property="stock"/>           <!-- product.stock → CartVO.stock -->
+    </resultMap>
+
+    <!--
+    执行这个 SQL：
+    SELECT
+        cart.id, cart.product_id, cart.quantity, cart.create_time,
+        product.name, product.image, product.price, product.stock
+    FROM cart
+    LEFT JOIN product ON cart.product_id = product.id
+    WHERE cart.user_id = #{userId}
+    ORDER BY cart.create_time DESC
+
+    参数：
+    #{userId} → Java 方法参数上的 @Param("userId") 传进来的值
+
+    排序：
+    ORDER BY create_time DESC → 最新加入的排在最前面
+
+    LEFT JOIN 的原因：
+    如果 product 表删了某条记录，RIGHT JOIN 或 INNER JOIN 会导致购物车记录查不出来，
+    LEFT JOIN 保证购物车记录一定在，只是商品信息为 null。
+    -->
+    <select id="selectCartVOList" resultMap="CartVOResultMap">
+        SELECT
+            cart.id,
+            cart.product_id,
+            cart.quantity,
+            cart.create_time,
+            product.name,
+            product.image,
+            product.price,
+            product.stock
+        FROM cart
+                 LEFT JOIN product ON cart.product_id = product.id
+        WHERE cart.user_id = #{userId}
+        ORDER BY cart.create_time DESC
+    </select>
+
+    <!--
+    ========== 2. 按 userId + productId 删除 ==========
+    前端删除操作传的是 productId，不是 cartId。
+    所以需要同时用 userId 和 productId 两个条件来定位。
+
+    DELETE FROM cart WHERE user_id = #{userId} AND product_id = #{productId}
+
+    注意：
+    - 这里不是逻辑删除（Cart 表没有 is_deleted 字段）
+    - 购物车数据不重要，删了就没了，不需要恢复
+    -->
+    <delete id="deleteByUserIdAndProductId">
+        DELETE FROM cart
+        WHERE user_id = #{userId}
+          AND product_id = #{productId}
+    </delete>
+
+    <!--
+    ========== 3. 按 userId 清空购物车 ==========
+    前端"清空购物车"功能调用。
+    直接删除这个用户的所有购物车记录。
+
+    DELETE FROM cart WHERE user_id = #{userId}
+    -->
+    <delete id="deleteByUserId">
+        DELETE FROM cart
+        WHERE user_id = #{userId}
+    </delete>
+
+    <!--
+    ========== 4. 按 userId + productId 更新数量 ==========
+    前端修改购物车中某个商品的数量时调用。
+
+    UPDATE cart SET quantity = #{quantity}
+    WHERE user_id = #{userId} AND product_id = #{productId}
+
+    注意：
+    - quantity 不能小于 1（前端 el-input-number 的 min=1 限制了）
+    - 这里不做库存校验，库存校验在下单时做
+    -->
+    <update id="updateQuantityByUserIdAndProductId">
+        UPDATE cart
+        SET quantity = #{quantity}
+        WHERE user_id = #{userId}
+          AND product_id = #{productId}
+    </update>
+
+</mapper>

@@ -8,7 +8,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useUserStore } from '@/stores/user'
 import { useCartStore } from '@/stores/cart'
-import { categories } from '@/mock/products'
+import { getCategoryTree } from '@/api/category'
 
 // 路由
 const router = useRouter()
@@ -72,8 +72,32 @@ async function handleLogout() {
   }
 }
 
-// 组件挂载时，如果已登录则获取用户信息
+/**
+ * 分类列表（从后端 API 获取，替代原先的 mock 数据）
+ * 用于顶部分类导航栏展示
+ */
+const categoryList = ref([])
+
+/**
+ * 获取分类列表
+ * 调用后端 API 获取全部分类树，取一级分类用于导航栏展示
+ */
+async function fetchCategories() {
+  try {
+    const res = await getCategoryTree()
+    if (res.code === 200) {
+      categoryList.value = res.data || []
+    }
+  } catch {
+    // 分类加载失败不影响页面主体功能，静默处理
+  }
+}
+
+// 组件挂载时，获取分类列表 + 如果已登录则获取用户信息
 onMounted(async () => {
+  // 获取分类数据（替换原来的 mock 导入）
+  fetchCategories()
+
   if (userStore.isLoggedIn) {
     try {
       await userStore.getUserInfo()
@@ -158,7 +182,7 @@ onMounted(async () => {
         <span class="all-categories">全部分类</span>
         <span class="nav-separator">|</span>
         <router-link
-          v-for="cat in categories"
+          v-for="cat in categoryList"
           :key="cat.id"
           :to="{ name: 'Products', query: { categoryId: cat.id } }"
           class="nav-link"

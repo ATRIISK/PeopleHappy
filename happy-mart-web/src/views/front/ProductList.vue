@@ -4,9 +4,10 @@
  * 左侧分类筛选（el-tree）+ 右侧商品网格
  * 支持分类筛选、关键词搜索（来自路由 query）、排序、分页
  */
-import { ref, watch, computed } from 'vue'
+import { ref, watch, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { categories, getProducts } from '@/mock/products'
+import { getProducts } from '@/api/product'
+import { getCategoryTree } from '@/api/category'
 
 // 路由
 const route = useRoute()
@@ -38,10 +39,16 @@ const loading = ref(false)
 /** 错误信息 */
 const error = ref('')
 
-// ==================== 分类树数据 ====================
+// ==================== 分类数据 ====================
+
+/** 分类树数据（从后端 API 获取） */
+const categories = ref([])
+
+/** 分类树加载状态 */
+const categoriesLoading = ref(true)
 
 /**
- * 将 categories mock 数据转换为 el-tree 需要的格式
+ * 将分类数据转换为 el-tree 需要的格式
  * 外层套一个"全部分类"根节点，将 name 字段映射为 label 字段
  */
 const treeData = computed(() => {
@@ -49,10 +56,10 @@ const treeData = computed(() => {
     {
       id: 'all',
       label: '全部分类',
-      children: categories.map(cat => ({
+      children: categories.value.map(cat => ({
         id: cat.id,
         label: cat.name,
-        children: cat.children.map(child => ({
+        children: (cat.children || []).map(child => ({
           id: child.id,
           label: child.name
         }))
@@ -88,17 +95,17 @@ async function loadProducts() {
     const params = {
       categoryId: route.query.categoryId || undefined,
       keyword: route.query.keyword || undefined,
-      sort: sortBy.value || undefined,
+      sortBy: sortBy.value || undefined,
       page: currentPage.value,
       size: pageSize.value
     }
 
-    // 调用 mock 接口获取商品数据（异步，返回 Promise）
+    // 调用后端 API 获取商品数据
     const result = await getProducts(params)
 
-    // 更新商品列表和总数
-    products.value = result.records
-    total.value = result.total
+    // 更新商品列表和总数（后端返回 records/total/current/size）
+    products.value = result.records || []
+    total.value = result.total || 0
   } catch (err) {
     // 加载失败时显示错误信息
     console.error('加载商品列表失败:', err)
@@ -161,6 +168,20 @@ function handleSizeChange(size) {
 function goToProduct(id) {
   router.push({ name: 'ProductDetail', params: { id } })
 }
+
+// ==================== 加载分类数据 ====================
+
+/** 组件挂载时从后端获取分类树数据 */
+onMounted(async () => {
+  try {
+    categories.value = await getCategoryTree()
+  } catch (err) {
+    console.error('加载分类树失败:', err)
+    categories.value = []
+  } finally {
+    categoriesLoading.value = false
+  }
+})
 
 // ==================== 监听路由变化 ====================
 

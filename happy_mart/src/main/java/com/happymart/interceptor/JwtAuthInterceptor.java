@@ -1,4 +1,4 @@
-package com.happymart.config;                    // 包声明 → 配置类统一放在 config 包下
+package com.happymart.interceptor;                    // 包声明 → 拦截器统一放在 interceptor 包下
 
 import com.happymart.common.annotation.Auth;                    // 自定义 @Auth 注解
 import com.happymart.common.result.Result;                      // 统一返回结果

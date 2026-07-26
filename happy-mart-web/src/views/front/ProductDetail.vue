@@ -8,7 +8,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { ShoppingCart } from '@element-plus/icons-vue'
-import { getProductById } from '@/mock/products'
+import { getProductById } from '@/api/product'
 import { useUserStore } from '@/stores/user'
 import { useCartStore } from '@/stores/cart'
 
@@ -90,7 +90,7 @@ async function loadProduct() {
       throw new Error('商品 ID 无效')
     }
 
-    // 调用 mock 接口获取商品详情（异步，返回 Promise）
+    // 调用后端 API 获取商品详情
     const result = await getProductById(id)
 
     // 检查商品是否存在
