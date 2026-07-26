@@ -6,6 +6,7 @@
 import { ref, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { Search, ShoppingCart, User, ArrowDown, List, Location, SwitchButton } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
 import { useCartStore } from '@/stores/cart'
 import { getCategoryTree } from '@/api/category'
@@ -48,6 +49,8 @@ function goToCategory(categoryId) {
 function handleDropdownCommand(command) {
   if (command === 'orders') {
     router.push({ name: 'Orders' })
+  } else if (command === 'address') {
+    router.push({ name: 'AddressManager' })
   } else if (command === 'logout') {
     handleLogout()
   }
@@ -163,6 +166,10 @@ onMounted(async () => {
                   <el-dropdown-item command="orders">
                     <el-icon><List /></el-icon>
                     我的订单
+                  </el-dropdown-item>
+                  <el-dropdown-item command="address">
+                    <el-icon><Location /></el-icon>
+                    地址管理
                   </el-dropdown-item>
                   <el-dropdown-item command="logout" divided>
                     <el-icon><SwitchButton /></el-icon>

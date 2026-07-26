@@ -169,10 +169,14 @@ async function handleAddToCart() {
 
 /**
  * 立即购买
+ *
+ * 流程：
+ * 1. 先把这个商品+数量加入购物车
+ * 2. 再跳转到购物车页，用户可继续结算
+ *
  * 未登录：提示并跳转登录页
- * 已登录：跳转到订单确认页
  */
-function handleBuyNow() {
+async function handleBuyNow() {
   // 检查登录状态
   if (!userStore.isLoggedIn) {
     ElMessage.warning('请先登录')
@@ -180,8 +184,16 @@ function handleBuyNow() {
     return
   }
 
-  // 跳转到订单确认页（目前跳转到购物车，后续可实现立即下单功能）
-  router.push({ name: 'Cart' })
+  try {
+    // 先把商品加入购物车（带上用户选好的数量）
+    await cartStore.addItem(product.value.id, quantity.value)
+    ElMessage.success(`已加入购物车，共 ${quantity.value} 件`)
+    // 跳转到购物车页，用户可继续勾选/结算
+    router.push({ name: 'Cart' })
+  } catch (err) {
+    console.error('加入购物车失败:', err)
+    ElMessage.error('操作失败，请稍后重试')
+  }
 }
 
 // ==================== 生命周期 ====================

@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.happymart.mapper.OrderItemMapper">
+
+    <!--
+    批量插入订单项
+
+    INSERT INTO order_item (order_id, product_id, quantity, price) VALUES
+    (?, ?, ?, ?),
+    (?, ?, ?, ?),
+    ...
+
+    foreach 标签说明：
+    - collection="items" → Java 方法的 @Param("items") 参数
+    - item="item" → 循环中的每个元素叫 item
+    - separator="," → 值组之间用逗号分隔
+    -->
+    <insert id="insertBatch">
+        INSERT INTO order_item (order_id, product_id, quantity, price)
+        VALUES
+        <foreach collection="items" item="item" separator=",">
+            (#{item.orderId}, #{item.productId}, #{item.quantity}, #{item.price})
+        </foreach>
+    </insert>
+
+</mapper>

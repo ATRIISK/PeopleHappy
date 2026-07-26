@@ -39,6 +39,18 @@ const routes = [
         name: 'Orders',
         component: () => import('@/views/front/OrderList.vue'),
         meta: { title: '我的订单', requireAuth: true }
+      },
+      {
+        path: 'orders/:id',
+        name: 'OrderDetail',
+        component: () => import('@/views/front/OrderDetail.vue'),
+        meta: { title: '订单详情', requireAuth: true }
+      },
+      {
+        path: 'address',
+        name: 'AddressManager',
+        component: () => import('@/views/front/AddressManager.vue'),
+        meta: { title: '地址管理', requireAuth: true }
       }
     ]
   },

@@ -29,6 +29,9 @@ public enum ResultCodeEnum {
     PAY_FAIL(4001, "支付失败"),
     PAY_SIGN_ERROR(4002, "支付签名验证失败"),
 
+    // 地址
+    ADDRESS_NOT_FOUND(3003, "地址不存在"),
+
     // 系统
     SYSTEM_ERROR(5000, "系统异常"),
     DB_ERROR(5001, "数据库异常"),

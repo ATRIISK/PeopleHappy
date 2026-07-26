@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!--
+订单 Mapper XML
+3 个自定义 SQL：
+1. selectOrderVOById → 查单个订单（含订单项 + 商品信息）
+2. selectOrderVOListByUserId → 分页查用户订单列表
+3. updateStock → 扣减库存（带 stock >= quantity 安全检查）
+
+注意：order 是 MySQL 关键字，SQL 里要用反引号包裹
+-->
+<mapper namespace="com.happymart.mapper.OrderMapper">
+
+    <!--
+    order + order_item + product 三表联查的结果映射到 OrderVO
+    collection 标签处理"一对多"关系：一个订单有多个订单项
+
+    OrderVO.OrderItemVO 在 Java 中是内部类
+    MyBatis 中用 $ 符号引用内部类：com.happymart.vo.OrderVO$OrderItemVO
+    -->
+    <resultMap id="OrderVOResultMap" type="com.happymart.vo.OrderVO">
+        <!-- order 表字段 -->
+        <id column="id" property="id"/>
+        <result column="order_no" property="orderNo"/>
+        <result column="total_amount" property="totalAmount"/>
+        <result column="status" property="status"/>
+        <result column="address_id" property="addressId"/>
+        <result column="create_time" property="createTime"/>
+
+        <!-- address 表字段（联表查询） -->
+        <result column="address_name" property="addressName"/>
+        <result column="address_phone" property="addressPhone"/>
+        <result column="address_detail" property="addressDetail"/>
+
+        <!-- 订单项列表（一对多映射） -->
+        <collection property="items" ofType="com.happymart.vo.OrderVO$OrderItemVO">
+            <id column="item_id" property="id"/>
+            <result column="item_product_id" property="productId"/>
+            <result column="item_product_name" property="productName"/>
+            <result column="item_product_image" property="productImage"/>
+            <result column="item_price" property="price"/>
+            <result column="item_quantity" property="quantity"/>
+        </collection>
+    </resultMap>
+
+    <!--
+    查询单个订单详情（含订单项和商品信息）
+    用 LEFT JOIN 保证即使商品被删了，订单项也能查出来
+    -->
+    <select id="selectOrderVOById" resultMap="OrderVOResultMap">
+        SELECT
+            o.id,
+            o.order_no,
+            o.total_amount,
+            o.status,
+            o.address_id,
+            o.create_time,
+            a.name          AS address_name,
+            a.phone         AS address_phone,
+            CONCAT(a.province, a.city, IFNULL(a.district,''), a.detail) AS address_detail,
+            oi.id           AS item_id,
+            oi.product_id   AS item_product_id,
+            oi.price        AS item_price,
+            oi.quantity     AS item_quantity,
+            p.name          AS item_product_name,
+            p.image         AS item_product_image
+        FROM `order` o
+                 LEFT JOIN address a ON o.address_id = a.id
+                 LEFT JOIN order_item oi ON o.id = oi.order_id
+                 LEFT JOIN product p ON oi.product_id = p.id
+        WHERE o.id = #{id}
+        ORDER BY oi.id ASC
+    </select>
+
+    <!--
+    分页查询用户订单列表（含订单项和商品信息）
+    按用户ID过滤，可选按状态过滤
+    按创建时间倒序（最新的在最前面）
+    -->
+    <select id="selectOrderVOListByUserId" resultMap="OrderVOResultMap">
+        SELECT
+            o.id,
+            o.order_no,
+            o.total_amount,
+            o.status,
+            o.address_id,
+            o.create_time,
+            a.name          AS address_name,
+            a.phone         AS address_phone,
+            CONCAT(a.province, a.city, IFNULL(a.district,''), a.detail) AS address_detail,
+            oi.id           AS item_id,
+            oi.product_id   AS item_product_id,
+            oi.price        AS item_price,
+            oi.quantity     AS item_quantity,
+            p.name          AS item_product_name,
+            p.image         AS item_product_image
+        FROM `order` o
+                 LEFT JOIN address a ON o.address_id = a.id
+                 LEFT JOIN order_item oi ON o.id = oi.order_id
+                 LEFT JOIN product p ON oi.product_id = p.id
+        WHERE o.user_id = #{userId}
+        <if test="status != null">
+            AND o.status = #{status}
+        </if>
+        ORDER BY o.create_time DESC
+    </select>
+
+    <!--
+    扣减商品库存（安全扣减）
+    UPDATE product SET stock = stock - #{quantity}
+    WHERE id = #{productId} AND stock >= #{quantity}
+
+    这个 WHERE stock >= #{quantity} 非常关键！
+    它是乐观锁，保证不会出现"库存为负"的情况
+    如果库存不够，影响行数 = 0，Java 代码抛异常触发事务回滚
+    -->
+    <update id="updateStock">
+        UPDATE product
+        SET stock = stock - #{quantity}
+        WHERE id = #{productId}
+          AND stock >= #{quantity}
+    </update>
+
+</mapper>

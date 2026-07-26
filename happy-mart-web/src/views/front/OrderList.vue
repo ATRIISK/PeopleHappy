@@ -1,12 +1,15 @@
 <script setup>
 /**
  * 订单列表页组件
- * 展示当前用户的订单列表，支持按订单状态筛选、付款、取消订单、确认收货等操作
- * 套用 FrontLayout 布局，作为路由 /orders 的子页面
+ * 展示当前用户的订单列表，支持按状态筛选、取消、确认收货
+ * 真实 API 版本（已替换 Mock 数据）
  */
 import { ref, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { getOrders, ORDER_STATUS } from '@/mock/orders'
+import { getOrderList, cancelOrder, confirmOrder } from '@/api/order'
+
+const router = useRouter()
 
 // ==================== 响应式状态 ====================
 
@@ -21,6 +24,15 @@ const loading = ref(false)
 
 // ==================== 状态配置 ====================
 
+/** 订单状态文字映射 */
+const ORDER_STATUS = {
+  0: '待付款',
+  1: '待发货',
+  2: '待收货',
+  3: '已完成',
+  4: '已取消'
+}
+
 /** Tab 选项列表 */
 const statusTabs = [
   { label: '全部', value: null },
@@ -32,7 +44,8 @@ const statusTabs = [
 
 /**
  * 订单状态标签颜色映射
- * 0=待付款(danger), 1=待发货(warning), 2=待收货(primary), 3=已完成(success), 4=已取消(info)
+ * 0待付款(danger红色) 1待发货(warning橙色) 2待收货(primary蓝色)
+ * 3已完成(success绿色) 4已取消(info灰色)
  */
 const statusTypeMap = {
   0: 'danger',
@@ -46,17 +59,17 @@ const statusTypeMap = {
 
 /**
  * 加载订单列表
- * 根据当前选中的状态筛选条件，调用 getOrders 获取数据
+ * 调后端 API getOrderList，支持按状态筛选
  */
 async function loadOrders() {
   loading.value = true
   try {
-    const params = {}
+    const params = { page: 1, size: 10 }
     if (activeStatus.value !== null) {
       params.status = activeStatus.value
     }
-    const res = await getOrders(params)
-    orderList.value = res.records
+    const res = await getOrderList(params)
+    orderList.value = res.records || []
   } catch (err) {
     console.error('获取订单列表失败:', err)
     ElMessage.error('获取订单列表失败，请稍后重试')
@@ -67,7 +80,6 @@ async function loadOrders() {
 
 /**
  * 切换状态 Tab 时重新加载数据
- * @param {number|null} status - 选中的状态值
  */
 function handleStatusChange(status) {
   activeStatus.value = status
@@ -77,35 +89,14 @@ function handleStatusChange(status) {
 // ==================== 订单操作 ====================
 
 /**
- * 去付款
- * 弹出确认对话框，确认后将订单状态修改为 1（待发货）
- * @param {Object} order - 订单对象
+ * 去付款（跳转到订单详情页，后续对接微信支付）
  */
-async function handlePay(order) {
-  try {
-    await ElMessageBox.confirm(
-      `确定要支付订单「${order.orderNo}」吗？`,
-      '确认付款',
-      {
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
-        type: 'warning'
-      }
-    )
-    // 修改订单状态为待发货（1）
-    order.status = 1
-    ElMessage.success('付款成功')
-    // 重新加载列表
-    await loadOrders()
-  } catch {
-    // 用户取消操作，不处理
-  }
+function handlePay(order) {
+  router.push({ name: 'OrderDetail', params: { id: order.id } })
 }
 
 /**
- * 取消订单
- * 弹出确认对话框，确认后将订单状态修改为 4（已取消）
- * @param {Object} order - 订单对象
+ * 取消订单（调后端 API）
  */
 async function handleCancel(order) {
   try {
@@ -118,10 +109,8 @@ async function handleCancel(order) {
         type: 'warning'
       }
     )
-    // 修改订单状态为已取消（4）
-    order.status = 4
+    await cancelOrder(order.id)
     ElMessage.success('订单已取消')
-    // 重新加载列表
     await loadOrders()
   } catch {
     // 用户取消操作，不处理
@@ -129,9 +118,7 @@ async function handleCancel(order) {
 }
 
 /**
- * 确认收货
- * 弹出确认对话框，确认后将订单状态修改为 3（已完成）
- * @param {Object} order - 订单对象
+ * 确认收货（调后端 API）
  */
 async function handleConfirm(order) {
   try {
@@ -144,19 +131,23 @@ async function handleConfirm(order) {
         type: 'warning'
       }
     )
-    // 修改订单状态为已完成（3）
-    order.status = 3
+    await confirmOrder(order.id)
     ElMessage.success('已确认收货')
-    // 重新加载列表
     await loadOrders()
   } catch {
     // 用户取消操作，不处理
   }
 }
 
+/**
+ * 查看订单详情
+ */
+function goToDetail(orderId) {
+  router.push({ name: 'OrderDetail', params: { id: orderId } })
+}
+
 // ==================== 生命周期 ====================
 
-// 组件挂载时获取订单数据
 onMounted(() => {
   loadOrders()
 })
@@ -210,6 +201,9 @@ onMounted(() => {
             <el-tag :type="statusTypeMap[order.status]" size="small">
               {{ ORDER_STATUS[order.status] }}
             </el-tag>
+            <el-button text type="primary" size="small" @click="goToDetail(order.id)">
+              查看详情
+            </el-button>
           </div>
         </div>
 
