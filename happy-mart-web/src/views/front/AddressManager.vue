@@ -2,7 +2,10 @@
   <!-- 地址管理页面 -->
   <div class="address-manager">
     <div class="page-header">
-      <h2>地址管理</h2>
+      <div class="header-left">
+        <el-button text @click="goBack" class="back-btn">← 返回</el-button>
+        <h2>地址管理</h2>
+      </div>
       <el-button type="primary" @click="showAddDialog">
         <el-icon><Plus /></el-icon>添加新地址
       </el-button>
@@ -103,11 +106,13 @@
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
 import { getAddressList, addAddress, updateAddress, deleteAddress } from '@/api/address'
 
 // ===== 状态 =====
+const router = useRouter()
 const addressList = ref([])       // 地址列表
 const loading = ref(false)        // 加载中
 const saving = ref(false)         // 保存中
@@ -145,6 +150,11 @@ onMounted(async () => {
 })
 
 // ===== 方法 =====
+
+/** 返回上一页 */
+function goBack() {
+  router.back()
+}
 
 /** 加载地址列表 */
 async function loadAddressList() {
@@ -255,6 +265,26 @@ async function handleSetDefault(item) {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 20px;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.back-btn {
+  font-size: 14px;
+  color: #666;
+  border: 1px solid #d9d9d9;
+  border-radius: 4px;
+  padding: 4px 12px;
+}
+
+.back-btn:hover {
+  color: #1a1a2e;
+  border-color: #1a1a2e;
+  background: #f8f8f8;
 }
 
 .page-header h2 {

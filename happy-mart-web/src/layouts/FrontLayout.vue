@@ -1,7 +1,7 @@
 <script setup>
 /**
  * 前台布局组件 — 亚马逊风格
- * 包含：深色顶栏（Logo + 搜索 + 购物车 + 用户菜单）、分类导航栏、主内容区、页脚
+ * 包含：深色顶栏（Logo + 首页/商品导航 + 搜索 + 购物车 + 用户菜单）、分类导航栏、全局面包屑+返回按钮、主内容区、页脚
  */
 import { ref, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
@@ -81,6 +81,11 @@ async function handleLogout() {
  */
 const categoryList = ref([])
 
+/** 返回上一页 */
+function goBack() {
+  router.back()
+}
+
 /**
  * 获取分类列表
  * 调用后端 API 获取全部分类树，取一级分类用于导航栏展示
@@ -116,11 +121,15 @@ onMounted(async () => {
     <!-- ==================== 深色顶栏 ==================== -->
     <header class="top-header">
       <div class="header-inner">
-        <!-- Logo -->
+        <!-- Logo + 主导航 -->
         <router-link to="/" class="logo">
           <span class="logo-icon">🛒</span>
           <span class="logo-text">众乐商城</span>
         </router-link>
+        <div class="top-nav">
+          <router-link to="/" class="top-nav-link" :class="{ active: route.name === 'Home' }">首页</router-link>
+          <router-link to="/products" class="top-nav-link" :class="{ active: ['Products', 'ProductDetail'].includes(route.name) }">商品</router-link>
+        </div>
 
         <!-- 搜索框 -->
         <div class="search-box">
@@ -184,20 +193,31 @@ onMounted(async () => {
     </header>
 
     <!-- ==================== 分类导航栏 ==================== -->
-    <nav class="category-nav">
-      <div class="nav-inner">
-        <span class="all-categories">全部分类</span>
-        <span class="nav-separator">|</span>
+    <nav class="category-bar">
+      <div class="category-bar-inner">
         <router-link
           v-for="cat in categoryList"
           :key="cat.id"
           :to="{ name: 'Products', query: { categoryId: cat.id } }"
-          class="nav-link"
+          class="cat-link"
         >
           {{ cat.name }}
         </router-link>
       </div>
     </nav>
+
+    <!-- ==================== 全局面包屑 + 返回按钮（首页不显示） ==================== -->
+    <div v-if="route.name !== 'Home'" class="breadcrumb-wrapper">
+      <el-button text class="back-btn" @click="goBack">← 返回</el-button>
+      <el-breadcrumb v-if="route.name !== 'ProductDetail'" separator="/">
+        <el-breadcrumb-item :to="{ path: '/' }">首页</el-breadcrumb-item>
+        <el-breadcrumb-item v-if="route.name === 'Products'">商品列表</el-breadcrumb-item>
+        <el-breadcrumb-item v-else-if="route.name === 'Cart'">购物车</el-breadcrumb-item>
+        <el-breadcrumb-item v-else-if="route.name === 'Orders'">我的订单</el-breadcrumb-item>
+        <el-breadcrumb-item v-else-if="route.name === 'OrderDetail'">我的订单</el-breadcrumb-item>
+        <el-breadcrumb-item v-else-if="route.name === 'AddressManager'">地址管理</el-breadcrumb-item>
+      </el-breadcrumb>
+    </div>
 
     <!-- ==================== 主内容区 ==================== -->
     <main class="main-content">
@@ -362,47 +382,63 @@ onMounted(async () => {
   white-space: nowrap;
 }
 
-/* ==================== 分类导航栏 ==================== */
-.category-nav {
-  background: #f5f5f5;
-  border-bottom: 1px solid #e0e0e0;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+/* ==================== 顶部导航 ==================== */
+.top-nav {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 8px;
 }
 
-.nav-inner {
+.top-nav-link {
+  color: rgba(255, 255, 255, 0.8);
+  text-decoration: none;
+  padding: 0 12px;
+  height: 64px;
+  line-height: 64px;
+  font-size: 15px;
+  transition: all 0.2s;
+}
+
+.top-nav-link:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.top-nav-link.active {
+  color: #fff;
+  font-weight: 600;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+/* ==================== 分类导航栏 ==================== */
+.category-bar {
+  background: #f5f5f5;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.category-bar-inner {
   max-width: 1400px;
   margin: 0 auto;
   display: flex;
   align-items: center;
-  height: 44px;
+  height: 40px;
   padding: 0 20px;
-  gap: 4px;
-  font-size: 14px;
+  gap: 2px;
+  font-size: 13px;
 }
 
-.all-categories {
-  font-weight: bold;
-  color: #1a1a2e;
-  white-space: nowrap;
-}
-
-.nav-separator {
-  color: #ccc;
-  margin: 0 4px;
-}
-
-.nav-link {
-  color: #555;
+.cat-link {
+  color: #666;
   text-decoration: none;
   padding: 0 12px;
-  line-height: 44px;
+  line-height: 40px;
   white-space: nowrap;
   transition: color 0.2s;
 }
 
-.nav-link:hover {
+.cat-link:hover {
   color: #1a1a2e;
-  background: rgba(26, 26, 46, 0.05);
 }
 
 /* ==================== 主内容区 ==================== */
@@ -451,5 +487,32 @@ onMounted(async () => {
 .footer-copyright {
   color: #999;
   font-size: 13px;
+}
+
+/* ==================== 全局面包屑 + 返回按钮 ==================== */
+.breadcrumb-wrapper {
+  max-width: 1400px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 8px 20px 0;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.back-btn {
+  font-size: 13px;
+  color: #666;
+  border: 1px solid #d9d9d9;
+  border-radius: 4px;
+  padding: 4px 12px;
+  flex-shrink: 0;
+}
+
+.back-btn:hover {
+  color: #1a1a2e;
+  border-color: #1a1a2e;
+  background: #f8f8f8;
 }
 </style>

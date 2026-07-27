@@ -95,7 +95,7 @@ onMounted(async () => {
     <section class="banner-section">
       <el-carousel
         height="360px"
-        indicator-position="dots"
+        indicator-position="outside"
         arrow="always"
         :interval="4000"
       >

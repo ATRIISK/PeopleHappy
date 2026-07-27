@@ -408,6 +408,13 @@ function goShopping() {
   router.push({ name: 'Products' })
 }
 
+/**
+ * 继续购物：跳转到商品列表页
+ */
+function continueShopping() {
+  router.push({ name: 'Products' })
+}
+
 // ==================== 生命周期 ====================
 
 // 组件挂载时获取购物车数据
@@ -547,6 +554,9 @@ onMounted(async () => {
             @click="handleBatchDelete"
           >
             删除选中（{{ checkedCount }}）
+          </el-button>
+          <el-button size="small" plain @click="continueShopping">
+            ← 继续购物
           </el-button>
         </div>
 
