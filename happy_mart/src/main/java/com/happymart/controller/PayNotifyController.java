@@ -1,15 +1,17 @@
 package com.happymart.controller;
 
+import com.happymart.common.annotation.Auth;
+import com.happymart.common.result.Result;
+import com.happymart.common.result.ResultCodeEnum;
 import com.happymart.entity.PaymentLog;
 import com.happymart.mapper.PaymentLogMapper;
 import com.happymart.service.AlipayService;
 import com.happymart.service.OrderService;
+import com.happymart.vo.OrderVO;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -87,5 +89,32 @@ public class PayNotifyController {
 
         // ===== 5. 必须返回纯文本，不能是 JSON =====
         return verified ? "success" : "failure";
+    }
+
+    /**
+     * 【开发调试用】模拟支付宝异步通知，直接标记订单为已支付
+     *
+     * POST /api/pay/simulate/{orderId}
+     *
+     * 纯开发辅助接口，跳过支付宝验签流程，直接调 orderService.handlePaid() 更新订单状态。
+     * 配合前端轮询 GET /api/order/status/{id} 使用，方便本地调试"支付成功→状态更新→跳转"的全流程。
+     * ⚠️ 上线前需关闭或移除该接口，防止被恶意调用绕过支付。
+     *
+     * @param orderId 订单 ID
+     */
+    @Auth
+    @PostMapping("/simulate/{orderId}")
+    public Result<Void> simulatePayment(HttpServletRequest request, @PathVariable Long orderId) {
+        Long userId = (Long) request.getAttribute("currentUserId");
+        log.info("模拟支付回调: orderId={}, userId={}", orderId, userId);
+        // 通过 OrderService 校验订单存在 + 状态（不直接调 Mapper，符合 MVC 规范）
+        OrderVO orderVO = orderService.getOrderDetail(userId, orderId);
+        if (orderVO.getStatus() != 0) {
+            return Result.fail(ResultCodeEnum.ORDER_STATUS_ERROR,
+                    "当前订单状态不允许模拟支付，status=" + orderVO.getStatus());
+        }
+        orderService.handlePaid(orderVO.getOrderNo(), "SIMULATE_" + System.currentTimeMillis());
+        log.info("模拟支付回调成功: orderId={}, orderNo={}, userId={}", orderId, orderVO.getOrderNo(), userId);
+        return Result.success();
     }
 }

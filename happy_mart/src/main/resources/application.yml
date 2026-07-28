@@ -68,11 +68,13 @@ jwt:
 # 因个人开发者无法申请微信支付企业商户号，改用支付宝沙箱环境验证支付链路
 # 沙箱环境和生产环境用同一套 SDK / 签名算法(RSA2) / 接口名，仅网关地址和 APPID 不同
 alipay:
-  app-id: 沙箱APPID（在支付宝开放平台-沙箱环境页面获取）
-  private-key: 商户应用私钥（用"RSA签名验签工具2.0"生成密钥对，PKCS8 格式）
-  alipay-public-key: 支付宝公钥（生成密钥对后，把商户公钥填入沙箱后台，沙箱会返回这个）
-  gateway-url: https://openapi.alipaydev.com/gateway.do   # 沙箱网关，生产环境是 openapi.alipay.com
-  notify-url: https://your-ngrok-domain.ngrok.io/api/pay/notify   # 回调地址，本地开发用 ngrok 转发出去
+  app-id: 9021000166615256
+  private-key: |
+    MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQCK7A6QehMuhPUucbAUUgFBHZ4GVILoGRKXcQlL/bzJLzBpvcotICHSsq/LjmW7VaVsjbK4Q8EO8Vpl7noCV8VPFyoeVbX3uNJBwpRXy+RV4j8ED0KxsXSJKT2SaxyHW1VaNrJncUqVQdyM0IK6j5klrWdMc0EdbVcbQ2wGw1vC4VCAg1utsCfC47YnT9Hfz+XutnGgffm5mEx0ikhf9Xm210raAy5NPQVpi2jfdsly+YHOqWzdJ2/3sPq/P9AFGhcK4VKCczvS6/anvY1x/g7/GgFqznNu3oeM8mRUSmAYMetvA7aMUcqL6qwFyJM0KW3S69WgQD5dleqwziWjrLV3AgMBAAECggEAZn1s6U4GpMVWlWMugm9VmZKeKRFkWpNU0gGE2FlkVBDKaNiqNcyE54sIguaVSzYOix2nAqaJ4dpR1O2xedUDLixq2GJnk1D5XaaOBo/X7zyxPO99RtcioKaaVFFNhNbvC1VbHVHJsoAalJCoQbb7R368vPwyx+EI6IY/RmYOZqD096nTPzU78lIX+sjL6yb1jebwqjyCrdmWDCoQckXHMoxCYKrQU7Ar/eTcxsGsRePmGI7Fwn3Gv31jwjegIXTn+TwTZrD6l+Rdp/70SI1EWrlvC5rDBvbETXUryDQRCR/MsD3CURCzqfTiCKXmsRCNmEnHKK7u6d0w7sdKG4NNsQKBgQDiXMHLFnbi4HPQfPrEZuoFAwQdA/am9b0JXztLKuvGrOHL2J98S6nHgXUY42dTkRgpzbrzi7DwDbBJUoLHeMrKAQJP91BUrmOFiRDloR6SB9naiynmYEVcW1urpnf71toHo3Ozf0aMty1ENfKOK9WCj1rZVbVCVj5jQ30ahuBhiwKBgQCdHHdkNydVxDbvVDGK33EKm1dagOe0Ihcy6hpd6zpsm1LApQAxC47xtxMcYlzac+L+7Dl85r6ub/rPLuY2w+uKbMQJBSrLu4tIQNJ6xWAPe0U5tO0LBR8xVZs0a4hdYxD5J2RT1WFfTQBaIf1EhZLA2UXTExiWuct3/N2yys6hRQKBgQDcBHSIxWkA1FE9kHzdcXp9LJVO7o9LcQcwmNO1GB7bmSZPUFqUIacAN6BtdHr2Cs2FtGXGWzy711JFsmFTKOFSvvBUcXovFOG+5Z7600Q3hFIHzcQIHALO5i2QBdoRep+pVQIcsdUM6O6ioh0Eey6oHFadcGUh+VniebKbmgV2SQKBgCFrEKosYR2JIvY9Plx/spfC+w2xJZfXOIAH85vOkRrQ3wVDE4tbHgikHFiJQ57jz4DR1liO7DhGcV7oZud3PP6wq/IPO08ikTnJL/wVR52DZvIjXdheOohP4TeBN/xFOjMFAf4jARc4Vb7WQ/zzPIfwrz16blyBIJphGvcQ1GrRAoGBAODtS1f/sgSLzAh15uqKFFF7GvyoZGan5Th3X7eHZFiG+5MHMLmShMAUZQ3d0L8G9rv+Az5m9SzKo0r+R0RirhAaVzUDZozLHmRGF2aLIUDzw/wH4i+NuxKA8eTeDM7iHASl+nA1NGVGzi76l3mKbBhdPtpPRlFoqMpwBufKLjyx
+  alipay-public-key: |
+    MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAivL4zVUkGPId04gd0UYKY7cWVUWDUyjxHfmYXkTL+gLSKKFvW2wZpLiJZKqpOy8nb/b1k16hzFSmScEtIXi+QdqCwFd/ZMjeMbU5zdZ3i+b5H0j6OFOLgkFXaKY2T2WuA3PkGWZInlZ+YudOMZ2VBTrsU87Ft18R7zuozh4NPBSzL0izl8Oz3Yv7K11A4B/zvs7bNgVh2RFMQWGzA6Rq0q54r7J7V0kUSWz+4lhQMTGpo4X6whe2pjyoMcpjhOK97XfaBDLLhr0ZlxaIYgQ3rHRMLyPuH7TtMr8/+e9uuwYMs2ADvqL4i/Oa6+B3B0OpggxvTcax4Ocid9bpBPOG3QIDAQAB
+  gateway-url: https://openapi-sandbox.dl.alipaydev.com/gateway.do   # 新版沙箱网关（旧版 openapi.alipaydev.com 已废弃）
+  notify-url: https://0654527ccb32ad.lhr.life/api/pay/notify   # 本地开发隧道地址（localhost.run，重启后需更新）
   sign-type: RSA2
   charset: UTF-8
   format: json

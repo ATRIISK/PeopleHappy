@@ -65,3 +65,35 @@ export function confirmOrder(id) {
 export function updateOrderAddress(orderId, addressId) {
   return request.put(`/order/updateAddress/${orderId}`, { addressId }).then(res => res.data)
 }
+
+/**
+ * 发起支付宝扫码支付
+ * POST /api/order/pay/{id}
+ * 只能对"待付款"的订单发起，返回含 codeUrl（二维码内容）的 PayVO
+ * @param {number} id - 订单ID
+ * @returns {Promise<{codeUrl: string}>} { codeUrl: "https://qr.alipay.com/..." }
+ */
+export function payOrder(id) {
+  return request.post(`/order/pay/${id}`).then(res => res.data)
+}
+
+/**
+ * 查询订单支付状态（前端轮询用）
+ * GET /api/order/status/{id}
+ * @param {number} id - 订单ID
+ * @returns {Promise<number>} 订单状态：0待支付 1已支付 2已发货 3已完成 4已取消
+ */
+export function getOrderStatus(id) {
+  return request.get(`/order/status/${id}`).then(res => res.data)
+}
+
+/**
+ * 【开发调试用】模拟支付宝回调，直接标记订单为已支付
+ * POST /api/pay/simulate/{orderId}
+ * 绕过支付宝回调通知，用于本地开发调试支付成功流程
+ * @param {number} orderId - 订单ID
+ * @returns {Promise}
+ */
+export function simulatePayment(orderId) {
+  return request.post(`/pay/simulate/${orderId}`)
+}

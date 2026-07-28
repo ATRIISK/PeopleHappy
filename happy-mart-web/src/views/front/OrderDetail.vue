@@ -206,9 +206,9 @@ async function loadOrderDetail(id) {
   }
 }
 
-/** 去支付（暂为占位，对接微信支付时实现） */
+/** 去支付：跳转到支付宝扫码支付页面 */
 function handlePay() {
-  ElMessage.info('支付功能即将上线')
+  router.push({ name: 'Pay', params: { id: order.value.id } })
 }
 
 /** 取消订单 */

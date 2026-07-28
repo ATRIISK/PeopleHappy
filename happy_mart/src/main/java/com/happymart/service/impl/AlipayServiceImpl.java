@@ -3,9 +3,12 @@ package com.happymart.service.impl;
 import com.alipay.api.AlipayApiException;
 import com.alipay.api.AlipayClient;
 import com.alipay.api.domain.AlipayTradePrecreateModel;
+import com.alipay.api.domain.AlipayTradeQueryModel;
 import com.alipay.api.internal.util.AlipaySignature;
 import com.alipay.api.request.AlipayTradePrecreateRequest;
+import com.alipay.api.request.AlipayTradeQueryRequest;
 import com.alipay.api.response.AlipayTradePrecreateResponse;
+import com.alipay.api.response.AlipayTradeQueryResponse;
 import com.happymart.common.exception.BusinessException;
 import com.happymart.common.result.ResultCodeEnum;
 import com.happymart.service.AlipayService;
@@ -81,6 +84,35 @@ public class AlipayServiceImpl implements AlipayService {
         PayVO payVO = new PayVO();
         payVO.setCodeUrl(response.getQrCode());
         return payVO;
+    }
+
+    @Override
+    public TradeQueryResult queryTrade(String orderNo) {
+        log.info("主动查询支付宝交易状态: orderNo={}", orderNo);
+
+        AlipayTradeQueryModel model = new AlipayTradeQueryModel();
+        model.setOutTradeNo(orderNo);
+
+        AlipayTradeQueryRequest request = new AlipayTradeQueryRequest();
+        request.setBizModel(model);
+
+        try {
+            AlipayTradeQueryResponse response = alipayClient.execute(request);
+            if (response.isSuccess()) {
+                String tradeStatus = response.getTradeStatus();
+                String tradeNo = response.getTradeNo();
+                log.info("支付宝交易查询成功: orderNo={}, tradeStatus={}, tradeNo={}",
+                        orderNo, tradeStatus, tradeNo);
+                return new TradeQueryResult(tradeStatus, tradeNo);
+            } else {
+                log.warn("支付宝交易查询返回失败: orderNo={}, code={}, msg={}, subMsg={}",
+                        orderNo, response.getCode(), response.getMsg(), response.getSubMsg());
+                return new TradeQueryResult(null, null);
+            }
+        } catch (AlipayApiException e) {
+            log.error("调用支付宝交易查询接口失败: orderNo={}", orderNo, e);
+            return new TradeQueryResult(null, null);
+        }
     }
 
     @Override

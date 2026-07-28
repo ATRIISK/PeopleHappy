@@ -93,10 +93,10 @@ function handleStatusChange(status) {
 // ==================== 订单操作 ====================
 
 /**
- * 去付款（跳转到订单详情页，后续对接微信支付）
+ * 去付款（跳转到支付宝扫码支付页面）
  */
 function handlePay(order) {
-  router.push({ name: 'OrderDetail', params: { id: order.id } })
+  router.push({ name: 'Pay', params: { id: order.id } })
 }
 
 /**

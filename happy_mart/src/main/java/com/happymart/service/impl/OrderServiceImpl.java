@@ -278,7 +278,7 @@ public class OrderServiceImpl implements OrderService {
             throw new BusinessException(ResultCodeEnum.ORDER_STATUS_ERROR, "当前订单状态不允许支付");
         }
 
-        PayVO payVO = alipayService.createQrOrder(order.getOrderNo(), order.getTotalAmount(), "众乐电商城订单支付");
+        PayVO payVO = alipayService.createQrOrder(order.getOrderNo(), order.getTotalAmount(), "HappyMart Order Payment");
         log.info("支付宝扫码支付已创建: orderId={}, orderNo={}", orderId, order.getOrderNo());
         return payVO;
     }
@@ -290,6 +290,22 @@ public class OrderServiceImpl implements OrderService {
         if (order == null || !order.getUserId().equals(userId)) {
             throw new BusinessException(ResultCodeEnum.ORDER_NOT_FOUND);
         }
+
+        // 如果订单还是待付款，主动查支付宝交易状态（兜底方案）
+        // 防止异步通知因隧道不稳定丢失后，订单永远卡在"待付款"
+        if (order.getStatus() == 0 && order.getOrderNo() != null) {
+            AlipayService.TradeQueryResult tradeResult = alipayService.queryTrade(order.getOrderNo());
+            if (tradeResult != null
+                    && ("TRADE_SUCCESS".equals(tradeResult.getTradeStatus())
+                        || "TRADE_FINISHED".equals(tradeResult.getTradeStatus()))) {
+                // 支付宝那边已支付 → 同步更新本地订单状态
+                log.info("主动查询到支付宝已支付，同步更新订单: orderNo={}, tradeNo={}",
+                        order.getOrderNo(), tradeResult.getTradeNo());
+                handlePaid(order.getOrderNo(), tradeResult.getTradeNo());
+                return 1; // 已支付
+            }
+        }
+
         return order.getStatus();
     }
 
