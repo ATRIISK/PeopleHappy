@@ -15,6 +15,7 @@ import org.apache.ibatis.annotations.Param;
  * - selectOrderVOById → 查单个订单详情（含订单项和商品信息）
  * - selectOrderVOListByUserId → 分页查用户订单列表（含订单项和商品信息）
  * - updateStock → 安全扣减商品库存（带库存检查）
+ * - selectByOrderNo → 根据商户订单号查订单（支付宝异步通知只带 out_trade_no，没有订单主键ID）
  */
 public interface OrderMapper extends BaseMapper<Order> {
 
@@ -54,4 +55,13 @@ public interface OrderMapper extends BaseMapper<Order> {
      * @return 影响行数（0=库存不足）
      */
     int updateStock(@Param("productId") Long productId, @Param("quantity") Integer quantity);
+
+    /**
+     * 根据商户订单号查询订单
+     * 支付宝异步通知回调里只带 out_trade_no（对应 order.order_no），不带订单主键ID
+     *
+     * @param orderNo 商户订单号
+     * @return 订单实体
+     */
+    Order selectByOrderNo(@Param("orderNo") String orderNo);
 }

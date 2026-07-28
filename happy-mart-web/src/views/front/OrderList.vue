@@ -24,27 +24,31 @@ const loading = ref(false)
 
 // ==================== 状态配置 ====================
 
-/** 订单状态文字映射 */
+/**
+ * 订单状态文字映射
+ * 与数据库 order.status 字段定义、开发文档保持一致（详见 OrderDetail.vue 的 STATUS_MAP）：
+ * 0待付款 1已支付 2已发货 3已完成 4已取消
+ */
 const ORDER_STATUS = {
   0: '待付款',
-  1: '待发货',
-  2: '待收货',
+  1: '已支付',
+  2: '已发货',
   3: '已完成',
   4: '已取消'
 }
 
-/** Tab 选项列表 */
+/** Tab 选项列表（与 ORDER_STATUS 文字保持一致） */
 const statusTabs = [
   { label: '全部', value: null },
   { label: '待付款', value: 0 },
-  { label: '待发货', value: 1 },
-  { label: '待收货', value: 2 },
+  { label: '已支付', value: 1 },
+  { label: '已发货', value: 2 },
   { label: '已完成', value: 3 }
 ]
 
 /**
  * 订单状态标签颜色映射
- * 0待付款(danger红色) 1待发货(warning橙色) 2待收货(primary蓝色)
+ * 0待付款(danger红色) 1已支付(warning橙色) 2已发货(primary蓝色)
  * 3已完成(success绿色) 4已取消(info灰色)
  */
 const statusTypeMap = {
@@ -250,13 +254,13 @@ onMounted(() => {
                 取消订单
               </el-button>
             </template>
-            <!-- 待收货：显示确认收货 -->
+            <!-- 已发货：显示确认收货 -->
             <template v-else-if="order.status === 2">
               <el-button type="primary" @click="handleConfirm(order)">
                 确认收货
               </el-button>
             </template>
-            <!-- 其他状态（待发货、已完成、已取消）：无按钮 -->
+            <!-- 其他状态（已支付、已完成、已取消）：无按钮 -->
           </div>
         </div>
       </div>

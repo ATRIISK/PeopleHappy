@@ -122,4 +122,14 @@
           AND stock >= #{quantity}
     </update>
 
+    <!--
+    根据商户订单号查询订单（支付宝异步通知回调用，只带 out_trade_no）
+    直接映射到 Order 实体，字段名走全局 map-underscore-to-camel-case，不需要额外 resultMap
+    -->
+    <select id="selectByOrderNo" resultType="com.happymart.entity.Order">
+        SELECT *
+        FROM `order`
+        WHERE order_no = #{orderNo}
+    </select>
+
 </mapper>

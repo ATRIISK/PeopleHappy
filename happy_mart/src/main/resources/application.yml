@@ -64,6 +64,15 @@ jwt:
   secret: happymart-jwt-secret-key-for-happy-mart-online-shop-2026
   expiration: 86400000
 
-logging:
-  level:
-    com.happymart: debug
+# 支付宝开放平台沙箱环境配置
+# 因个人开发者无法申请微信支付企业商户号，改用支付宝沙箱环境验证支付链路
+# 沙箱环境和生产环境用同一套 SDK / 签名算法(RSA2) / 接口名，仅网关地址和 APPID 不同
+alipay:
+  app-id: 沙箱APPID（在支付宝开放平台-沙箱环境页面获取）
+  private-key: 商户应用私钥（用"RSA签名验签工具2.0"生成密钥对，PKCS8 格式）
+  alipay-public-key: 支付宝公钥（生成密钥对后，把商户公钥填入沙箱后台，沙箱会返回这个）
+  gateway-url: https://openapi.alipaydev.com/gateway.do   # 沙箱网关，生产环境是 openapi.alipay.com
+  notify-url: https://your-ngrok-domain.ngrok.io/api/pay/notify   # 回调地址，本地开发用 ngrok 转发出去
+  sign-type: RSA2
+  charset: UTF-8
+  format: json

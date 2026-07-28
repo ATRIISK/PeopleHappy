@@ -6,6 +6,7 @@ import com.happymart.common.result.Result;
 import com.happymart.dto.OrderCreateDTO;
 import com.happymart.service.OrderService;
 import com.happymart.vo.OrderVO;
+import com.happymart.vo.PayVO;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -121,5 +122,32 @@ public class OrderController {
         log.info("确认收货: id={}, userId={}", id, userId);
         orderService.confirmOrder(userId, id);
         return Result.success();
+    }
+
+    /**
+     * 发起支付宝扫码支付（只能对"待付款"的订单发起）
+     * POST /api/order/pay/{id}
+     * 返回 codeUrl（支付宝 qr_code），前端渲染成二维码，用支付宝沙箱钱包App扫码
+     */
+    @Auth
+    @PostMapping("/pay/{id}")
+    public Result<PayVO> pay(HttpServletRequest request, @PathVariable Long id) {
+        Long userId = (Long) request.getAttribute("currentUserId");
+        log.info("发起支付: id={}, userId={}", id, userId);
+        PayVO payVO = orderService.pay(userId, id);
+        return Result.success(payVO);
+    }
+
+    /**
+     * 查询订单支付状态（前端下单后轮询用）
+     * GET /api/order/status/{id}
+     * 返回订单状态：0待付款 1已支付 2已发货 3已完成 4已取消
+     */
+    @Auth
+    @GetMapping("/status/{id}")
+    public Result<Integer> getPayStatus(HttpServletRequest request, @PathVariable Long id) {
+        Long userId = (Long) request.getAttribute("currentUserId");
+        Integer status = orderService.getPayStatus(userId, id);
+        return Result.success(status);
     }
 }

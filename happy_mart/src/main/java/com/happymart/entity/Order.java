@@ -41,10 +41,10 @@ public class Order {
     /** 收货地址ID */
     private Long addressId;
 
-    /** 微信支付交易号（支付成功后回填） */
+    /** 支付宝交易号 trade_no（支付成功后由异步通知回填） */
     private String transactionId;
 
-    /** 微信预支付ID（调用统一下单后回填） */
+    /** 预支付ID（当前扫码支付流程不使用，支付宝 precreate 接口只返回 qr_code，没有这个概念；保留字段以便将来扩展 JSAPI 支付） */
     private String prepayId;
 
     /** 支付时间 */

@@ -2,6 +2,7 @@ package com.happymart.service;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.happymart.vo.OrderVO;
+import com.happymart.vo.PayVO;
 
 import java.util.List;
 
@@ -79,4 +80,31 @@ public interface OrderService {
      * @param newAddressId  新收货地址 ID
      */
     void updateOrderAddress(Long userId, Long orderId, Long newAddressId);
+
+    /**
+     * 发起支付宝扫码支付（只能操作"待付款"的订单）
+     *
+     * @param userId  当前用户 ID
+     * @param orderId 订单 ID
+     * @return 支付 VO（含 codeUrl，即支付宝 qr_code）
+     */
+    PayVO pay(Long userId, Long orderId);
+
+    /**
+     * 查询订单支付状态（前端下单后轮询用）
+     *
+     * @param userId  当前用户 ID
+     * @param orderId 订单 ID
+     * @return 订单状态：0待付款 1已支付 2已发货 3已完成 4已取消
+     */
+    Integer getPayStatus(Long userId, Long orderId);
+
+    /**
+     * 处理支付宝异步通知：订单标记为已支付
+     * 由 PayNotifyController 验签通过后调用
+     *
+     * @param orderNo 商户订单号
+     * @param tradeNo 支付宝交易号
+     */
+    void handlePaid(String orderNo, String tradeNo);
 }

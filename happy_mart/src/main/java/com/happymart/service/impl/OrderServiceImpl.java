@@ -12,9 +12,11 @@ import com.happymart.mapper.CartMapper;
 import com.happymart.mapper.OrderItemMapper;
 import com.happymart.mapper.OrderMapper;
 import com.happymart.mapper.ProductMapper;
+import com.happymart.service.AlipayService;
 import com.happymart.service.OrderService;
 import com.happymart.vo.CartVO;
 import com.happymart.vo.OrderVO;
+import com.happymart.vo.PayVO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -45,6 +47,7 @@ public class OrderServiceImpl implements OrderService {
     private final CartMapper cartMapper;
     private final ProductMapper productMapper;
     private final AddressMapper addressMapper;
+    private final AlipayService alipayService;
 
     @Override
     public OrderVO createOrder(Long userId, Long addressId, List<Long> productIds) {
@@ -257,6 +260,60 @@ public class OrderServiceImpl implements OrderService {
         order.setAddressId(newAddressId);
         orderMapper.updateById(order);
         log.info("订单地址已修改: orderId={}, newAddressId={}", orderId, newAddressId);
+    }
+
+    @Override
+    public PayVO pay(Long userId, Long orderId) {
+        log.info("发起支付宝扫码支付: orderId={}, userId={}", orderId, userId);
+
+        // 查订单 + 校验所有权
+        Order order = orderMapper.selectById(orderId);
+        if (order == null || !order.getUserId().equals(userId)) {
+            throw new BusinessException(ResultCodeEnum.ORDER_NOT_FOUND);
+        }
+
+        // 只有"待付款"的订单才能发起支付
+        if (order.getStatus() != 0) {
+            log.warn("发起支付失败: 当前状态不允许支付, status={}", order.getStatus());
+            throw new BusinessException(ResultCodeEnum.ORDER_STATUS_ERROR, "当前订单状态不允许支付");
+        }
+
+        PayVO payVO = alipayService.createQrOrder(order.getOrderNo(), order.getTotalAmount(), "众乐电商城订单支付");
+        log.info("支付宝扫码支付已创建: orderId={}, orderNo={}", orderId, order.getOrderNo());
+        return payVO;
+    }
+
+    @Override
+    public Integer getPayStatus(Long userId, Long orderId) {
+        // 查订单 + 校验所有权
+        Order order = orderMapper.selectById(orderId);
+        if (order == null || !order.getUserId().equals(userId)) {
+            throw new BusinessException(ResultCodeEnum.ORDER_NOT_FOUND);
+        }
+        return order.getStatus();
+    }
+
+    @Override
+    public void handlePaid(String orderNo, String tradeNo) {
+        log.info("处理支付宝支付回调: orderNo={}, tradeNo={}", orderNo, tradeNo);
+
+        Order order = orderMapper.selectByOrderNo(orderNo);
+        if (order == null) {
+            log.error("处理支付回调失败: 订单不存在, orderNo={}", orderNo);
+            throw new BusinessException(ResultCodeEnum.ORDER_NOT_FOUND);
+        }
+
+        // 只有"待付款"才处理，防止支付宝重复通知导致重复处理
+        if (order.getStatus() != 0) {
+            log.info("订单已处理过，跳过重复回调: orderNo={}, status={}", orderNo, order.getStatus());
+            return;
+        }
+
+        order.setStatus(1);     // 1=已支付
+        order.setTransactionId(tradeNo);
+        order.setPayTime(LocalDateTime.now());
+        orderMapper.updateById(order);
+        log.info("订单支付成功: orderNo={}, tradeNo={}", orderNo, tradeNo);
     }
 
     // ==================== 私有方法 ====================

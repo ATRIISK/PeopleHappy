@@ -111,6 +111,13 @@
             <groupId>org.springframework.security</groupId>
             <artifactId>spring-security-crypto</artifactId>
         </dependency>
+
+        <!-- 支付宝开放平台官方 SDK（沙箱环境和生产环境通用） -->
+        <dependency>
+            <groupId>com.alipay.sdk</groupId>
+            <artifactId>alipay-sdk-java</artifactId>
+            <version>4.40.645.ALL</version>
+        </dependency>
     </dependencies>
 
     <build>
