@@ -3,8 +3,6 @@ package com.happymart.controller;
 import com.happymart.common.annotation.Auth;
 import com.happymart.common.result.Result;
 import com.happymart.common.result.ResultCodeEnum;
-import com.happymart.entity.PaymentLog;
-import com.happymart.mapper.PaymentLogMapper;
 import com.happymart.service.AlipayService;
 import com.happymart.service.OrderService;
 import com.happymart.vo.OrderVO;
@@ -13,8 +11,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -38,7 +34,6 @@ public class PayNotifyController {
 
     private final AlipayService alipayService;
     private final OrderService orderService;
-    private final PaymentLogMapper paymentLogMapper;
 
     /**
      * 支付宝异步通知回调
@@ -74,18 +69,8 @@ public class PayNotifyController {
         }
 
         // ===== 4. 无论成功与否都留一条流水记录，方便排查问题 =====
-        PaymentLog paymentLog = new PaymentLog();
-        paymentLog.setOrderNo(orderNo);
-        paymentLog.setTransactionId(tradeNo);
-        paymentLog.setPayType("PRECREATE");
-        // 支付宝金额单位是"元"字符串，这里转成"分"存，和 payment_log.total_fee 的设计保持一致
-        if (totalAmount != null) {
-            paymentLog.setTotalFee(new BigDecimal(totalAmount).multiply(BigDecimal.valueOf(100)).intValue());
-        }
-        paymentLog.setTradeState(tradeStatus);
-        paymentLog.setNotifyRaw(notifyRaw);
-        paymentLog.setCreateTime(LocalDateTime.now());
-        paymentLogMapper.insert(paymentLog);
+        // 通过 AlipayService 记录（遵循 MVC：Controller 不直接调 Mapper）
+        alipayService.savePaymentLog(orderNo, tradeNo, totalAmount, tradeStatus, notifyRaw);
 
         // ===== 5. 必须返回纯文本，不能是 JSON =====
         return verified ? "success" : "failure";

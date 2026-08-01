@@ -6,7 +6,9 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.happymart.common.exception.BusinessException;
 import com.happymart.common.result.ResultCodeEnum;
+import com.happymart.entity.Category;
 import com.happymart.entity.Product;
+import com.happymart.mapper.CategoryMapper;
 import com.happymart.mapper.ProductMapper;
 import com.happymart.service.ProductService;
 import com.happymart.vo.ProductVO;
@@ -17,6 +19,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -50,6 +53,12 @@ public class ProductServiceImpl implements ProductService{
      * MyBatis-Plus 的 BaseMapper 自带 insert / deleteById / updateById / selectById / selectList 等方法
      */
     private final ProductMapper productMapper;
+
+    /**
+     * 分类 Mapper → 查询分类的子分类
+     * 分类筛选时用：点击一级分类要把它下面的所有子分类商品一起查出来
+     */
+    private final CategoryMapper categoryMapper;
 
     /**
      * Jackson 的 ObjectMapper → 用来把 JSON 字符串和 Java 对象互相转换
@@ -91,10 +100,23 @@ public class ProductServiceImpl implements ProductService{
         // 它帮我们生成 WHERE 语句，不用手写 SQL
         LambdaQueryWrapper<Product> wrapper = new LambdaQueryWrapper<>();
 
-        // 按分类筛选
-        // 前端传的是二级分类ID（比如 9=手机），直接匹配 category_id 字段
+        // ===== 按分类筛选（支持一级分类自动包含其子分类） =====
+        // 场景：商品挂在二级分类（如 9=手机）上，点击一级分类（如 1=手机数码）时
+        //      前端传的是父分类ID，必须把父分类展开为 [自身 + 全部子分类] 再查，
+        //      否则 WHERE category_id=1 查不到任何商品（语义对应前端 mock/products.js 的 getCategoryIds）
         if (categoryId != null) {
-            wrapper.eq(Product::getCategoryId, categoryId);  // WHERE category_id = ?
+            // 1. 查该分类下的所有子分类（parent_id = categoryId；逻辑删除由 MyBatis-Plus 全局配置自动过滤）
+            List<Category> children = categoryMapper.selectList(
+                    new LambdaQueryWrapper<Category>().eq(Category::getParentId, categoryId));
+            // 2. 组装分类ID集合：自身 + 子分类
+            //    - 一级分类有子分类（手机数码 1）→ [1, 9, 10] → 查到手机/平板下的商品
+            //    - 一级分类无子分类（家电 3）→ [3] → 行为不变
+            //    - 二级分类（手机 9）→ [9] → 行为不变
+            List<Long> categoryIds = new ArrayList<>();
+            categoryIds.add(categoryId);
+            children.forEach(child -> categoryIds.add(child.getId()));
+            // 3. WHERE category_id IN (...)
+            wrapper.in(Product::getCategoryId, categoryIds);
         }
 
         // 按关键词模糊搜索商品名称

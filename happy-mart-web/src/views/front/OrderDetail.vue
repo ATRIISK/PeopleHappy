@@ -32,6 +32,11 @@
           <span class="info-label">订单编号</span>
           <span class="info-value">{{ order.orderNo }}</span>
         </div>
+        <!-- 支付超时倒计时：仅"待付款"订单显示，提示用户还剩多久会被系统自动取消 -->
+        <div v-if="order.status === 0" class="countdown-tip">
+          <el-icon><Clock /></el-icon>
+          <span>剩余支付时间 <strong>{{ formatPayCountdown }}</strong>，超时自动取消</span>
+        </div>
       </div>
 
       <!-- ===== 收货地址卡片 ===== -->
@@ -90,6 +95,9 @@
         <el-button v-if="order.status === 0" size="large" @click="handleCancel">
           取消订单
         </el-button>
+        <el-button v-if="order.status === 1" type="danger" size="large" @click="handleRefund">
+          申请退单
+        </el-button>
         <el-button v-if="order.status === 2" type="success" size="large" @click="handleConfirm">
           确认收货
         </el-button>
@@ -146,10 +154,11 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { getOrderDetail, cancelOrder, confirmOrder, updateOrderAddress } from '@/api/order'
+import { Clock } from '@element-plus/icons-vue'
+import { getOrderDetail, cancelOrder, confirmOrder, refundOrder, updateOrderAddress } from '@/api/order'
 import { getAddressList } from '@/api/address'
 
 const route = useRoute()
@@ -167,16 +176,88 @@ const selectedAddressId = ref(null)    // 选中的地址ID
 const addressLoading = ref(false)      // 地址加载中
 
 // 状态映射（和 OrderList.vue 保持一致）
+// 0待付款 1已支付 2已发货 3已完成 4已取消 5已退款
 const STATUS_MAP = {
   0: { text: '待付款', type: 'danger' },
   1: { text: '已支付', type: 'warning' },
   2: { text: '已发货', type: 'primary' },
   3: { text: '已完成', type: 'success' },
-  4: { text: '已取消', type: 'info' }
+  4: { text: '已取消', type: 'info' },
+  5: { text: '已退款', type: 'info' }
 }
 
 const statusText = computed(() => STATUS_MAP[order.value?.status]?.text || '未知')
 const statusType = computed(() => STATUS_MAP[order.value?.status]?.type || 'info')
+
+// ==================== 支付超时倒计时 ====================
+
+/**
+ * 订单超时时间（毫秒）：30 分钟
+ * ⚠️ 必须与后端 RabbitMQConfig.ORDER_TIMEOUT_MS = 30 * 60 * 1000 保持一致！
+ * 后端在下单那一刻就开始 30 分钟超时计时（RabbitMQ 延迟队列 TTL），
+ * 前端也是从订单创建时间 + 30 分钟算剩余时间，两边才能对齐。
+ */
+const PAY_TIMEOUT_MS = 30 * 60 * 1000
+
+/** 剩余支付秒数（每秒递减） */
+const payCountdown = ref(0)
+/** 倒计时定时器 */
+let payTimer = null
+
+/** 支付截止时间戳 = 订单创建时间 + 30 分钟 */
+const payDeadline = computed(() => {
+  if (!order.value?.createTime) return 0
+  return new Date(order.value.createTime).getTime() + PAY_TIMEOUT_MS
+})
+
+/** 格式化倒计时：超过 1 小时显示 HH:MM:SS，否则 MM:SS */
+const formatPayCountdown = computed(() => {
+  const total = payCountdown.value
+  if (total <= 0) return '00:00'
+  const h = Math.floor(total / 3600)
+  const m = Math.floor((total % 3600) / 60)
+  const s = total % 60
+  if (h > 0) {
+    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+  }
+  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+})
+
+/** 启动倒计时：每秒刷新剩余秒数，归零后刷新订单详情（后端已自动取消订单） */
+function startPayCountdown() {
+  stopPayCountdown()
+  const update = () => {
+    const remaining = Math.floor((payDeadline.value - Date.now()) / 1000)
+    payCountdown.value = Math.max(0, remaining)
+    // 倒计时归零 → 订单已被后端超时取消（status=4）→ 重新加载详情刷新显示
+    if (payCountdown.value <= 0) {
+      stopPayCountdown()
+      loadOrderDetail(order.value.id)
+    }
+  }
+  update()
+  payTimer = setInterval(update, 1000)
+}
+
+/** 停止倒计时 */
+function stopPayCountdown() {
+  if (payTimer) {
+    clearInterval(payTimer)
+    payTimer = null
+  }
+}
+
+// 监听订单状态变化：待付款(0)时启动倒计时，其他状态（已支付/已取消等）停止
+watch(
+  () => order.value?.status,
+  (status) => {
+    if (status === 0) {
+      startPayCountdown()
+    } else {
+      stopPayCountdown()
+    }
+  }
+)
 
 // ===== 生命周期 =====
 onMounted(async () => {
@@ -187,6 +268,11 @@ onMounted(async () => {
     return
   }
   await loadOrderDetail(orderId)
+})
+
+// 组件销毁时停止倒计时，防止定时器泄漏
+onUnmounted(() => {
+  stopPayCountdown()
 })
 
 // ===== 方法 =====
@@ -222,6 +308,26 @@ async function handleCancel() {
     await cancelOrder(order.value.id)
     ElMessage.success('订单已取消')
     // 重新加载订单数据
+    await loadOrderDetail(order.value.id)
+  } catch {
+    // 用户取消操作
+  }
+}
+
+/** 退单退款（已支付未发货一键退单，恢复库存） */
+async function handleRefund() {
+  try {
+    await ElMessageBox.confirm(
+      '确定要对已支付的订单申请退单退款吗？退款后将恢复商品库存。',
+      '确认退单',
+      {
+        confirmButtonText: '确定退单',
+        cancelButtonText: '取消',
+        type: 'warning'
+      }
+    )
+    await refundOrder(order.value.id)
+    ElMessage.success('退单成功')
     await loadOrderDetail(order.value.id)
   } catch {
     // 用户取消操作
@@ -348,6 +454,26 @@ function goBack() {
 
 .info-value {
   color: #333;
+}
+
+/* ==================== 支付超时倒计时 ==================== */
+.countdown-tip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 12px;
+  padding: 10px 12px;
+  background: #f0f9ff;
+  border-radius: 6px;
+  font-size: 14px;
+  color: #409eff;
+}
+
+.countdown-tip strong {
+  font-size: 16px;
+  font-weight: 600;
+  color: #e4393c;
+  margin: 0 2px;
 }
 
 .section-title {

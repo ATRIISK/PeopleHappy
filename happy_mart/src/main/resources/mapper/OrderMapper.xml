@@ -123,6 +123,20 @@
     </update>
 
     <!--
+    恢复商品库存（取消订单/退单时回滚库存）
+    UPDATE product SET stock = stock + #{quantity}
+    WHERE id = #{productId}
+
+    与 updateStock 对应，取消或退单时把扣掉的库存加回来。
+    不需要 stock >= 0 检查，因为只是恢复原来的库存，不会超卖。
+    -->
+    <update id="restoreStock">
+        UPDATE product
+        SET stock = stock + #{quantity}
+        WHERE id = #{productId}
+    </update>
+
+    <!--
     根据商户订单号查询订单（支付宝异步通知回调用，只带 out_trade_no）
     直接映射到 Order 实体，字段名走全局 map-underscore-to-camel-case，不需要额外 resultMap
     -->
@@ -131,5 +145,47 @@
         FROM `order`
         WHERE order_no = #{orderNo}
     </select>
+
+    <!--
+    条件更新：取消"待支付"订单（防并发竞态）
+    WHERE status = 0 保证：
+    - 用户已支付（status=1）→ 影响行数 0 → 不会误取消
+    - 用户还没支付（status=0）→ 影响行数 1 → 取消成功
+    解决 30 分钟超时边界"支付 vs 取消"并发问题
+    -->
+    <update id="cancelPendingOrder">
+        UPDATE `order`
+        SET status = 4
+        WHERE id = #{id}
+          AND status = 0
+    </update>
+
+    <!--
+    条件更新：把"待支付"订单标记为"已支付"（支付宝回调/主动查询兜底）
+    WHERE status = 0 保证：
+    - 支付宝重复通知时，第一次成功（status=1），后续通知影响行数 0 自动跳过（幂等）
+    - 与超时取消并发时，只有一个操作能修改成功
+    -->
+    <update id="markOrderPaid">
+        UPDATE `order`
+        SET status = 1,
+            transaction_id = #{transactionId},
+            pay_time = NOW()
+        WHERE id = #{id}
+          AND status = 0
+    </update>
+
+    <!--
+    条件更新：把"已支付"订单标记为"已退款"（退单时用）
+    WHERE status = 1 保证：
+    - 并发/重复退单时，只有第一个请求（影响行数 1）会恢复库存
+    - 后面的重复请求影响行数 0，直接跳过，不会重复恢复库存
+    -->
+    <update id="refundPaidOrder">
+        UPDATE `order`
+        SET status = 5
+        WHERE id = #{id}
+          AND status = 1
+    </update>
 
 </mapper>

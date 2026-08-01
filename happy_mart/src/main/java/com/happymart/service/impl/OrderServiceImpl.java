@@ -3,6 +3,8 @@ package com.happymart.service.impl;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.happymart.common.exception.BusinessException;
+import com.happymart.config.RabbitMQConfig;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import com.happymart.common.result.ResultCodeEnum;
 import com.happymart.entity.Address;
 import com.happymart.entity.Order;
@@ -48,6 +50,9 @@ public class OrderServiceImpl implements OrderService {
     private final ProductMapper productMapper;
     private final AddressMapper addressMapper;
     private final AlipayService alipayService;
+    // ===== RabbitMQ 消息队列：用于下单后发送"订单超时取消"延迟消息 =====
+    // 通过 @RequiredArgsConstructor 自动注入（final 字段）
+    private final RabbitTemplate rabbitTemplate;
 
     @Override
     public OrderVO createOrder(Long userId, Long addressId, List<Long> productIds) {
@@ -158,6 +163,29 @@ public class OrderServiceImpl implements OrderService {
         // ===== 9. 查完整订单数据返回 =====
         OrderVO orderVO = orderMapper.selectOrderVOById(order.getId());
         log.info("订单创建成功: orderNo={}, totalAmount={}", orderNo, totalAmount);
+
+        // ===== ★ 发送延迟消息到 RabbitMQ（订单超时取消的兜底机制） =====
+        // 开发文档 §7.4 超时取消流程：
+        //   订单创建 → RabbitMQ 延迟队列（30分钟）→ 查询订单状态
+        //   → 如果 status=0（待支付）→ 更新为 4（已取消）+ 恢复库存
+        //
+        // 消息流向：进入 order.delay.queue（TTL=30分钟）
+        // - 用户 30 分钟内付了款 → 消息过期，消费者检查状态时会跳过（不重复取消）
+        // - 用户 30 分钟还没付款 → 消息进死信队列 → OrderTimeoutConsumer 取消订单
+        try {
+            rabbitTemplate.convertAndSend(
+                    RabbitMQConfig.ORDER_EXCHANGE,          // 交换机：order.exchange
+                    RabbitMQConfig.ORDER_DELAY_ROUTING_KEY, // 路由键：order.delay
+                    order.getId()                           // 消息体：订单ID
+            );
+            log.info("已发送订单超时取消延迟消息: orderId={}", order.getId());
+        } catch (Exception e) {
+            // RabbitMQ 发送失败不影响主流程
+            // 订单已经创建成功了，不能因为 MQ 挂了导致下单失败
+            // 打日志告警，后续可通过定时任务补偿
+            log.error("发送订单超时取消消息失败: orderId={}, error={}", order.getId(), e.getMessage(), e);
+        }
+
         return orderVO;
     }
 
@@ -204,9 +232,107 @@ public class OrderServiceImpl implements OrderService {
             throw new BusinessException(ResultCodeEnum.ORDER_STATUS_ERROR, "当前订单状态不允许取消");
         }
 
-        order.setStatus(4);     // 4=已取消
-        orderMapper.updateById(order);
-        log.info("订单已取消: id={}", orderId);
+        // ★ 条件更新：status 0 → 4（原子操作，WHERE status=0 防并发）
+        // 30 分钟边界可能出现"用户正在支付"和"取消订单"同时执行：
+        // - 用户已支付成功（status 变成 1）→ 影响行数 0 → 不取消，避免钱被白扣
+        // - 用户还没支付（status = 0）→ 影响行数 1 → 取消成功
+        int affected = orderMapper.cancelPendingOrder(orderId);
+        if (affected == 0) {
+            log.warn("取消订单失败: 订单状态已被修改（可能已支付）, orderId={}", orderId);
+            throw new BusinessException(ResultCodeEnum.ORDER_STATUS_ERROR, "订单状态已变化，无法取消");
+        }
+
+        // ★ 取消成功（状态确认变成 4）后才恢复库存
+        // 恢复商品库存（下单时扣了库存，取消要加回来）
+        // 开发文档 §7.4 超时取消流程也要求"如果有扣库存 → 回滚库存"
+        restoreStockByOrderId(orderId);
+
+        log.info("订单已取消: id={}, orderId={}，库存已回滚", orderId, orderId);
+    }
+
+    @Override
+    public void cancelOrderByTimeout(Long orderId) {
+        log.info("系统自动取消超时订单: orderId={}", orderId);
+
+        // 1. 查订单（不需要校验 userId，这是系统自动操作，不是用户请求）
+        //    主要目的是确认订单存在 + 拿 orderNo 用于日志
+        Order order = orderMapper.selectById(orderId);
+        if (order == null) {
+            log.warn("超时取消失败: 订单不存在, orderId={}", orderId);
+            return; // 订单不存在 → 不用处理
+        }
+
+        // 2. ★ 条件更新：status 0 → 4（原子操作，先改状态，再恢复库存）
+        //    这是防并发竞态的关键（开发文档 §7.4 超时取消流程）：
+        //    30 分钟边界可能出现"用户刚好支付成功"：
+        //    - 用户已支付（status 已是 1）→ 影响行数 0 → 直接 return，不取消已支付订单
+        //    - 用户还没支付（status = 0）→ 影响行数 1 → 取消成功，继续恢复库存
+        //    先改状态再恢复库存，保证即使与支付并发，也只有一个操作能恢复库存（不会双倍）
+        int affected = orderMapper.cancelPendingOrder(orderId);
+        if (affected == 0) {
+            // 用户已经付了款（status=1）或者已经取消/退款了
+            // 消息虽然过期了但不需要做任何操作
+            log.info("超时取消跳过: 订单已处理, orderId={}, status={}", orderId, order.getStatus());
+            return;
+        }
+
+        // 3. 取消成功（状态确认是 4）后才恢复库存
+        //    下单时扣了库存，取消要加回来；与 cancelOrder 复用同一个私有方法
+        restoreStockByOrderId(orderId);
+
+        log.info("订单已超时自动取消: orderId={}, orderNo={}，库存已回滚",
+                orderId, order.getOrderNo());
+    }
+
+    @Override
+    public void refundOrder(Long userId, Long orderId) {
+        log.info("退单退款: id={}, userId={}", orderId, userId);
+
+        // 查订单 + 校验所有权
+        Order order = orderMapper.selectById(orderId);
+        if (order == null || !order.getUserId().equals(userId)) {
+            throw new BusinessException(ResultCodeEnum.ORDER_NOT_FOUND);
+        }
+
+        // 只有"已支付"未发货的订单才能退单
+        // 已发货（2）需要联系客服，已完成（3）不能退
+        if (order.getStatus() != 1) {
+            log.warn("退单失败: 当前状态不允许退单, status={}", order.getStatus());
+            throw new BusinessException(ResultCodeEnum.ORDER_STATUS_ERROR, "当前订单状态不允许退单");
+        }
+
+        // ===== ★ 调用支付宝退款接口（先退款再改状态+恢复库存） =====
+        // 支付宝交易号在 order.transactionId 中，支付成功时由 handlePaid() 回填
+        String tradeNo = order.getTransactionId();
+        if (tradeNo == null || tradeNo.isEmpty()) {
+            log.error("退单失败: 订单无支付宝交易号, orderId={}", orderId);
+            throw new BusinessException(ResultCodeEnum.PAY_FAIL, "该订单无支付宝交易记录，退款失败");
+        }
+        // out_request_no 传订单号 orderNo 作为幂等键：
+        // 同一订单重复调用退款接口，支付宝返回相同结果而不会重复退款，
+        // 防止"支付宝退款成功但本地事务回滚"后重试时被支付宝拒绝。
+        boolean refundSuccess = alipayService.tradeRefund(
+                tradeNo, order.getTotalAmount(), order.getOrderNo(), order.getOrderNo());
+        if (!refundSuccess) {
+            log.error("退单失败: 支付宝退款接口返回失败, orderId={}, tradeNo={}", orderId, tradeNo);
+            throw new BusinessException(ResultCodeEnum.PAY_FAIL, "退款失败，请稍后重试或联系客服");
+        }
+
+        // ★ 条件更新：status 1 → 5（原子操作，WHERE status=1 防并发）
+        // 防止并发/重复退单导致库存被重复恢复：
+        // - 只有第一个把 status 从 1 改成 5 的请求（影响行数 1）才会恢复库存
+        // - 重复退单时影响行数 0 → 直接跳过（钱已经退了，不能报错也不能重复恢复库存）
+        int affected = orderMapper.refundPaidOrder(orderId);
+        if (affected == 0) {
+            log.warn("退单跳过: 订单状态已被修改, orderId={}", orderId);
+            return;
+        }
+
+        // 恢复商品库存（把扣掉的库存加回来）
+        restoreStockByOrderId(orderId);
+
+        log.info("退单成功: id={}, orderNo={}, tradeNo={}，库存已回滚，支付宝已退款",
+                orderId, order.getOrderNo(), tradeNo);
     }
 
     @Override
@@ -319,20 +445,39 @@ public class OrderServiceImpl implements OrderService {
             throw new BusinessException(ResultCodeEnum.ORDER_NOT_FOUND);
         }
 
-        // 只有"待付款"才处理，防止支付宝重复通知导致重复处理
-        if (order.getStatus() != 0) {
-            log.info("订单已处理过，跳过重复回调: orderNo={}, status={}", orderNo, order.getStatus());
+        // ★ 条件更新：status 0 → 1（原子操作，WHERE status=0）
+        // 有两个作用：
+        // 1. 幂等：支付宝可能重复通知，第一次成功后 status=1，重复通知影响行数 0 → 自动跳过
+        // 2. 防并发：与超时取消（cancelPendingOrder）并发时，
+        //    如果超时先执行把 status 改成 4，这里影响行数 0 → 不会把已取消的订单改回已支付
+        int affected = orderMapper.markOrderPaid(order.getId(), tradeNo);
+        if (affected == 0) {
+            log.info("订单已处理过或状态已变，跳过重复回调: orderNo={}, status={}",
+                    orderNo, order.getStatus());
             return;
         }
 
-        order.setStatus(1);     // 1=已支付
-        order.setTransactionId(tradeNo);
-        order.setPayTime(LocalDateTime.now());
-        orderMapper.updateById(order);
         log.info("订单支付成功: orderNo={}, tradeNo={}", orderNo, tradeNo);
     }
 
     // ==================== 私有方法 ====================
+
+    /**
+     * 恢复指定订单的所有商品库存
+     *
+     * 在取消订单/退单时调用，把扣掉的库存加回到 product 表。
+     * 遍历 order_item 表拿到每个商品的购买数量，逐个调用 restoreStock。
+     *
+     * @param orderId 订单 ID
+     */
+    private void restoreStockByOrderId(Long orderId) {
+        // 查订单项（拿到每个商品的购买数量）
+        List<OrderItem> items = orderItemMapper.selectByOrderId(orderId);
+        for (OrderItem item : items) {
+            orderMapper.restoreStock(item.getProductId(), item.getQuantity());
+            log.debug("库存已恢复: productId={}, quantity={}", item.getProductId(), item.getQuantity());
+        }
+    }
 
     /**
      * 生成订单号

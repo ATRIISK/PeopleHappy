@@ -9,8 +9,11 @@ import java.util.List;
 /**
  * 订单服务接口
  *
- * 提供创建订单、查看订单列表、查看订单详情、取消订单、确认收货
+ * 提供创建订单、查看订单列表、查看订单详情、取消订单、退单退款、确认收货
  * 所有操作都需要 userId（从 token 解析），确保只能操作自己的订单
+ *
+ * 更新记录：
+ * - 2026-07-29 新增 refundOrder（退单退款）
  */
 public interface OrderService {
 
@@ -55,11 +58,32 @@ public interface OrderService {
 
     /**
      * 取消订单（只能取消"待付款"的订单）
+     * 取消后恢复商品库存。
      *
      * @param userId  当前用户 ID
      * @param orderId 订单 ID
      */
     void cancelOrder(Long userId, Long orderId);
+
+    /**
+     * 退单退款（只能对"已支付"未发货的订单操作）
+     *
+     * 与 cancelOrder 的区别：
+     * - cancelOrder：status=0（待付款）→ 4（已取消），用户没付钱，不用走退款
+     * - refundOrder：status=1（已支付）→ 5（已退款），用户已付款，需要调支付宝退款接口 + 恢复库存
+     *
+     * 退款流程：
+     * 1. 校验订单状态（只有 status=1 才能退）
+     * 2. 调 AlipayService.tradeRefund() → 支付宝 alipay.trade.refund 接口
+     * 3. 恢复商品库存（restoreStockByOrderId）
+     * 4. 更新 status=5（已退款）
+     *
+     * 整个流程在 @Transactional 中执行，退款失败则整体回滚。
+     *
+     * @param userId  当前用户 ID
+     * @param orderId 订单 ID
+     */
+    void refundOrder(Long userId, Long orderId);
 
     /**
      * 确认收货（只能操作"已发货"的订单）
@@ -95,7 +119,7 @@ public interface OrderService {
      *
      * @param userId  当前用户 ID
      * @param orderId 订单 ID
-     * @return 订单状态：0待付款 1已支付 2已发货 3已完成 4已取消
+     * @return 订单状态：0待付款 1已支付 2已发货 3已完成 4已取消 5已退款
      */
     Integer getPayStatus(Long userId, Long orderId);
 
@@ -107,4 +131,22 @@ public interface OrderService {
      * @param tradeNo 支付宝交易号
      */
     void handlePaid(String orderNo, String tradeNo);
+
+    /**
+     * 系统自动取消超时订单（RabbitMQ 消费者调用）
+     *
+     * 和 cancelOrder 的区别：
+     * - cancelOrder → 用户主动取消，需要验证 userId（只能取消自己的订单）
+     * - cancelOrderByTimeout → 系统自动取消，无需验证 userId（30 分钟未支付自动取消）
+     *
+     * 逻辑：
+     * 1. 查订单
+     * 2. 只有 status=0（待支付）才能取消
+     * 3. 恢复商品库存（restoreStockByOrderId）
+     * 4. 更新 status=4（已取消）
+     * 5. 如果已支付（status≠0）→ 跳过，说明用户已经付了
+     *
+     * @param orderId 订单 ID
+     */
+    void cancelOrderByTimeout(Long orderId);
 }

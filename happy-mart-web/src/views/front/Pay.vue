@@ -147,9 +147,35 @@ const qrImage = ref('')          // 二维码图片（base64 data URL）
 const errorMessage = ref('')     // 错误信息
 
 // ===== 倒计时 =====
-/** 支付总倒计时（秒）：30 分钟 */
-const TOTAL_COUNTDOWN = 30 * 60
-const countdown = ref(TOTAL_COUNTDOWN)
+
+/**
+ * 订单超时时间（毫秒）：30 分钟
+ * ⚠️ 必须与后端 RabbitMQConfig.ORDER_TIMEOUT_MS = 30 * 60 * 1000 保持一致！
+ *
+ * 关键点：倒计时从"订单创建时间"开始算，不是从"进入支付页"开始算。
+ * 因为后端 RabbitMQ 延迟队列是在下单那一刻就开始 30 分钟超时计时的，
+ * 如果用户下单 20 分钟后才进支付页，后端只剩 10 分钟就会自动取消订单。
+ * 前端从创建时间算剩余时间，才能和后端完全对齐，避免误导用户。
+ */
+const PAY_TIMEOUT_MS = 30 * 60 * 1000
+
+/** 支付剩余秒数（每秒递减） */
+const countdown = ref(0)
+
+/** 支付截止时间戳 = 订单创建时间 + 30 分钟 */
+const payDeadline = computed(() => {
+  if (!orderInfo.value?.createTime) return 0
+  return new Date(orderInfo.value.createTime).getTime() + PAY_TIMEOUT_MS
+})
+
+/**
+ * 计算剩余支付秒数（与后端 TTL 完全对齐）
+ * 剩余 = (创建时间 + 30分钟) - 当前时间，最少为 0
+ * @returns {number} 剩余秒数
+ */
+function getRemainingSeconds() {
+  return Math.max(0, Math.floor((payDeadline.value - Date.now()) / 1000))
+}
 
 /** 支付成功后跳转倒计时（秒） */
 const redirectCountdown = ref(3)
@@ -259,8 +285,9 @@ async function fetchQrCode() {
 async function refreshQrCode() {
   try {
     await fetchQrCode()
-    // 重置倒计时
-    countdown.value = TOTAL_COUNTDOWN
+    // 重置倒计时（按订单剩余时间计算，不是重置回 30 分钟）
+    // 刷新二维码不会延长订单超时时间，后端 TTL 是从下单时刻算死的
+    countdown.value = getRemainingSeconds()
     ElMessage.success('二维码已刷新')
   } catch (err) {
     ElMessage.error(err.message || '刷新二维码失败')
@@ -317,18 +344,51 @@ function startRedirectCountdown() {
 // ==================== 倒计时 ====================
 
 /**
- * 支付倒计时（30 分钟）
- * 倒计时归零后二维码过期，提示用户刷新
+ * 支付倒计时（30 分钟，从下单时刻算起）
+ * 倒计时归零后：查询订单状态，若已被后端自动取消则提示用户
  */
 function startCountdown() {
-  countdown.value = TOTAL_COUNTDOWN
+  // 先按"创建时间 + 30分钟"计算剩余秒数，与后端 TTL 对齐
+  countdown.value = getRemainingSeconds()
+
+  // 如果进入页面时剩余时间已经是 0（比如下单超过 30 分钟才进来）
+  // 说明订单大概率已被后端自动取消，直接查状态并提示
+  if (countdown.value <= 0) {
+    handleCountdownExpired()
+    return
+  }
+
   countdownTimer = setInterval(() => {
-    countdown.value--
+    // 每秒重新计算剩余时间（比 countdown-- 更准，避免定时器累计误差）
+    countdown.value = getRemainingSeconds()
     if (countdown.value <= 0) {
       clearInterval(countdownTimer)
       countdownTimer = null
+      handleCountdownExpired()
     }
   }, 1000)
+}
+
+/**
+ * 倒计时归零后的处理
+ *
+ * 30 分钟到了，后端 RabbitMQ 死信队列会自动取消订单（status 0 → 4）并恢复库存。
+ * 这里主动查一下订单状态：
+ * - 如果已被取消（status=4）→ 提示用户"订单已超时取消"
+ * - 如果仍是 0 → 后端可能还没处理完，保留"二维码已过期"提示，可手动刷新重试
+ */
+async function handleCountdownExpired() {
+  try {
+    const status = await getOrderStatus(orderId.value)
+    if (status === 4) {
+      // 订单已被系统自动取消
+      pageStatus.value = 'error'
+      errorMessage.value = '订单已超时取消，系统已自动关闭该订单并恢复库存'
+    }
+    // status 仍是 0：后端还没处理完，模板会显示"二维码已过期，请刷新重试"
+  } catch (err) {
+    console.error('查询订单超时状态失败:', err)
+  }
 }
 
 // ==================== 工具方法 ====================

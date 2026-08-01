@@ -45,6 +45,18 @@ export function cancelOrder(id) {
 }
 
 /**
+ * 退单退款（已支付未发货一键退单）
+ * PUT /api/order/refund/{id}
+ * 与取消订单的区别：取消针对未付款，退单针对已付款未发货。
+ * 退单后恢复商品库存。
+ * @param {number} id - 订单ID
+ * @returns {Promise}
+ */
+export function refundOrder(id) {
+  return request.put(`/order/refund/${id}`).then(res => res.data)
+}
+
+/**
  * 确认收货
  * PUT /api/order/confirm/{id}
  * @param {number} id - 订单ID
@@ -81,7 +93,7 @@ export function payOrder(id) {
  * 查询订单支付状态（前端轮询用）
  * GET /api/order/status/{id}
  * @param {number} id - 订单ID
- * @returns {Promise<number>} 订单状态：0待支付 1已支付 2已发货 3已完成 4已取消
+ * @returns {Promise<number>} 订单状态：0待支付 1已支付 2已发货 3已完成 4已取消 5已退款
  */
 export function getOrderStatus(id) {
   return request.get(`/order/status/${id}`).then(res => res.data)

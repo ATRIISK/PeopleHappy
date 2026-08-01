@@ -27,7 +27,7 @@ public class OrderVO {
     /** 订单总金额 */
     private BigDecimal totalAmount;
 
-    /** 订单状态：0待支付 1已支付 2已发货 3已完成 4已取消 */
+    /** 订单状态：0待支付 1已支付 2已发货 3已完成 4已取消 5已退款 */
     private Integer status;
 
     /** 收货地址ID */

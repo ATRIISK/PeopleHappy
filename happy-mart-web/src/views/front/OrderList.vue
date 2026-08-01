@@ -7,7 +7,7 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { getOrderList, cancelOrder, confirmOrder } from '@/api/order'
+import { getOrderList, cancelOrder, confirmOrder, refundOrder } from '@/api/order'
 
 const router = useRouter()
 
@@ -26,15 +26,19 @@ const loading = ref(false)
 
 /**
  * 订单状态文字映射
- * 与数据库 order.status 字段定义、开发文档保持一致（详见 OrderDetail.vue 的 STATUS_MAP）：
- * 0待付款 1已支付 2已发货 3已完成 4已取消
+ * 与数据库 order.status 字段定义、开发文档保持一致：
+ * 0待付款 1已支付 2已发货 3已完成 4已取消 5已退款
+ *
+ * 更新记录：
+ * 2026-07-29 新增 status=5 已退款（退单功能）
  */
 const ORDER_STATUS = {
   0: '待付款',
   1: '已支付',
   2: '已发货',
   3: '已完成',
-  4: '已取消'
+  4: '已取消',
+  5: '已退款'
 }
 
 /** Tab 选项列表（与 ORDER_STATUS 文字保持一致） */
@@ -49,14 +53,15 @@ const statusTabs = [
 /**
  * 订单状态标签颜色映射
  * 0待付款(danger红色) 1已支付(warning橙色) 2已发货(primary蓝色)
- * 3已完成(success绿色) 4已取消(info灰色)
+ * 3已完成(success绿色) 4已取消(info灰色) 5已退款(info灰色)
  */
 const statusTypeMap = {
   0: 'danger',
   1: 'warning',
   2: 'primary',
   3: 'success',
-  4: 'info'
+  4: 'info',
+  5: 'info'
 }
 
 // ==================== 数据加载 ====================
@@ -115,6 +120,29 @@ async function handleCancel(order) {
     )
     await cancelOrder(order.id)
     ElMessage.success('订单已取消')
+    await loadOrders()
+  } catch {
+    // 用户取消操作，不处理
+  }
+}
+
+/**
+ * 退单退款（已支付未发货一键退单）
+ * 调后端 API，退单后恢复商品库存
+ */
+async function handleRefund(order) {
+  try {
+    await ElMessageBox.confirm(
+      `确定要对订单「${order.orderNo}」申请退单退款吗？`,
+      '确认退单',
+      {
+        confirmButtonText: '确定退单',
+        cancelButtonText: '取消',
+        type: 'warning'
+      }
+    )
+    await refundOrder(order.id)
+    ElMessage.success('退单成功')
     await loadOrders()
   } catch {
     // 用户取消操作，不处理
@@ -254,13 +282,19 @@ onMounted(() => {
                 取消订单
               </el-button>
             </template>
+            <!-- 已支付未发货：显示申请退单 -->
+            <template v-else-if="order.status === 1">
+              <el-button type="danger" plain @click="handleRefund(order)">
+                申请退单
+              </el-button>
+            </template>
             <!-- 已发货：显示确认收货 -->
             <template v-else-if="order.status === 2">
               <el-button type="primary" @click="handleConfirm(order)">
                 确认收货
               </el-button>
             </template>
-            <!-- 其他状态（已支付、已完成、已取消）：无按钮 -->
+            <!-- 其他状态（已完成、已取消、已退款）：无按钮 -->
           </div>
         </div>
       </div>

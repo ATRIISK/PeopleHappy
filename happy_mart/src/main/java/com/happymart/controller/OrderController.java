@@ -20,6 +20,11 @@ import org.springframework.web.bind.annotation.*;
  *
  * 全部 @Auth（所有订单操作都需要登录）
  * 路径前缀：/api/order
+ *
+ * 9个端点：
+ *   POST /create、GET /list、GET /detail/{id}、
+ *   PUT /cancel/{id}、PUT /refund/{id}、PUT /confirm/{id}、
+ *   PUT /updateAddress/{id}、POST /pay/{id}、GET /status/{id}
  */
 @Slf4j
 @RestController
@@ -79,7 +84,7 @@ public class OrderController {
     }
 
     /**
-     * 取消订单（只能取消待付款的）
+     * 取消订单（只能取消待付款的，取消后恢复库存）
      * PUT /api/order/cancel/{id}
      */
     @Auth
@@ -88,6 +93,25 @@ public class OrderController {
         Long userId = (Long) request.getAttribute("currentUserId");
         log.info("取消订单: id={}, userId={}", id, userId);
         orderService.cancelOrder(userId, id);
+        return Result.success();
+    }
+
+    /**
+     * 退单退款（只能对已支付未发货的订单操作）
+     * PUT /api/order/refund/{id}
+     *
+     * 流程：调支付宝退款接口 → 恢复库存 → 更新状态为已退款
+     *
+     * 与取消订单的区别：
+     * - 取消 → 待付款(0) → 已取消(4)，用户没付款，只恢复库存
+     * - 退单 → 已支付(1) → 已退款(5)，用户已付款，先调支付宝退款再恢复库存+改状态
+     */
+    @Auth
+    @PutMapping("/refund/{id}")
+    public Result<Void> refundOrder(HttpServletRequest request, @PathVariable Long id) {
+        Long userId = (Long) request.getAttribute("currentUserId");
+        log.info("退单退款: id={}, userId={}", id, userId);
+        orderService.refundOrder(userId, id);
         return Result.success();
     }
 
@@ -141,7 +165,7 @@ public class OrderController {
     /**
      * 查询订单支付状态（前端下单后轮询用）
      * GET /api/order/status/{id}
-     * 返回订单状态：0待付款 1已支付 2已发货 3已完成 4已取消
+     * 返回订单状态：0待付款 1已支付 2已发货 3已完成 4已取消 5已退款
      */
     @Auth
     @GetMapping("/status/{id}")
