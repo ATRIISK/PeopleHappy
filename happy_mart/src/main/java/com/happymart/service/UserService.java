@@ -4,7 +4,6 @@ import com.happymart.dto.LoginDTO;                 // 登录请求参数
 import com.happymart.dto.RegisterDTO;              // 注册请求参数
 import com.happymart.vo.LoginVO;                   // 登录返回值（token + 用户信息）
 import com.happymart.vo.UserVO;                    // 用户信息返回值（不含密码）
-
 /**
  * 用户服务接口
  * <p>

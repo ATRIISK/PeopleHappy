@@ -169,7 +169,7 @@ public class OrderServiceImpl implements OrderService {
         //   订单创建 → RabbitMQ 延迟队列（30分钟）→ 查询订单状态
         //   → 如果 status=0（待支付）→ 更新为 4（已取消）+ 恢复库存
         //
-        // 消息流向：进入 order.delay.queue（TTL=30分钟）
+        // 消息流向：进入 order.delay.ttl.queue（TTL=30分钟）
         // - 用户 30 分钟内付了款 → 消息过期，消费者检查状态时会跳过（不重复取消）
         // - 用户 30 分钟还没付款 → 消息进死信队列 → OrderTimeoutConsumer 取消订单
         try {

@@ -12,7 +12,7 @@ import org.springframework.stereotype.Component;
  * 监听订单取消队列，处理超时未支付的订单
  *
  * 工作流程（对应开发文档 §7.4 超时取消流程）：
- * 1. 下单 30 分钟后，消息从 order.delay.queue 过期转到 order.cancel.queue
+ * 1. 下单 30 分钟后，消息从 order.delay.ttl.queue 过期转到 order.cancel.queue
  * 2. 这里收到消息（消息体 = 订单ID）
  * 3. 查订单状态 → 如果还是 0（待支付）→ 取消订单 + 恢复库存
  * 4. 如果已经支付了（status ≠ 0）→ 不做任何操作（用户已经付了）

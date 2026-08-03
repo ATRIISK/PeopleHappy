@@ -14,7 +14,7 @@ import org.springframework.context.annotation.Configuration;
  * 用 RabbitMQ 原生 TTL + 死信交换机实现延迟效果
  *
  * 消息流向：
- *   Producer → order.exchange → order.delay.queue（TTL=30min）
+ *   Producer → order.exchange → order.delay.ttl.queue（TTL=30min）
  *     → 消息过期 → order.cancel.exchange → order.cancel.queue
  *     → OrderTimeoutConsumer 消费
  */
@@ -48,7 +48,7 @@ public class RabbitMQConfig {
 
     /**
      * 订单交换机（Direct 类型）
-     * Producer 发消息到这个交换机 → 路由到 order.delay.queue
+     * Producer 发消息到这个交换机 → 路由到 order.delay.ttl.queue
      */
     @Bean
     public DirectExchange orderExchange() {
@@ -81,7 +81,7 @@ public class RabbitMQConfig {
     }
 
     /**
-     * 绑定：order.exchange → order.delay.queue（路由键 order.delay）
+     * 绑定：order.exchange → order.delay.ttl.queue（路由键 order.delay）
      */
     @Bean
     public Binding orderDelayBinding() {
