@@ -35,24 +35,26 @@ spring:
     username: guest
     password: guest
     virtual-host: /
+    connection-timeout: 200      # 建立连接超时：200ms（快速失败，触发自动重连）
+    requested-heartbeat: 60s     # 心跳间隔：60 秒（保活，防止空闲连接被判定为死连接）
     listener:
       simple:
-        acknowledge-mode: auto
-        prefetch: 1
-        concurrency: 3
-        max-concurrency: 10
+        acknowledge-mode: auto  # 自动确认消息
+        prefetch: 1  # 每个消费者一次只处理 1 条消息，避免消息积压
+        concurrency: 3  # 最小并发数：3 个消费者处理
+        max-concurrency: 10  # 最大并发数：10 个消费者处理
     template:
       retry:
-        enabled: true
-        initial-interval: 1000ms
-        max-attempts: 3
+        enabled: true  # 开启重试机制
+        initial-interval: 1000ms  # 初始重试间隔：1 秒
+        max-attempts: 3  # 最大重试次数：3 次
 
 mybatis-plus:
-  mapper-locations: classpath:mapper/**/*.xml
+  mapper-locations: classpath:mapper/**/*.xml  # 映射文件路径
   type-aliases-package: com.happymart.entity
   configuration:
     map-underscore-to-camel-case: true
-    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl # 日志实现：标准输出
   global-config:
     db-config:
       id-type: auto

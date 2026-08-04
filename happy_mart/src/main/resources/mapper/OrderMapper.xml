@@ -3,10 +3,15 @@
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <!--
 订单 Mapper XML
-3 个自定义 SQL：
-1. selectOrderVOById → 查单个订单（含订单项 + 商品信息）
-2. selectOrderVOListByUserId → 分页查用户订单列表
-3. updateStock → 扣减库存（带 stock >= quantity 安全检查）
+8 个自定义 SQL：
+1. selectOrderVOById → 查单个订单（含订单项 + 商品 + 地址信息）
+2. selectOrderVOListByUserId → 分页查用户订单列表（含地址信息）
+3. updateStock → 扣减库存（带 stock >= quantity 乐观锁）
+4. restoreStock → 恢复库存（取消/退单时回补）
+5. selectByOrderNo → 按订单号查询（支付宝回调用）
+6. cancelPendingOrder → 取消待付款订单（status 0→4，条件更新防并发）
+7. markOrderPaid → 标记已支付（status 0→1 + transaction_id + pay_time）
+8. refundPaidOrder → 退单退款（status 1→5，条件更新防并发）
 
 注意：order 是 MySQL 关键字，SQL 里要用反引号包裹
 -->

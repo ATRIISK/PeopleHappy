@@ -107,5 +107,5 @@ export function getOrderStatus(id) {
  * @returns {Promise}
  */
 export function simulatePayment(orderId) {
-  return request.post(`/pay/simulate/${orderId}`)
+  return request.post(`/pay/simulate/${orderId}`).then(res => res.data)
 }

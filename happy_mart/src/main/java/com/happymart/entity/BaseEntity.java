@@ -11,8 +11,9 @@ import java.time.LocalDateTime;                              // LocalDateTime �
 /**
  * 实体类的公共基类（父类）
  * <p>
- * 这个类是所有实体类（User、Product、Category 等）的"爸爸"。
- * 所有实体类都继承它，这样每个表就自动有了三个公共字段：
+ * 这个类是「需要三个公共字段」的实体（User、Product、Category）的"爸爸"。
+ * 只有表中包含 create_time / update_time / is_deleted 三个公共字段的实体才继承它，
+ * 继承后每个子类自动拥有这三个字段：
  * <ul>
  *   <li>create_time → 创建时间</li>
  *   <li>update_time → 更新时间</li>
@@ -28,8 +29,10 @@ import java.time.LocalDateTime;                              // LocalDateTime �
  * <pre>
  *   BaseEntity（基类：公共字段）
  *       ↑
- *   User / Product / Category / Cart ...（子类：自己的字段）
+ *   User / Product / Category（子类：自己的字段）
  * </pre>
+ * ⚠️ 不是所有实体都继承它：Cart / Order / OrderItem / Address / PaymentLog
+ * 对应的表没有 update_time / is_deleted 字段，所以不继承（设计上自洽）。
  * 比如 User 类继承 BaseEntity 后，User 就有以下字段：
  * id（自己的）+ username（自己的）+ password（自己的）
  * + createTime（从爸爸来的）+ updateTime（从爸爸来的）+ deleted（从爸爸来的）
@@ -41,7 +44,7 @@ import java.time.LocalDateTime;                              // LocalDateTime �
 @Data                                                       // Lombok → 自动生成 getter/setter/toString/equals/hashCode
 public abstract class BaseEntity implements Serializable {  // 抽象类 + 实现序列化接口
 
-    // ==================== 这三个字段是所有表都有的 ====================
+    // ==================== 这三个字段是"继承该基类的表"共有的 ====================
 
     /**
      * 创建时间
