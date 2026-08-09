@@ -191,7 +191,8 @@ const STATUS_MAP = {
   1: { text: '已支付', type: 'warning' },
   2: { text: '已发货', type: 'primary' },
   3: { text: '已完成', type: 'success' },
-  4: { text: '已取消', type: 'info' }
+  4: { text: '已取消', type: 'info' },
+  5: { text: '已退款', type: 'info' }
 }
 
 /** 当前订单的状态文字 */

@@ -13,7 +13,6 @@ import com.happymart.mapper.AddressMapper;
 import com.happymart.mapper.CartMapper;
 import com.happymart.mapper.OrderItemMapper;
 import com.happymart.mapper.OrderMapper;
-import com.happymart.mapper.ProductMapper;
 import com.happymart.service.AlipayService;
 import com.happymart.service.OrderService;
 import com.happymart.vo.CartVO;
@@ -47,7 +46,6 @@ public class OrderServiceImpl implements OrderService {
     private final OrderMapper orderMapper;
     private final OrderItemMapper orderItemMapper;
     private final CartMapper cartMapper;
-    private final ProductMapper productMapper;
     private final AddressMapper addressMapper;
     private final AlipayService alipayService;
     // ===== RabbitMQ 消息队列：用于下单后发送"订单超时取消"延迟消息 =====
