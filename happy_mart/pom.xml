@@ -130,6 +130,12 @@
             <artifactId>alipay-sdk-java</artifactId>
             <version>4.40.645.ALL</version>
         </dependency>
+
+        <!-- ⏳ AI 购物助手预留（阶段四，见开发文档 §14）：
+             接入 Spring AI Alibaba（DashScope 通义千问），需 Spring Boot 3.4+（当前 3.5.14 满足）
+             新增依赖：com.alibaba.cloud.ai:spring-ai-alibaba-starter-dashscope:1.1.2.1
+             环境变量：AI_DASHSCOPE_API_KEY
+             代码复用自 AI 博客项目 D:\ai_blog_show（已验证可运行） -->
     </dependencies>
 
     <build>

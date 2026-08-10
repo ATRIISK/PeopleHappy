@@ -80,3 +80,23 @@ alipay:
   sign-type: RSA2
   charset: UTF-8
   format: json
+
+# ⏳ AI 购物助手预留（阶段四，见开发文档 §14）：
+# 接入后取消注释并替换以下配置（API Key 用环境变量，不入库）：
+# spring:
+#   ai:
+#     dashscope:
+#       api-key: ${AI_DASHSCOPE_API_KEY}      # 通义千问 API Key（IDEA Run Configuration 配置）
+#       chat:
+#         options:
+#           model: qwen-turbo                  # 对话模型
+#       embedding:
+#         enabled: true
+#         options:
+#           model: text-embedding-v2           # 向量模型
+# kb:
+#   index-file-path: ./data/product_kb_index.json   # 商品向量索引文件（RAG 知识库）
+#   keyword-top-k: 5
+#   vector-top-k: 5
+#   context-top-n: 5
+#   doc-max-chars: 500

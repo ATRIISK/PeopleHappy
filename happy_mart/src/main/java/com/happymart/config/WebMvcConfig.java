@@ -47,6 +47,9 @@ public class WebMvcConfig implements WebMvcConfigurer {
                         // 比如：
                         // "/api/cart/list",   ← 这个不能加！购物车需要登录才能看
                         // "/api/order/**",    ← 这个不能加！订单需要登录才能看
+                        // ⏳ AI 购物助手预留（阶段四，见开发文档 §14）：
+                        // 未来需放行 "/api/ai/**"（游客可问商品），开发时取消注释下面这行
+                        // "/api/ai/**",
                 );
     }
 }
