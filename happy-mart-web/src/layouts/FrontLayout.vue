@@ -89,13 +89,11 @@ function goBack() {
 /**
  * 获取分类列表
  * 调用后端 API 获取全部分类树，取一级分类用于导航栏展示
+ * 注意：getCategoryTree() 在 category.js 中已 .then(res => res.data) 解包为数组，直接赋值即可
  */
 async function fetchCategories() {
   try {
-    const res = await getCategoryTree()
-    if (res.code === 200) {
-      categoryList.value = res.data || []
-    }
+    categoryList.value = await getCategoryTree()
   } catch {
     // 分类加载失败不影响页面主体功能，静默处理
   }
