@@ -7,7 +7,10 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>3.2.5</version>
+        <!-- 2026-08-11 升级：3.2.5 → 3.5.14
+             原因：后续要接入 Spring AI（spring-ai-alibaba 1.1.x 要求 Boot 3.4+）
+             与 AI 博客项目(D:\ai_blog_show, Boot 3.5.14) 版本对齐，最大化复用已验证的 AI 代码 -->
+        <version>3.5.14</version>
         <relativePath/>
     </parent>
 
@@ -86,7 +89,16 @@
             <version>${jjwt.version}</version>
             <scope>runtime</scope>
         </dependency>
-
+        <!-- Spring Cache 缓存抽象 -->
+        <!--
+            作用：提供 @Cacheable / @CacheEvict 注解（Spring Cache 统一缓存框架）
+            配合上面的 spring-boot-starter-data-redis（Redis 实现），
+            就能用注解方式把数据缓存到 Redis，不用手写存取代码
+        -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-cache</artifactId>
+        </dependency>
         <!-- Lombok -->
         <dependency>
             <groupId>org.projectlombok</groupId>
