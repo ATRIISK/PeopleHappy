@@ -28,7 +28,7 @@ spring:
           max-active: 8 # 最大连接数：8
           max-idle: 8 # 最大空闲连接数：8
           min-idle: 0 # 最小空闲连接数：0
-          max-wait: 1000 # 最大空闲时间：1000ms（1s）等待连接超时
+          max-wait: 1000 # 获取连接的最大等待时间：1000ms（1s），超时抛异常（缓存自动降级）
 
   rabbitmq:
     host: localhost

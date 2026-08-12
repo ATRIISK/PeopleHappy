@@ -15,7 +15,6 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.cache.RedisCacheConfiguration;
 import org.springframework.data.redis.cache.RedisCacheManager;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
-import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.serializer.Jackson2JsonRedisSerializer;
 import org.springframework.data.redis.serializer.RedisSerializationContext;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
@@ -26,10 +25,13 @@ import java.time.Duration;
 /**
  * Redis 配置类
  *
- * 这个类负责三件事（对应开发文档 §8）：
+ * 这个类负责两件事（对应开发文档 §8）：
  * 1. CacheManager      → @Cacheable 注解的缓存管理器（商品详情、分类树的缓存）
- * 2. RedisTemplate     → 通用 Redis 操作预留（当前热门榜改用 StringRedisTemplate，本 Bean 暂无调用方）
- * 3. CacheErrorHandler → Redis 故障时的缓存降级处理（打日志 + 不抛异常 → 方法体照常查库）
+ * 2. CacheErrorHandler → Redis 故障时的缓存降级处理（打日志 + 不抛异常 → 方法体照常查库）
+ *
+ * 说明（code-review 修复）：手写 Redis 操作（热门榜 ZSet）用的是 Spring Boot 自动配置的
+ *       StringRedisTemplate（ProductServiceImpl 注入），无需在这里声明 Bean——
+ *       原自定义 RedisTemplate<String,Object> 无任何调用方，已删除，避免两套序列化约定并存。
  *
  * 注解说明：
  * @EnableCaching   → 开启 Spring Cache，让 @Cacheable/@CacheEvict 注解生效
@@ -40,41 +42,6 @@ import java.time.Duration;
 @EnableCaching        // 开启缓存抽象
 @EnableScheduling     // 开启定时任务（热门榜定时刷新用）
 public class RedisConfig {
-
-    // ==================== RedisTemplate（通用 Redis 操作，预留） ====================
-
-    /**
-     * RedisTemplate：通用 Redis 操作工具
-     *
-     * ⚠️ 注意（code-review 修正）：当前热门榜 ZSet 实际用的是 Spring Boot 自动配置的
-     *    StringRedisTemplate（ProductServiceImpl 注入），不是这个 Bean。
-     *    这个 Bean 保留作为"通用 Redis 操作"的预留：
-     *    - 后续购物车 Hash（cart:{userId}）、订单号 Redis 自增等手写 Redis 场景可复用
-     *    - 当前没有调用方（grep 不到注入点），属于"配置预留"
-     *
-     * 序列化规则（关键）：
-     * - key 用 String 序列化 → Redis 里的 key 是人类可读的字符串
-     * - value 用 JSON 序列化 → Redis 里的 value 是 JSON 字符串，ARDM 里可直接查看
-     */
-    @Bean
-    public RedisTemplate<String, Object> redisTemplate(RedisConnectionFactory factory) {
-        RedisTemplate<String, Object> template = new RedisTemplate<>();
-        template.setConnectionFactory(factory);
-
-        // 统一的 JSON 序列化器（抽成了下面的公共方法，保证两处格式一致）
-        Jackson2JsonRedisSerializer<Object> jsonSerializer = buildJsonSerializer();
-        // key 的序列化器
-        StringRedisSerializer stringSerializer = new StringRedisSerializer();
-
-        // 分别设置 key / value / Hash 的 field / Hash 的 value 用哪种序列化
-        template.setKeySerializer(stringSerializer);        // 普通 key：String
-        template.setHashKeySerializer(stringSerializer);    // Hash 的 field：String
-        template.setValueSerializer(jsonSerializer);        // 普通 value：JSON
-        template.setHashValueSerializer(jsonSerializer);    // Hash 的 value：JSON
-
-        template.afterPropertiesSet();
-        return template;
-    }
 
     // ==================== CacheManager（@Cacheable 注解的缓存管理器） ====================
 
@@ -178,10 +145,9 @@ public class RedisConfig {
     // ==================== 公共序列化器（两处共用，保证格式统一） ====================
 
     /**
-     * 构建 JSON 序列化器
-     * RedisTemplate 和 CacheManager 都用它，确保：
-     * 1. 注解缓存写入的值，RedisTemplate 也能正确读取（或反之）
-     * 2. Redis 里存的都是可读的 JSON 字符串
+     * 构建 JSON 序列化器（仅 CacheManager 使用）
+     * code-review 修复：原自定义 RedisTemplate Bean 已删除（无调用方），
+     * 本序列化器现在只被 CacheManager 使用，保证 @Cacheable 写入的值是可读的 JSON 字符串。
      */
     private Jackson2JsonRedisSerializer<Object> buildJsonSerializer() {
         ObjectMapper objectMapper = new ObjectMapper();

@@ -22,6 +22,8 @@ import org.springframework.data.redis.core.ZSetOperations;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.util.StringUtils;
 
 import java.time.Duration;
@@ -311,7 +313,19 @@ public class ProductServiceImpl implements ProductService{
             if (hotIds != null && !hotIds.isEmpty()) {
                 log.info("热门榜命中 Redis 缓存，共 {} 个商品", hotIds.size());
                 // 用商品ID批量查库，按 ZSet 顺序组装 VO
-                return convertToVOByOrder(hotIds);
+                List<ProductVO> cachedList = convertToVOByOrder(hotIds);
+
+                // 补齐逻辑（code-review 修复）：命中缓存但过滤掉下架/已删除商品后不足 8 个时，
+                // 说明 ZSet 里混入了无效商品（比如商品被下架了但还没到整点刷新）→
+                // 回退数据库查全量 Top8 并刷新缓存，否则首页"热门推荐"会显示 4 个甚至 0 个商品，
+                // 最长持续到下次整点定时刷新。
+                if (cachedList.size() < HOT_LIMIT) {
+                    log.info("热门榜缓存命中的有效商品不足 {} 个，回退数据库刷新全量榜单", HOT_LIMIT);
+                    List<ProductVO> hotList = queryHotProducts();
+                    fillHotCache(hotList);
+                    return hotList;
+                }
+                return cachedList;
             }
 
             // ===== 2. 缓存为空（首次启动 / 缓存过期 / 定时任务还没跑） =====
@@ -322,10 +336,13 @@ public class ProductServiceImpl implements ProductService{
             return hotList;
 
         } catch (Exception e) {
-            // ===== 3. Redis 挂了 → 降级回数据库 =====
-            // Redis 连接失败会抛异常，catch 住后直接查数据库返回
-            // 保证 Redis 故障时首页依然能用（功能降级，不阻断业务）
-            log.warn("Redis 热门榜读取失败，降级查询数据库: {}", e.getMessage());
+            // ===== 3. 读取异常 → 降级回数据库 =====
+            // 注意（code-review 修复）：异常可能来自 Redis（连不上/超时），
+            //   也可能来自"命中缓存后批量查库"的数据库操作——所以日志措辞用中性的
+            //   "热门榜读取异常"，不误导排查的人以为是 Redis 挂了。
+            // 降级：直接查数据库返回，保证首页依然能用（功能降级，不阻断业务）
+            // 若数据库也异常，queryHotProducts 抛出的异常会继续上抛给全局异常处理器
+            log.warn("热门榜读取异常，降级查询数据库: {}", e.getMessage());
             return queryHotProducts();
         }
     }
@@ -449,21 +466,30 @@ public class ProductServiceImpl implements ProductService{
      */
     private void fillHotCache(List<ProductVO> hotList) {
 
-        // 1. 先删掉旧的 key（防止新旧数据混在一起）
-        //    Redis 的 ZSet 没有"整体覆盖"命令，所以先 delete 再重新写入
-        stringRedisTemplate.delete(HOT_KEY);
-
-        // 2. 遍历商品，逐个写入 ZSet
-        //    ZSetOperations 是 Spring Data Redis 封装好的有序集合操作工具
+        // 1. 遍历商品，逐个写入 ZSet（member 已存在则更新 score，不删除整个 key）
+        //    code-review 修复：原来先 delete 再 ZADD，删 key 到写完之间有毫秒级空窗，
+        //    并发读 reverseRange 会看到空的 ZSet → 误判"缓存为空" → 重复查库（刷新边界的惊群）。
+        //    改成"只 ZADD 覆盖 + 最后清理多余成员"，key 全程存在，读到空的问题消失。
         ZSetOperations<String, String> zset = stringRedisTemplate.opsForZSet();
         for (ProductVO vo : hotList) {
             // add(key, member, score) 三个参数：
             //   key    = 榜单的 key（product:hot）
             //   member = 商品ID 的字符串（ZSet 里存的元素，后面读取时拿到它去查库）
-            //   score  = 销量（排序依据，score 越大排名越靠前）
+            //   score  = 销量（排序依据，score 越大排名越靠前；member 已存在则更新 score）
             // 销量理论上数据库有默认值 0，但代码里做个空值保护，最稳妥
             double score = vo.getSales() == null ? 0.0 : vo.getSales().doubleValue();
             zset.add(HOT_KEY, String.valueOf(vo.getId()), score);
+        }
+
+        // 2. 清理掉出榜的旧成员（ZADD 不会自动删除"不在新榜里"的旧 member）
+        //    场景：上次刷新进榜的商品这次掉出前 8、或已下架/删除，它的 member 还残留在 ZSet 里
+        //    做法：只保留 score 最高的 HOT_LIMIT 个 → 删掉"升序排名最靠前"的（即 score 最低的）多余成员
+        //    zCard() 查当前成员总数；removeRange(key, start, end) 对应 Redis 的 ZREMRANGEBYRANK，
+        //    按 score 升序删除 [start, end] 排名区间
+        Long total = zset.zCard(HOT_KEY);
+        if (total != null && total > HOT_LIMIT) {
+            // 例如 total=10，HOT_LIMIT=8 → 删升序排名 0~1（score 最低的 2 个），保留最高的 8 个
+            zset.removeRange(HOT_KEY, 0, total - HOT_LIMIT - 1);
         }
 
         // 3. 设置 1 小时过期时间（双保险，见 refreshHotCache 注释：定时刷新 + 过期兜底）
@@ -535,12 +561,45 @@ public class ProductServiceImpl implements ProductService{
 
         // ===== 第一次删除 =====
         // 由 @CacheEvict 注解负责：本方法正常返回后，自动删除 product:detail::{productId}
-        // 这一步删掉的是"下单前"的旧缓存
-        // 注意：@CacheEvict 删除发生在当前调用链上的 OrderServiceImpl 事务提交之前，
-        //       这正是存在并发窗口的原因——所以需要下面的第二次延时删除
+        // 这一步删掉的是"下单前"的旧缓存。
+        // 注意：这次删除发生在订单事务提交之前（ProductService 被 OrderServiceImpl 事务内调用），
+        //       删的是旧值，无妨——这正是需要第二次延时删除的原因。
 
-        // ===== 第二次延时删除 =====
-        // 安排线程池在 500ms 后再删一次，清掉并发读在窗口期回填的旧值
+        // ===== 第二次延时删除（关键：必须绑定在"事务提交之后"） =====
+        // 经典延时双删要覆盖的窗口是"删缓存后、DB 提交前，并发读回填旧值"。
+        // 如果第二次删除从"本方法调用时刻"算 500ms，而订单事务因为别的原因
+        // （例如 createOrder 末尾给 RabbitMQ 发延迟消息，spring.rabbitmq.template.retry
+        //  配置了 3 次重试、初始间隔 1s → 最坏能拖 ~3s）迟迟不提交，
+        // 第二次删除就会在事务提交**前**执行——之后并发读照样回填旧值，窗口没闭上。
+        // 所以正确做法：等事务真正提交后，再过 500ms 才删第二次。
+        // 实现：用 Spring 的事务同步 TransactionSynchronization.afterCommit，
+        //       事务提交成功后会回调 afterCommit，在那里再安排延时删除。
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            // 当前在事务中（正常路径：被 OrderServiceImpl 下单/退单事务内调用）
+            // → 注册一个"事务提交后"的回调，提交后再安排第二次延时删除
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    scheduleDelayedDelete(productId);
+                }
+            });
+        } else {
+            // 不在事务中（比如将来其他模块直接调用了本方法）→ 直接安排延时删除
+            scheduleDelayedDelete(productId);
+        }
+    }
+
+    /**
+     * 安排第二次延时删除（500ms 后由守护线程池执行）
+     * <p>
+     * 从 clearProductDetailCache 抽出，供"事务提交后"和"无事务"两条路径复用。
+     * 为什么不用 @Async 注解？同类内方法自调用不走 Spring 代理，@Async 会失效；
+     * 用独立线程池最直接可靠。
+     *
+     * @param productId 商品 ID
+     */
+    private void scheduleDelayedDelete(Long productId) {
+        // 500ms 后由线程池执行第二次删除（延时双删的"延时"）
         DELAY_DELETE_POOL.schedule(() -> {
             try {
                 // 直接删 Redis key：product:detail::{productId}
