@@ -15,6 +15,7 @@ import com.happymart.mapper.OrderItemMapper;
 import com.happymart.mapper.OrderMapper;
 import com.happymart.service.AlipayService;
 import com.happymart.service.OrderService;
+import com.happymart.service.ProductService;
 import com.happymart.vo.CartVO;
 import com.happymart.vo.OrderVO;
 import com.happymart.vo.PayVO;
@@ -51,6 +52,18 @@ public class OrderServiceImpl implements OrderService {
     // ===== RabbitMQ 消息队列：用于下单后发送"订单超时取消"延迟消息 =====
     // 通过 @RequiredArgsConstructor 自动注入（final 字段）
     private final RabbitTemplate rabbitTemplate;
+
+    /**
+     * 商品 Service → 用于清除商品详情缓存（code-review 修复）
+     * <p>
+     * 为什么订单模块要依赖商品模块？
+     *   下单扣库存 / 取消退单恢复库存 都会改 product 表的 stock 字段，
+     *   而商品详情页有 Redis 缓存（product:detail，30 分钟过期）。
+     *   如果库存变了不清缓存，用户会看到旧库存（最多 30 分钟）。
+     *   所以库存变化后要调 productService.clearProductDetailCache() 立刻清掉缓存。
+     *   这是"缓存一致性"的必要处理，不是多余的模块耦合。
+     */
+    private final ProductService productService;
 
     @Override
     public OrderVO createOrder(Long userId, Long addressId, List<Long> productIds) {
@@ -139,6 +152,12 @@ public class OrderServiceImpl implements OrderService {
                 throw new BusinessException(ResultCodeEnum.STOCK_NOT_ENOUGH,
                         "商品「" + cartItem.getName() + "」库存不足，请重新下单");
             }
+        }
+        // ★ 扣库存成功后，清除这些商品的详情缓存（code-review 修复）
+        // 否则用户下单后，商品详情页会显示旧库存最多 30 分钟
+        // 清缓存是幂等操作：即使后面某步抛异常事务回滚，清掉的缓存也无害（下次查库会回填正确数据）
+        for (CartVO cartItem : cartList) {
+            productService.clearProductDetailCache(cartItem.getProductId());
         }
         log.info("库存扣减完成");
 
@@ -473,6 +492,12 @@ public class OrderServiceImpl implements OrderService {
         List<OrderItem> items = orderItemMapper.selectByOrderId(orderId);
         for (OrderItem item : items) {
             orderMapper.restoreStock(item.getProductId(), item.getQuantity());
+
+            // ★ 恢复库存后清除该商品的详情缓存（code-review 修复）
+            // 否则取消/退单后，详情页库存还是旧的（会显示"库存不足"但实际已恢复）
+            // 本方法被 cancelOrder / cancelOrderByTimeout / refundOrder 三处复用，改这一处全覆盖
+            productService.clearProductDetailCache(item.getProductId());
+
             log.debug("库存已恢复: productId={}, quantity={}", item.getProductId(), item.getQuantity());
         }
     }

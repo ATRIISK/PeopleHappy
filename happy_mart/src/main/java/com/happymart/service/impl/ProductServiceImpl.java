@@ -15,6 +15,7 @@ import com.happymart.vo.ProductVO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ZSetOperations;
@@ -313,8 +314,8 @@ public class ProductServiceImpl implements ProductService{
             // ===== 2. 缓存为空（首次启动 / 缓存过期 / 定时任务还没跑） =====
             // 先查数据库 Top8，再顺手回填缓存，这样第一次访问就写进 Redis，不用等整点
             log.info("热门榜缓存为空，查询数据库并回填 Redis 缓存");
-            List<ProductVO> hotList = queryHotProducts();  // 查数据库拿 Top8
-            refreshHotCache();                              // 回填 ZSet
+            List<ProductVO> hotList = queryHotProducts();  // 查数据库拿 Top8（只查这一次）
+            fillHotCache(hotList);                          // 用刚查到的数据回填 ZSet（不重复查询）
             return hotList;
 
         } catch (Exception e) {
@@ -344,9 +345,15 @@ public class ProductServiceImpl implements ProductService{
                 .map(Long::parseLong)
                 .collect(Collectors.toList());
 
-        // 2. 批量查库：SELECT * FROM product WHERE id IN (1,2,3,...)
-        //    selectBatchIds 是 MyBatis-Plus BaseMapper 自带的方法，一次性查出所有商品
-        List<Product> products = productMapper.selectBatchIds(idList);
+        // 2. 批量查库：SELECT * FROM product WHERE id IN (1,2,3,...) AND status = 0
+        //    code-review 修复：用 LambdaQueryWrapper 而不是 selectBatchIds，
+        //    是为了加 status=0 过滤（只查上架商品），和 DB 路径 queryHotProducts 保持一致，
+        //    否则在两次刷新之间被下架的商品会出现在首页热门榜（两条路径结果不一致）
+        //    注意：IN 查询返回顺序不保证和传入顺序一致，顺序问题由下面的 Map 索引解决
+        List<Product> products = productMapper.selectList(
+                new LambdaQueryWrapper<Product>()
+                        .in(Product::getId, idList)      // WHERE id IN (...)
+                        .eq(Product::getStatus, 0));     // AND status = 0（只查上架商品）
 
         // 3. 把商品转成 VO，再存进 Map，key = 商品ID
         //    用 Map 的原因：等会要"按 hotIds 的顺序"重组，Map 用 get 一下就能拿到，效率高
@@ -418,11 +425,32 @@ public class ProductServiceImpl implements ProductService{
         // 1. 查数据库拿最新的 Top8
         List<ProductVO> hotList = queryHotProducts();
 
-        // 2. 先删掉旧的 key（防止新旧数据混在一起）
+        // 2. 写入 ZSet（删旧 key → 逐个 ZADD → 设置 1 小时过期，逻辑全在 fillHotCache 里）
+        fillHotCache(hotList);
+
+        log.info("热门榜缓存刷新完成，共写入 {} 个商品", hotList.size());
+    }
+
+    /**
+     * 把热门商品写入 ZSet 缓存（公共方法，供两处复用）
+     * <p>
+     * code-review 修复：原来"冷缓存回填"和"定时刷新"各自调用 queryHotProducts 查一次库，
+     * 导致一次冷请求重复查询数据库。抽出本方法后，调用方自己查好数据传进来，
+     * 本方法只负责"写缓存"，不做查询。
+     * <p>
+     * 被两处复用：
+     * 1. getHotProducts() 缓存为空时 → 传刚查好的 hotList，顺手回填（不等整点）
+     * 2. refreshHotCache() 定时刷新时 → 传新查的 hotList，重建榜单
+     *
+     * @param hotList 已按销量降序排好的热门商品 VO 列表
+     */
+    private void fillHotCache(List<ProductVO> hotList) {
+
+        // 1. 先删掉旧的 key（防止新旧数据混在一起）
         //    Redis 的 ZSet 没有"整体覆盖"命令，所以先 delete 再重新写入
         stringRedisTemplate.delete(HOT_KEY);
 
-        // 3. 遍历商品，逐个写入 ZSet
+        // 2. 遍历商品，逐个写入 ZSet
         //    ZSetOperations 是 Spring Data Redis 封装好的有序集合操作工具
         ZSetOperations<String, String> zset = stringRedisTemplate.opsForZSet();
         for (ProductVO vo : hotList) {
@@ -435,10 +463,40 @@ public class ProductServiceImpl implements ProductService{
             zset.add(HOT_KEY, String.valueOf(vo.getId()), score);
         }
 
-        // 4. 设置 1 小时过期时间（双保险，见方法注释）
+        // 3. 设置 1 小时过期时间（双保险，见 refreshHotCache 注释：定时刷新 + 过期兜底）
         stringRedisTemplate.expire(HOT_KEY, HOT_TTL);
+    }
 
-        log.info("热门榜缓存刷新完成，共写入 {} 个商品", hotList.size());
+    // ==================== 商品详情缓存管理 ====================
+
+    /**
+     * 清除指定商品的详情缓存（product:detail::{id}）
+     * <p>
+     * code-review 修复（开发文档 §8 补充）：
+     * 商品详情的缓存是 @Cacheable 注解缓存的，30 分钟才过期。但商品库存会被订单流程修改：
+     * - 用户下单 → 扣库存（OrderServiceImpl.createOrder → orderMapper.updateStock）
+     * - 订单取消 / 退单 → 恢复库存（OrderServiceImpl.restoreStockByOrderId → orderMapper.restoreStock）
+     * 如果不清缓存，用户买完东西后，商品详情页还会显示旧库存最多 30 分钟
+     * （出现"详情页有库存，下单却提示库存不足"的 bug）。
+     * <p>
+     * 所以库存变化后，必须立刻清掉对应商品的详情缓存：
+     * - 下单扣库存后 → 对每个订单项商品调本方法
+     * - 取消/退单恢复库存后 → 对每个订单项商品调本方法
+     * 订单模块通过注入 ProductService 调用本方法（缓存操作封装在商品 Service 里，符合 MVC）
+     * <p>
+     * 注意：@CacheEvict 的 key 用 "#productId"（本方法的参数名），
+     * 和 getProductById 里 @Cacheable 的 key "#id" 参数名不同，但两个 key 的值都是商品ID，
+     * 所以生成的 Redis key 都是 product:detail::{商品ID}，能正确匹配并删除。
+     *
+     * @param productId 商品 ID
+     */
+    @Override
+    @CacheEvict(cacheNames = "product:detail", key = "#productId")
+    public void clearProductDetailCache(Long productId) {
+        // 方法体为空：清缓存的逻辑全在 @CacheEvict 注解里（方法正常返回后自动删缓存）
+        // 这个方法存在的意义 = 给其他模块一个"干净的清缓存入口"
+        // 调用方（订单模块）不需要知道 Redis key 长什么样，传商品ID 即可
+        log.debug("已清除商品详情缓存: productId={}", productId);
     }
 
     // ==================== 公共转换方法 ====================

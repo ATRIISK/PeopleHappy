@@ -56,4 +56,21 @@ public interface ProductService {
      * @return 热门商品列表（最多 8 个）
      */
     List<ProductVO> getHotProducts();
+
+    /**
+     * 清除指定商品的详情缓存（product:detail::{id}）
+     * <p>
+     * 为什么不直接在其他 Service 里删缓存？
+     *   Redis 的 key 是商品详情页缓存专用的，属于"商品模块"的职责。
+     *   缓存相关的操作要封装在商品 Service 里（开发文档 §8：缓存全部在 Service 层实现），
+     *   所以订单模块（OrderServiceImpl）不能直接操作 Redis，而是要调这个方法来清缓存。
+     * <p>
+     * 什么时候调用（code-review 修复，开发文档 §8）：
+     *   - 用户下单扣库存后（库存变了，详情页不能显示旧库存）
+     *   - 订单取消/退单恢复库存后（同理）
+     * 这些操作都在 OrderServiceImpl 里，它通过注入 ProductService 调用本方法。
+     *
+     * @param productId 商品 ID
+     */
+    void clearProductDetailCache(Long productId);
 }
