@@ -15,13 +15,20 @@ import com.happymart.vo.ProductVO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.ZSetOperations;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -66,6 +73,41 @@ public class ProductServiceImpl implements ProductService{
      * 比如数据库存的是 ["a.jpg", "b.jpg"] → 转成 Java 的 List，里面有两个元素
      */
     private final ObjectMapper objectMapper;
+
+    /**
+     * Spring Boot 自动配置的 StringRedisTemplate
+     * → 专门用来"手写" Redis 操作（这里用来读写热门榜 ZSet，开发文档 §8 场景二）
+     * <p>
+     * 为什么热门榜 ZSet 不用 RedisConfig 里自定义的 RedisTemplate&lt;String, Object&gt;？
+     *   1. RedisConfig 那个是 JSON 序列化：value 会变成 JSON 文本，还带 @class 类型信息。
+     *      而 ZSet 的 member（我们存的是商品ID），JSON 序列化后数字反序列化会有坑——
+     *      比如存了 Long 123，读回来可能是 Integer，强转 Long 就报错。
+     *   2. StringRedisTemplate 的 key 和 member 都是"纯字符串"，类型干净、零歧义，
+     *      存 "123" 读回来就是 String "123"，最不容易出问题。
+     *   3. StringRedisTemplate 是 Spring Boot 自动配置好的 Bean，不用在 RedisConfig 里再写一遍。
+     * <p>
+     * 结论：商品详情/分类树这种"整个对象缓存"用注解 @Cacheable（JSON 序列化），
+     *      热门榜这种"只存 ID + 销量"用 StringRedisTemplate（纯字符串），各取所长。
+     */
+    private final StringRedisTemplate stringRedisTemplate;
+
+    // ==================== 热门榜缓存常量 ====================
+
+    /**
+     * 热门商品榜在 Redis 里的 key（对齐开发文档 §8 场景二的 product:hot）
+     */
+    private static final String HOT_KEY = "product:hot";
+
+    /**
+     * 榜单最多取几个商品（对齐原来"销量前 8"的逻辑）
+     */
+    private static final int HOT_LIMIT = 8;
+
+    /**
+     * 榜单缓存过期时间：1 小时（对齐开发文档 §8 场景二的 TTL）
+     * 用 Duration.ofHours(1) 而不是直接写数字，可读性更好，也方便统一改
+     */
+    private static final Duration HOT_TTL = Duration.ofHours(1);
 
     // ==================== 商品列表分页查询 ====================
 
@@ -178,11 +220,28 @@ public class ProductServiceImpl implements ProductService{
      * <p>
      * 商品详情页调用这个接口。
      * 如果商品不存在，会抛 BusinessException，全局异常处理器会返回 404 给前端。
+     * <p>
+     * 缓存说明（开发文档 §8 场景一，String 结构 + 30 分钟 TTL）：
+     * {@code @Cacheable(cacheNames = "product:detail", key = "#id")} 的含义：
+     * - 第一次调用：执行方法体 → 查数据库 → 把返回的 ProductVO 存进 Redis（30 分钟后过期）
+     * - 第二次调用（30 分钟内）：不执行方法体，直接返回 Redis 里的缓存值 → 不再查数据库
+     * - cacheNames = "product:detail" → 对应 RedisConfig 里 CacheManager 的默认配置（TTL 30 分钟）
+     * - key = "#id" → 用方法参数 id 作为缓存的 key，
+     *   实际 Redis 里的 key 是 product:detail::1（Spring Cache 格式 = 缓存名::key，文档写的 product:detail:{id} 是概念写法）
+     * <p>
+     * ⏳ 预留：将来管理后台"新增/修改/删除商品"时，要在那个保存方法上加
+     *   {@code @CacheEvict(cacheNames = "product:detail", allEntries = true)}
+     *   清除全部商品详情缓存，否则后台改了商品，前台要等 30 分钟缓存过期才看到新数据。
+     *   当前没有管理员接口（管理后台 ⏳ 未开发），所以暂时只加读缓存 @Cacheable。
+     * <p>
+     * 注意：缓存命中时方法体不执行，所以"查询商品详情"这句日志在命中缓存时不会打印
+     *      （可用这个特征判断缓存是否生效）。
      *
      * @param id 商品 ID
      * @return 商品详情 VO（包含轮播图列表）
      */
     @Override
+    @Cacheable(cacheNames = "product:detail", key = "#id")
     public ProductVO getProductById(Long id) {
         log.info("查询商品详情: id={}", id);
 
@@ -202,48 +261,184 @@ public class ProductServiceImpl implements ProductService{
         return convertToVO(product);
     }
 
-    // ==================== 热门商品榜 ====================
+    // ==================== 热门商品榜（Redis ZSet 缓存） ====================
 
     /**
      * 查询热门商品（销量前 8 名）
      * <p>
      * 首页的"热门推荐"区域调用这个接口。
-     * 逻辑很简单：
-     * 1. 只查上架的商品（status = 0）
-     * 2. 按销量从高到低排
-     * 3. 只取前 8 条
      * <p>
-     * 后续优化：可以加 Redis 缓存，1 小时刷新一次，不用每次都查数据库。
+     * 缓存说明（开发文档 §8 场景二，ZSet 结构 + 1 小时定时刷新）：
+     * 热门榜为什么不能用 @Cacheable 注解？
+     *   ZSet（有序集合）不是 Spring Cache 抽象原生支持的结构，@Cacheable 只能缓存"整个返回值"，
+     *   不能表达"member + score 按分数排序"这种 Redis 特性，所以必须**手写 RedisTemplate 操作**。
+     * <p>
+     * ZSet 里存什么？
+     *   member = 商品ID 的字符串（如 "1"、"2"），score = 销量。
+     *   按 score 降序取出来，天然就是"销量榜"。
+     * <p>
+     * 读取流程（本方法）：
+     *   1. 先从 Redis ZSet 取前 8 个商品ID（reverseRange 按 score 从高到低）
+     *   2. 命中 → 用商品ID批量查数据库 → 组装 VO 返回
+     *   3. 缓存为空（首次启动/缓存过期/定时任务还没跑）→ 查数据库 Top8 → 顺手回填缓存 → 返回
+     * <p>
+     * 为什么命中缓存后"还要查一次数据库"？
+     *   ZSet 里只有商品ID 和销量，商品的名称/价格/图片这些完整信息还在 MySQL 里，
+     *   所以要用 ID 去 MySQL 查。但这是"主键 IN 批量查询"，比原来"每次全量查 Top8 再转换"快。
+     * <p>
+     * 兜底设计：
+     *   - 整个方法 try-catch 包裹 → Redis 连不上时自动降级查数据库，首页不会挂
+     *   - ZSet 空 → 读取时顺手回填（refreshHotCache），不用干等整点定时任务
      *
      * @return 热门商品列表（最多 8 个）
      */
     @Override
     public List<ProductVO> getHotProducts() {
-        log.info("查询热门商品 Top 8");
+        log.info("查询热门商品 Top {}", HOT_LIMIT);
 
-        // 构建查询条件
-        LambdaQueryWrapper<Product> wrapper = new LambdaQueryWrapper<>();
+        try {
+            // ===== 1. 先读 Redis ZSet 缓存 =====
+            // reverseRange(key, start, end)：按 score 从高到低取一个区间
+            // 0 到 HOT_LIMIT-1 → 取销量最高的前 8 个商品ID（score 就是销量）
+            Set<String> hotIds = stringRedisTemplate.opsForZSet()
+                    .reverseRange(HOT_KEY, 0, HOT_LIMIT - 1);
 
-        // .eq(字段, 值) → WHERE 字段 = 值
-        // Product::getStatus 是方法引用，相当于 "status" 字段
-        wrapper.eq(Product::getStatus, 0)              // 只查上架的商品（status=0）
-               .orderByDesc(Product::getSales)          // 按销量从高到低排序（ORDER BY sales DESC）
-               .last("LIMIT 8");                        // 只取前 8 条（追加到 SQL 末尾）
+            // 命中缓存（ZSet 里有数据）
+            if (hotIds != null && !hotIds.isEmpty()) {
+                log.info("热门榜命中 Redis 缓存，共 {} 个商品", hotIds.size());
+                // 用商品ID批量查库，按 ZSet 顺序组装 VO
+                return convertToVOByOrder(hotIds);
+            }
 
-        // 执行查询，返回 List<Product>
-        // 如果不加 LIMIT，可能会查出几百个商品，但我们只需要前 8 个
-        List<Product> productList = productMapper.selectList(wrapper);
+            // ===== 2. 缓存为空（首次启动 / 缓存过期 / 定时任务还没跑） =====
+            // 先查数据库 Top8，再顺手回填缓存，这样第一次访问就写进 Redis，不用等整点
+            log.info("热门榜缓存为空，查询数据库并回填 Redis 缓存");
+            List<ProductVO> hotList = queryHotProducts();  // 查数据库拿 Top8
+            refreshHotCache();                              // 回填 ZSet
+            return hotList;
 
-        // 把 Entity 列表转成 VO 列表
-        // stream() → 把 List 转成流，方便做批量操作
-        // map() → 对每个元素执行 convertToVO 转换
-        // collect() → 把流转回 List
-        List<ProductVO> voList = productList.stream()
-                .map(this::convertToVO)
+        } catch (Exception e) {
+            // ===== 3. Redis 挂了 → 降级回数据库 =====
+            // Redis 连接失败会抛异常，catch 住后直接查数据库返回
+            // 保证 Redis 故障时首页依然能用（功能降级，不阻断业务）
+            log.warn("Redis 热门榜读取失败，降级查询数据库: {}", e.getMessage());
+            return queryHotProducts();
+        }
+    }
+
+    /**
+     * 按 ZSet 里的商品ID顺序批量查库，组装成 VO 列表
+     * <p>
+     * 为什么不能用 List 顺序直接对应？
+     *   MySQL 的 IN 查询返回顺序**不保证**和传入顺序一致，所以先把商品转成 Map
+     *   （key = 商品ID），再按 hotIds 的顺序一个个取出来组装，保证最终顺序 = 销量榜顺序。
+     *
+     * @param hotIds ZSet 里按销量降序排好的商品ID集合（顺序就是榜单顺序）
+     * @return 按榜单顺序排好的热门商品 VO 列表
+     */
+    private List<ProductVO> convertToVOByOrder(Set<String> hotIds) {
+
+        // 1. 把 String 类型的商品ID 转成 Long 列表（MyBatis-Plus 批量查询需要 Long）
+        //    "1" → 1L
+        List<Long> idList = hotIds.stream()
+                .map(Long::parseLong)
                 .collect(Collectors.toList());
 
-        log.info("热门商品查询完成，共 {} 条", voList.size());
-        return voList;
+        // 2. 批量查库：SELECT * FROM product WHERE id IN (1,2,3,...)
+        //    selectBatchIds 是 MyBatis-Plus BaseMapper 自带的方法，一次性查出所有商品
+        List<Product> products = productMapper.selectBatchIds(idList);
+
+        // 3. 把商品转成 VO，再存进 Map，key = 商品ID
+        //    用 Map 的原因：等会要"按 hotIds 的顺序"重组，Map 用 get 一下就能拿到，效率高
+        Map<Long, ProductVO> voMap = products.stream()
+                .map(this::convertToVO)                      // 每个 Product → ProductVO
+                .collect(Collectors.toMap(ProductVO::getId, vo -> vo));
+
+        // 4. 按 hotIds 的顺序逐个取出 VO（保持销量降序）
+        //    注意：如果某个商品被删了/下架了，voMap 里取不到，就跳过它，不影响整体顺序
+        List<ProductVO> result = new ArrayList<>();
+        for (String idStr : hotIds) {
+            ProductVO vo = voMap.get(Long.parseLong(idStr));
+            if (vo != null) {
+                result.add(vo);
+            }
+        }
+        return result;
+    }
+
+    /**
+     * 从数据库查询热门商品 Top8（原 getHotProducts 的查询逻辑，抽取出来复用）
+     * <p>
+     * 这个方法被三处复用：
+     * 1. getHotProducts() 缓存未命中时 → 查数据库兜底
+     * 2. getHotProducts() Redis 挂掉时 → 降级查询
+     * 3. refreshHotCache() 定时刷新时 → 重新查库拿最新数据
+     *
+     * @return 销量前 8 名的商品 VO 列表
+     */
+    private List<ProductVO> queryHotProducts() {
+        log.info("从数据库查询热门商品 Top {}", HOT_LIMIT);
+
+        // 构建查询条件：只查上架商品，按销量降序，取前 8 条
+        LambdaQueryWrapper<Product> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(Product::getStatus, 0)               // 只查上架的商品（status=0）
+               .orderByDesc(Product::getSales)          // 按销量从高到低排序（ORDER BY sales DESC）
+               .last("LIMIT " + HOT_LIMIT);             // 只取前 8 条（追加到 SQL 末尾）
+
+        // 执行查询
+        List<Product> productList = productMapper.selectList(wrapper);
+
+        // Entity 列表 → VO 列表
+        return productList.stream()
+                .map(this::convertToVO)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * 定时刷新热门榜缓存（每小时整点自动执行）
+     * <p>
+     * 对应开发文档 §8：热门商品榜 ZSet，1 小时定时刷新。
+     * 为什么要定时刷新？因为销量在不停变化（用户下单、退单都会改 sales），
+     * 榜单不能永远停留在某一次查询的结果上，所以要每小时拉一次最新的。
+     * <p>
+     * {@code @Scheduled(cron = "0 0 * * * ?")} 的含义：
+     * - 定时任务注解，让 Spring 每隔一段时间自动调用这个方法
+     * - cron 表达式 "0 0 * * * ?" = 每小时整点执行一次（10:00、11:00、12:00 ...）
+     * - 总开关是 RedisConfig 里的 @EnableScheduling（已配好，这里是具体任务）
+     * <p>
+     * 双保险设计：
+     * 1. 每小时定时刷新 → 保证榜单跟着销量变化
+     * 2. 写入时还设置 1 小时过期时间（expire）→ 万一定时任务出问题停了，
+     *    缓存也会在 1 小时后自然消失，下次 getHotProducts() 发现 ZSet 空会自动回填，
+     *    不会一直用脏数据
+     */
+    @Scheduled(cron = "0 0 * * * ?")
+    public void refreshHotCache() {
+
+        // 1. 查数据库拿最新的 Top8
+        List<ProductVO> hotList = queryHotProducts();
+
+        // 2. 先删掉旧的 key（防止新旧数据混在一起）
+        //    Redis 的 ZSet 没有"整体覆盖"命令，所以先 delete 再重新写入
+        stringRedisTemplate.delete(HOT_KEY);
+
+        // 3. 遍历商品，逐个写入 ZSet
+        //    ZSetOperations 是 Spring Data Redis 封装好的有序集合操作工具
+        ZSetOperations<String, String> zset = stringRedisTemplate.opsForZSet();
+        for (ProductVO vo : hotList) {
+            // add(key, member, score) 三个参数：
+            //   key    = 榜单的 key（product:hot）
+            //   member = 商品ID 的字符串（ZSet 里存的元素，后面读取时拿到它去查库）
+            //   score  = 销量（排序依据，score 越大排名越靠前）
+            // 销量理论上数据库有默认值 0，但代码里做个空值保护，最稳妥
+            double score = vo.getSales() == null ? 0.0 : vo.getSales().doubleValue();
+            zset.add(HOT_KEY, String.valueOf(vo.getId()), score);
+        }
+
+        // 4. 设置 1 小时过期时间（双保险，见方法注释）
+        stringRedisTemplate.expire(HOT_KEY, HOT_TTL);
+
+        log.info("热门榜缓存刷新完成，共写入 {} 个商品", hotList.size());
     }
 
     // ==================== 公共转换方法 ====================

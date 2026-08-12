@@ -22,12 +22,13 @@ spring:
       host: localhost
       port: 6379
       database: 0
-      timeout: 3000ms
+      timeout: 3000ms # 连接超时：3s（快速失败，触发自动重连）
       lettuce:
         pool:
-          max-active: 8
-          max-idle: 8
-          min-idle: 0
+          max-active: 8 # 最大连接数：8
+          max-idle: 8 # 最大空闲连接数：8
+          min-idle: 0 # 最小空闲连接数：0
+          max-wait: 1000 # 最大空闲时间：1000ms（1s）等待连接超时
 
   rabbitmq:
     host: localhost
