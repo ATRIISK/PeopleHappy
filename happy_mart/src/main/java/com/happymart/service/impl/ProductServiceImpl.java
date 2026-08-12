@@ -30,6 +30,9 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 /**
@@ -467,22 +470,58 @@ public class ProductServiceImpl implements ProductService{
         stringRedisTemplate.expire(HOT_KEY, HOT_TTL);
     }
 
-    // ==================== 商品详情缓存管理 ====================
+    // ==================== 商品详情缓存管理（经典延时双删） ====================
 
     /**
-     * 清除指定商品的详情缓存（product:detail::{id}）
+     * 延时双删专用的延迟线程池
+     *
+     * 为什么需要独立线程池，而不是在方法里直接 Thread.sleep(500)？
+     *   第二次删除要"延时 500ms"再执行。如果直接 sleep，会阻塞下单请求的线程
+     *   （用户下单要多等 0.5 秒才能拿到响应），体验差。
+     *   所以用线程池异步执行：方法立即返回，500ms 后由线程池里的线程去删缓存。
+     *
+     * 为什么用守护线程（daemon）？
+     *   守护线程不会阻止 JVM 退出。应用关闭时即使还有待执行的删除任务，
+     *   JVM 也能正常退出（最多那次删除没执行——缓存 TTL 30 分钟后自然过期，无影响）。
+     *   newScheduledThreadPool 第一个参数 = 池子里常驻的线程数，删除任务很轻量，1 个够用。
+     */
+    private static final ScheduledExecutorService DELAY_DELETE_POOL =
+            Executors.newScheduledThreadPool(1, r -> {
+                Thread t = new Thread(r, "cache-delay-delete");
+                t.setDaemon(true);   // 守护线程：应用退出时不阻塞
+                return t;
+            });
+
+    /**
+     * 清除指定商品的详情缓存（经典延时双删）
      * <p>
-     * code-review 修复（开发文档 §8 补充）：
+     * 背景（对应开发文档 §8，code-review 补充）：
      * 商品详情的缓存是 @Cacheable 注解缓存的，30 分钟才过期。但商品库存会被订单流程修改：
      * - 用户下单 → 扣库存（OrderServiceImpl.createOrder → orderMapper.updateStock）
      * - 订单取消 / 退单 → 恢复库存（OrderServiceImpl.restoreStockByOrderId → orderMapper.restoreStock）
      * 如果不清缓存，用户买完东西后，商品详情页还会显示旧库存最多 30 分钟
      * （出现"详情页有库存，下单却提示库存不足"的 bug）。
      * <p>
-     * 所以库存变化后，必须立刻清掉对应商品的详情缓存：
-     * - 下单扣库存后 → 对每个订单项商品调本方法
-     * - 取消/退单恢复库存后 → 对每个订单项商品调本方法
-     * 订单模块通过注入 ProductService 调用本方法（缓存操作封装在商品 Service 里，符合 MVC）
+     * 为什么简单删一次还不够，要"延时双删"？
+     * 库存更新（DB 变更）和第一次删缓存之间有一个并发窗口，会产生"删了又回填旧值"：
+     * <pre>
+     *   ① A 下单扣库存（DB: stock 10→5，但事务还没提交）
+     *   ② A 第一次删缓存 product:detail::1
+     *   ③ 此刻并发读 R 查详情 → 缓存已删 → 查 DB → 读到旧值 10（A 事务未提交）
+     *   ④ R 把旧值 10 回填进缓存
+     *   ⑤ A 事务提交（DB 正式变成 5）
+     *   → 缓存里残留旧值 10，和数据库不一致，要等 30 分钟过期才修复
+     * </pre>
+     * 延时双删就是专门治这个问题的：
+     * <pre>
+     *   ① 第一次删除：@CacheEvict 注解（本方法正常返回后自动删）→ 删掉下单前的旧缓存
+     *   ② 延时 500ms：给"步骤③④并发读回填旧值"留出发生的时间
+     *   ③ 第二次删除：500ms 后线程池再删一次 → 把被回填的旧值删掉
+     *   → 即使有并发读回填了旧值，也会在第二次删除时被清掉，缓存最终一致
+     * </pre>
+     * 为什么延时 500ms？
+     *   经验值，覆盖绝大多数"读缓存 miss → 查库 → 回填"的耗时。
+     *   太短（如 50ms）可能覆盖不完整；太长（如 5s）会让缓存的空窗期变长。
      * <p>
      * 注意：@CacheEvict 的 key 用 "#productId"（本方法的参数名），
      * 和 getProductById 里 @Cacheable 的 key "#id" 参数名不同，但两个 key 的值都是商品ID，
@@ -493,10 +532,30 @@ public class ProductServiceImpl implements ProductService{
     @Override
     @CacheEvict(cacheNames = "product:detail", key = "#productId")
     public void clearProductDetailCache(Long productId) {
-        // 方法体为空：清缓存的逻辑全在 @CacheEvict 注解里（方法正常返回后自动删缓存）
-        // 这个方法存在的意义 = 给其他模块一个"干净的清缓存入口"
-        // 调用方（订单模块）不需要知道 Redis key 长什么样，传商品ID 即可
-        log.debug("已清除商品详情缓存: productId={}", productId);
+
+        // ===== 第一次删除 =====
+        // 由 @CacheEvict 注解负责：本方法正常返回后，自动删除 product:detail::{productId}
+        // 这一步删掉的是"下单前"的旧缓存
+        // 注意：@CacheEvict 删除发生在当前调用链上的 OrderServiceImpl 事务提交之前，
+        //       这正是存在并发窗口的原因——所以需要下面的第二次延时删除
+
+        // ===== 第二次延时删除 =====
+        // 安排线程池在 500ms 后再删一次，清掉并发读在窗口期回填的旧值
+        DELAY_DELETE_POOL.schedule(() -> {
+            try {
+                // 直接删 Redis key：product:detail::{productId}
+                // 注意 key 格式要和 @Cacheable 生成的完全一致（缓存名::key，之前验证过是 product:detail::1）
+                String cacheKey = "product:detail::" + productId;
+                Boolean deleted = stringRedisTemplate.delete(cacheKey);
+                log.info("延时双删完成（第二次删除）: key={}, deleted={}", cacheKey, deleted);
+            } catch (Exception e) {
+                // 第二次删除失败也无所谓：
+                // 最坏情况是缓存里旧值多留一会儿，TTL 30 分钟后自然过期，不会出大问题
+                // 打日志方便排查，但不往上抛（不能影响下单主流程）
+                log.warn("延时双删（第二次删除）失败: productId={}, error={}",
+                        productId, e.getMessage());
+            }
+        }, 500, TimeUnit.MILLISECONDS);   // 500ms 后执行（延时双删的"延时"）
     }
 
     // ==================== 公共转换方法 ====================
