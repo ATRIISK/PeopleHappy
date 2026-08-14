@@ -84,6 +84,14 @@ public class CartServiceImpl implements CartService {
     public void addCart(Long userId, Long productId, Integer quantity) {
         log.info("添加购物车: userId={}, productId={}, quantity={}", userId, productId, quantity);
 
+        // 参数校验：数量不能小于 1（与 updateQuantity 保持一致）
+        // 前端虽然限制了输入，但后端永远不要相信前端数据（可被绕过/篡改），
+        // 否则会插入一条 quantity=0 甚至负数的购物车记录
+        if (quantity == null || quantity < 1) {
+            log.warn("添加购物车失败: 数量不能小于1, quantity={}", quantity);
+            throw new BusinessException(ResultCodeEnum.PARAM_ERROR, "数量不能小于1");
+        }
+
         // ===== 1. 查一下这个用户的购物车里有没有这个商品 =====
         // LambdaQueryWrapper 是 MyBatis-Plus 的条件构造器
         // eq(字段, 值) → 生成 WHERE 字段 = 值
@@ -129,9 +137,9 @@ public class CartServiceImpl implements CartService {
     public void updateQuantity(Long userId, Long productId, Integer quantity) {
         log.info("更新购物车数量: userId={}, productId={}, quantity={}", userId, productId, quantity);
 
-        // 参数校验：数量不能小于 1
+        // 参数校验：数量不能为 null 且不能小于 1（与 addCart 保持一致）
         // 虽然前端 el-input-number 的 min=1，但后端也要校验（后端永远不要相信前端传来的数据）
-        if (quantity < 1) {
+        if (quantity == null || quantity < 1) {
             log.warn("更新数量失败: 数量不能小于1, quantity={}", quantity);
             throw new BusinessException(ResultCodeEnum.PARAM_ERROR, "数量不能小于1");
         }

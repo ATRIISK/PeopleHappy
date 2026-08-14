@@ -15,6 +15,8 @@ import { useCartStore } from '@/stores/cart'
  * addAddress     → 新增地址（弹窗中直接添加新地址）
  */
 import { getAddressList, addAddress } from '@/api/address'
+// 数量规范化公共工具（与商品详情页共用，code-review 二轮修复去重）
+import { normalizeQuantity } from '@/utils/quantity'
 
 // 路由实例，用于跳转
 const router = useRouter()
@@ -135,17 +137,29 @@ function toggleAllCheck() {
 }
 
 /**
- * 修改商品数量
- * 调用 cartStore.updateQuantity 同步到后端
+ * 修改商品数量（选购商品数量）
+ * <p>
+ * 由数量列的 el-input-number 触发：支持两种方式改数量——
+ * 1. 点击输入框直接输入数字（键盘输入，回车/失焦生效）
+ * 2. 点击步进器 ± 加减
+ * 输入值会被 el-input-number 自动钳制到 [min=1, max=商品库存] 范围，
+ * 这里调用 cartStore.updateQuantity 同步到后端。
  * @param {Object} item - 购物车商品对象
- * @param {number} newQuantity - 新数量
+ * @param {number} newQuantity - 新数量（已是钳制后的合法值）
  */
 async function handleQuantityChange(item, newQuantity) {
-  // 数量不能小于 1（el-input-number min=1 已约束，但做二次校验）
-  if (newQuantity < 1) return
+  // 用公共工具（utils/quantity.js）规范化数量：取整 + 至少 1（不在此钳制库存）
+  const qty = normalizeQuantity(newQuantity)
+
+  // ★ 超过库存 → 提示"库存不足"，不静默钳制成最大库存数
+  if (item.stock > 0 && qty > item.stock) {
+    ElMessage.error(`「${item.name}」库存不足，仅剩 ${item.stock} 件`)
+    return
+  }
 
   try {
-    await cartStore.updateQuantity(item.productId, newQuantity)
+    // 同步到后端 PUT /api/cart/update
+    await cartStore.updateQuantity(item.productId, qty)
   } catch (err) {
     console.error('修改数量失败:', err)
     ElMessage.error('修改数量失败，请稍后重试')
@@ -501,12 +515,17 @@ onMounted(async () => {
                 <span class="price">¥{{ item.price.toFixed(2) }}</span>
               </td>
 
-              <!-- 数量列 -->
+              <!-- 数量列：el-input-number 支持直接输入数字 + 步进加减 -->
+              <!-- :precision="0" 强制整数（防小数传后端 500）；不设 max 钳制——
+                   超过库存的数量由 handleQuantityChange 校验并提示"库存不足"；
+                   无库存（stock<=0）时禁用输入 -->
               <td class="col-quantity">
                 <el-input-number
                   :model-value="item.quantity"
                   :min="1"
-                  :max="item.stock || 9999"
+                  :disabled="item.stock <= 0"
+                  :precision="0"
+                  value-on-clear="1"
                   size="small"
                   controls-position="right"
                   @change="(val) => handleQuantityChange(item, val)"

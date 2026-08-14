@@ -11,6 +11,8 @@ import { ShoppingCart } from '@element-plus/icons-vue'
 import { getProductById } from '@/api/product'
 import { useUserStore } from '@/stores/user'
 import { useCartStore } from '@/stores/cart'
+// 数量规范化公共工具（与购物车页共用，code-review 二轮修复去重）
+import { normalizeQuantity as normalizeQty } from '@/utils/quantity'
 
 // 路由
 const route = useRoute()
@@ -125,23 +127,22 @@ function switchImage(index) {
 }
 
 /**
- * 减少购买数量
- * 最小为 1
+ * 规范化并校验购买数量
+ * <p>
+ * 数量选择器支持直接输入数字（el-input-number），用户在输入框里可能
+ * 输入 0、负数、空值、小数或超过库存的大数字。这里统一做一次兜底：
+ * - 先向下取整（后端 quantity 是 Integer，小数必须转成整数，如 2.5 → 2）
+ * - 非法值（0 / 负数 / 空）→ 归为 1
+ * - 超过库存（且库存 > 0）→ 钳制为库存上限
+ * 保证"加入购物车 / 立即购买"时传给后端的 quantity 永远是合法整数。
+ * @returns {number} 合法数量（1 ~ 商品库存，无库存时返回 1）
  */
-function decreaseQuantity() {
-  if (quantity.value > 1) {
-    quantity.value--
-  }
-}
-
-/**
- * 增加购买数量
- * 最大不超过库存
- */
-function increaseQuantity() {
-  if (product.value && quantity.value < product.value.stock) {
-    quantity.value++
-  }
+function normalizeQuantity() {
+  // 调用公共工具（utils/quantity.js）：只取整 + 至少 1（刻意不在此钳制库存，
+  // "超过库存"由 handleAddToCart / handleBuyNow 判断并提示"库存不足"）
+  const qty = normalizeQty(quantity.value)
+  quantity.value = qty   // 回写输入框，保证显示与提交一致
+  return qty
 }
 
 /**
@@ -157,10 +158,19 @@ async function handleAddToCart() {
     return
   }
 
+  // 校验数量：取整 + 至少 1
+  const qty = normalizeQuantity()
+
+  // ★ 超过库存 → 提示"库存不足"，不静默钳制成最大库存数
+  if (product.value.stock > 0 && qty > product.value.stock) {
+    ElMessage.error(`库存不足，仅剩 ${product.value.stock} 件`)
+    return
+  }
+
   try {
-    // 调用购物车 Store 的 addItem 方法
-    await cartStore.addItem(product.value.id, quantity.value)
-    ElMessage.success(`已成功将 ${product.value.name} 加入购物车`)
+    // 调用购物车 Store 的 addItem 方法（传入合法数量）
+    await cartStore.addItem(product.value.id, qty)
+    ElMessage.success(`已成功将 ${product.value.name} 加入购物车（${qty} 件）`)
   } catch (err) {
     console.error('加入购物车失败:', err)
     ElMessage.error('加入购物车失败，请稍后重试')
@@ -184,10 +194,19 @@ async function handleBuyNow() {
     return
   }
 
+  // 校验数量：取整 + 至少 1
+  const qty = normalizeQuantity()
+
+  // ★ 超过库存 → 提示"库存不足"，不静默钳制成最大库存数
+  if (product.value.stock > 0 && qty > product.value.stock) {
+    ElMessage.error(`库存不足，仅剩 ${product.value.stock} 件`)
+    return
+  }
+
   try {
-    // 先把商品加入购物车（带上用户选好的数量）
-    await cartStore.addItem(product.value.id, quantity.value)
-    ElMessage.success(`已加入购物车，共 ${quantity.value} 件`)
+    // 先把商品加入购物车（带上用户输入/选择的合法数量）
+    await cartStore.addItem(product.value.id, qty)
+    ElMessage.success(`已加入购物车，共 ${qty} 件`)
     // 跳转到购物车页，用户可继续勾选/结算
     router.push({ name: 'Cart' })
   } catch (err) {
@@ -307,26 +326,21 @@ onMounted(() => {
             </div>
           </div>
 
-          <!-- 数量选择器 -->
+          <!-- 数量选择器：点击 − / + 按钮增减（保留原交互），中间输入框可直接输入数字 -->
+          <!-- el-input-number 默认布局就是"− [输入框] +"，不设 controls-position：
+               点击左侧 − 减少、点击右侧 + 增加，中间输入框支持键盘直接输入，
+               输入值自动钳制到 [1, 库存] 范围 -->
           <div class="quantity-row">
             <span class="quantity-label">数量</span>
-            <div class="quantity-selector">
-              <button
-                class="qty-btn"
-                :disabled="quantity <= 1"
-                @click="decreaseQuantity"
-              >
-                −
-              </button>
-              <span class="qty-number">{{ quantity }}</span>
-              <button
-                class="qty-btn"
-                :disabled="quantity >= product.stock"
-                @click="increaseQuantity"
-              >
-                +
-              </button>
-            </div>
+            <el-input-number
+              v-model="quantity"
+              :min="1"
+              :disabled="isOutOfStock"
+              :precision="0"
+              value-on-clear="1"
+              style="width: 140px"
+            />
+            <span class="stock-tip">点击 − / + 增减，也可直接输入数量（库存 {{ product.stock }} 件）</span>
           </div>
 
           <!-- 操作按钮 -->
@@ -609,50 +623,10 @@ onMounted(() => {
   color: #999;
 }
 
-/* 数量选择器：− 数字 + */
-.quantity-selector {
-  display: flex;
-  align-items: center;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  overflow: hidden;
-}
-
-.qty-btn {
-  width: 36px;
-  height: 36px;
-  border: none;
-  background: #f5f5f5;
-  font-size: 18px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #333;
-  transition: background 0.2s;
-  user-select: none;
-}
-
-.qty-btn:hover:not(:disabled) {
-  background: #e8e8e8;
-}
-
-.qty-btn:disabled {
-  color: #ccc;
-  cursor: not-allowed;
-}
-
-.qty-number {
-  width: 48px;
-  height: 36px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 16px;
-  color: #333;
-  border-left: 1px solid #ddd;
-  border-right: 1px solid #ddd;
-  user-select: none;
+/* 库存提示文字（数量选择器右侧） */
+.stock-tip {
+  font-size: 13px;
+  color: #999;
 }
 
 /* 操作按钮行 */
