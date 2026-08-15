@@ -235,10 +235,9 @@ public class ProductServiceImpl implements ProductService{
      * - key = "#id" → 用方法参数 id 作为缓存的 key，
      *   实际 Redis 里的 key 是 product:detail::1（Spring Cache 格式 = 缓存名::key，文档写的 product:detail:{id} 是概念写法）
      * <p>
-     * ⏳ 预留：将来管理后台"新增/修改/删除商品"时，要在那个保存方法上加
-     *   {@code @CacheEvict(cacheNames = "product:detail", allEntries = true)}
-     *   清除全部商品详情缓存，否则后台改了商品，前台要等 30 分钟缓存过期才看到新数据。
-     *   当前没有管理员接口（管理后台 ⏳ 未开发），所以暂时只加读缓存 @Cacheable。
+     * ✅ 已实现（v1.9 管理后台）：`AdminProductServiceImpl` 新增/修改/删除/上下架商品后
+     *   调用本类的 `clearProductDetailCache(id)`（复用下面实现的经典延时双删），
+     *   商品详情缓存立即失效，不用等 30 分钟缓存过期。
      * <p>
      * 注意：缓存命中时方法体不执行，所以"查询商品详情"这句日志在命中缓存时不会打印
      *      （可用这个特征判断缓存是否生效）。
