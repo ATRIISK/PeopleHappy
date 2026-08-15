@@ -353,31 +353,35 @@ public class OrderServiceImpl implements OrderService {
             throw new BusinessException(ResultCodeEnum.ORDER_STATUS_ERROR, "当前订单状态不允许退单");
         }
 
-        // ===== ★ 调用支付宝退款接口（先退款再改状态+恢复库存） =====
+        // ===== ★ 先校验支付宝交易号存在（fail-fast，无交易号直接拒绝，不改状态） =====
         // 支付宝交易号在 order.transactionId 中，支付成功时由 handlePaid() 回填
         String tradeNo = order.getTransactionId();
         if (tradeNo == null || tradeNo.isEmpty()) {
             log.error("退单失败: 订单无支付宝交易号, orderId={}", orderId);
             throw new BusinessException(ResultCodeEnum.PAY_FAIL, "该订单无支付宝交易记录，退款失败");
         }
-        // out_request_no 传订单号 orderNo 作为幂等键：
-        // 同一订单重复调用退款接口，支付宝返回相同结果而不会重复退款，
-        // 防止"支付宝退款成功但本地事务回滚"后重试时被支付宝拒绝。
+
+        // ===== ★ 再条件更新状态 1 → 5（原子操作，WHERE status=1 防并发） =====
+        // code-review 修复：原来"先支付宝退款、再条件更新"，存在与管理员"发货"的并发窗口：
+        //   admin 先 updateStatusIf(1→2) 提交 → 用户 refundPaidOrder(1→5) 影响行数=0 → 跳过，
+        //   但此时支付宝的钱已经退了 → 订单显示已发货却已退款、库存也没恢复（资金事故）。
+        // 调整为先做条件更新：
+        //   - admin 已发货（status=2）→ refundPaidOrder 影响行数=0 → 直接 return，绝不打支付宝退款
+        //   - 条件更新成功（1→5）→ 才调支付宝退款；退款失败抛异常 → 事务回滚 refundPaidOrder（订单回 1）
+        // 支付宝退款用 out_request_no=订单号 做幂等键：即使"退款成功但本地回滚"后重试，
+        // 支付宝按幂等键返回相同结果，不会重复退款（原设计保留）。
+        int affected = orderMapper.refundPaidOrder(orderId);
+        if (affected == 0) {
+            log.warn("退单跳过: 订单状态已被修改（可能已发货/已退款）, orderId={}", orderId);
+            return;
+        }
+
+        // ===== ★ 条件更新成功后才调支付宝退款 =====
         boolean refundSuccess = alipayService.tradeRefund(
                 tradeNo, order.getTotalAmount(), order.getOrderNo(), order.getOrderNo());
         if (!refundSuccess) {
             log.error("退单失败: 支付宝退款接口返回失败, orderId={}, tradeNo={}", orderId, tradeNo);
             throw new BusinessException(ResultCodeEnum.PAY_FAIL, "退款失败，请稍后重试或联系客服");
-        }
-
-        // ★ 条件更新：status 1 → 5（原子操作，WHERE status=1 防并发）
-        // 防止并发/重复退单导致库存被重复恢复：
-        // - 只有第一个把 status 从 1 改成 5 的请求（影响行数 1）才会恢复库存
-        // - 重复退单时影响行数 0 → 直接跳过（钱已经退了，不能报错也不能重复恢复库存）
-        int affected = orderMapper.refundPaidOrder(orderId);
-        if (affected == 0) {
-            log.warn("退单跳过: 订单状态已被修改, orderId={}", orderId);
-            return;
         }
 
         // 恢复商品库存（把扣掉的库存加回来）

@@ -1,6 +1,7 @@
 package com.happymart.service.impl;                // 包声明 → Service 实现类放在 impl 子包下
 
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper; // MyBatis-Plus 条件构造器
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper; // MyBatis-Plus 条件查询构造器
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper; // MyBatis-Plus 条件更新构造器
 import com.baomidou.mybatisplus.core.metadata.IPage;  // 分页结果接口
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page; // 分页对象
 import com.happymart.common.exception.BusinessException;            // 业务异常
@@ -112,9 +113,12 @@ public class AdminUserServiceImpl implements AdminUserService {
             throw new BusinessException(ResultCodeEnum.PARAM_ERROR, "用户状态只能为 0（启用）或 1（禁用）");
         }
 
-        // ===== 4. 改状态并更新 =====
-        target.setStatus(status);   // 0=启用，1=禁用
-        userMapper.updateById(target);
+        // ===== 4. 只更新 status 字段（code-review 修复） =====
+        // 不能"读整个实体再 updateById"：并发下管理员重置密码等操作会被整实体写回的
+        // 旧 password 覆盖（互相丢失更新）。用 LambdaUpdateWrapper 只 set status，不碰其他字段。
+        LambdaUpdateWrapper<User> wrapper = new LambdaUpdateWrapper<>();
+        wrapper.eq(User::getId, targetUserId).set(User::getStatus, status);   // 0=启用，1=禁用
+        userMapper.update(null, wrapper);
         log.info("管理后台修改用户状态: userId={}, status={}", targetUserId, status);
     }
 
@@ -132,9 +136,11 @@ public class AdminUserServiceImpl implements AdminUserService {
             throw new BusinessException(ResultCodeEnum.USER_NOT_EXIST);
         }
 
-        // BCrypt 加密新密码并覆盖（加密后同一明文每次结果不同，但 matches 校验都能通过）
-        target.setPassword(passwordEncoder.encode(newPassword));
-        userMapper.updateById(target);
+        // 只更新 password 字段（code-review 修复：避免整实体 updateById 覆盖并发修改的 status 等字段）
+        // BCrypt 加密后覆盖（加密后同一明文每次结果不同，但 matches 校验都能通过）
+        LambdaUpdateWrapper<User> wrapper = new LambdaUpdateWrapper<>();
+        wrapper.eq(User::getId, targetUserId).set(User::getPassword, passwordEncoder.encode(newPassword));
+        userMapper.update(null, wrapper);
         log.info("管理后台重置用户密码: userId={}", targetUserId);
     }
 

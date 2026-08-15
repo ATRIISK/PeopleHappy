@@ -10,7 +10,22 @@ export const useUserStore = defineStore('user', () => {
   // 为什么必须持久化？
   //   路由守卫要判断"当前用户是不是 ADMIN"，如果 userInfo 只在内存里，
   //   一刷新页面就变成 null，后台页面刷新一下就被守卫踢回首页了。
-  const userInfo = ref(JSON.parse(localStorage.getItem('userInfo') || 'null'))
+  // 安全解析（code-review 修复）：localStorage 可能被手改/写坏成非 JSON，
+  // 直接 JSON.parse 会抛 SyntaxError 导致整个应用白屏，用 try-catch 兜底。
+  const userInfo = ref(parseStoredUserInfo())
+
+  /**
+   * 安全读取 localStorage 里的用户信息
+   * 解析失败（非 JSON 脏数据）→ 清掉脏数据返回 null，不让异常崩掉应用
+   */
+  function parseStoredUserInfo() {
+    try {
+      return JSON.parse(localStorage.getItem('userInfo') || 'null')
+    } catch {
+      localStorage.removeItem('userInfo')
+      return null
+    }
+  }
 
   // 是否已登录：有 token 就算已登录
   const isLoggedIn = computed(() => !!token.value)

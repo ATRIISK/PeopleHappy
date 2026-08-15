@@ -74,6 +74,12 @@ async function loadData() {
     })
     orderList.value = res.records || []
     total.value = res.total || 0
+    // 发货/删除最后一页的最后一条后，当前页可能超出总页数 → 回退到最后一页重新加载（code-review 修复）
+    if (orderList.value.length === 0 && currentPage.value > 1) {
+      currentPage.value--
+      await loadData()
+      return
+    }
   } catch (err) {
     console.error('获取订单列表失败:', err)
   } finally {

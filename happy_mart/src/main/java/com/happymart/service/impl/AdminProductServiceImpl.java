@@ -163,22 +163,29 @@ public class AdminProductServiceImpl implements AdminProductService {
             log.info("管理后台新增商品: id={}, name={}", product.getId(), dto.getName());
         } else {
             // 修改：updateById 默认策略是"null 字段不更新"，管理员把某字段清空（如原价）
-            // 时 null 会被跳过、库里残留旧值（code-review 修复）。
-            // 所以用 LambdaUpdateWrapper 对每个保存字段显式 set（包括 null → SET col = NULL）。
+            // 时 null 会被跳过、库里残留旧值。所以用 LambdaUpdateWrapper 对每个保存字段显式 set
+            //（包括 null → SET col = NULL，支持"清空原价/轮播图"）。
             // 销量不在 DTO 里，不 set → 保留原值，不会被编辑覆盖。
             LambdaUpdateWrapper<Product> updateWrapper = new LambdaUpdateWrapper<>();
             updateWrapper.eq(Product::getId, dto.getId())
                     .set(Product::getName, product.getName())
                     .set(Product::getDescription, product.getDescription())
                     .set(Product::getPrice, product.getPrice())
-                    .set(Product::getOriginalPrice, product.getOriginalPrice())
                     .set(Product::getImage, product.getImage())
-                    .set(Product::getImages, product.getImages())
                     .set(Product::getCategoryId, product.getCategoryId())
                     .set(Product::getCategoryName, product.getCategoryName())
-                    .set(Product::getStock, product.getStock())
-                    .set(Product::getRating, product.getRating())
-                    .set(Product::getStatus, product.getStatus());
+                    .set(Product::getStock, product.getStock());
+            // originalPrice / images 支持"清空"（传 null 也 SET NULL，否则清不掉）
+            updateWrapper.set(Product::getOriginalPrice, product.getOriginalPrice());
+            updateWrapper.set(Product::getImages, product.getImages());
+            // status / rating 是可选字段：修改时没传（null）表示"保留原值"，
+            // 不能当默认值写（否则部分更新的请求会把下架商品静默上架、把评分清零）——code-review 修复
+            if (dto.getStatus() != null) {
+                updateWrapper.set(Product::getStatus, dto.getStatus());
+            }
+            if (dto.getRating() != null) {
+                updateWrapper.set(Product::getRating, dto.getRating());
+            }
             productMapper.update(null, updateWrapper);
             // 修改后清掉该商品详情缓存，否则前台 30 分钟内还看到旧数据
             productService.clearProductDetailCache(dto.getId());
@@ -203,9 +210,14 @@ public class AdminProductServiceImpl implements AdminProductService {
         if (product == null) {
             throw new BusinessException(ResultCodeEnum.NOT_FOUND);
         }
-        // 改状态并更新
-        product.setStatus(status);
-        productMapper.updateById(product);
+        // ★ 只更新 status 字段（code-review 修复）：
+        // 不能"读整个实体再 updateById"——并发下用户订单的原子扣库存
+        // （UPDATE stock = stock - qty）如果落在 read 和 write 之间，会被整实体写回
+        // 的旧 stock 覆盖（丢失更新，库存虚高 → 可能超卖）。用 LambdaUpdateWrapper 只 set status，
+        // 不碰 stock/sales/price 等字段。
+        LambdaUpdateWrapper<Product> wrapper = new LambdaUpdateWrapper<>();
+        wrapper.eq(Product::getId, id).set(Product::getStatus, status);
+        productMapper.update(null, wrapper);
         // 上下架影响详情缓存（下架后清掉，避免用户还能看到下架商品的详情页）
         productService.clearProductDetailCache(id);
         log.info("管理后台上下架商品: id={}, status={}", id, status);

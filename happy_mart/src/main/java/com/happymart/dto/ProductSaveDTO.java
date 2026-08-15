@@ -1,5 +1,7 @@
 package com.happymart.dto;                          // DTO = Data Transfer Object，用于接收前端传过来的请求参数
 
+import jakarta.validation.constraints.DecimalMin;   // @DecimalMin → 校验 BigDecimal 下限（价格不能为负）
+import jakarta.validation.constraints.Min;          // @Min → 校验数字下限（库存不能为负）
 import jakarta.validation.constraints.NotBlank;     // @NotBlank → 校验字符串不能为 null 也不能是空串
 import jakarta.validation.constraints.NotNull;      // @NotNull → 校验不能为 null
 import lombok.Data;                                 // @Data → 自动生成 getter/setter/toString
@@ -29,8 +31,9 @@ public class ProductSaveDTO {
     /** 商品描述（可选） */
     private String description;
 
-    /** 现价（必填，BigDecimal 保证金额精度） */
+    /** 现价（必填，BigDecimal 保证金额精度；不能为负） */
     @NotNull(message = "商品价格不能为空")
+    @DecimalMin(value = "0.00", message = "商品价格不能为负数")
     private BigDecimal price;
 
     /** 原价（划线价，可选） */
@@ -46,8 +49,9 @@ public class ProductSaveDTO {
     @NotNull(message = "请选择商品分类")
     private Long categoryId;
 
-    /** 库存（必填） */
+    /** 库存（必填；不能为负） */
     @NotNull(message = "库存不能为空")
+    @Min(value = 0, message = "库存不能为负数")
     private Integer stock;
 
     /** 评分 0-5（可选，默认 0） */

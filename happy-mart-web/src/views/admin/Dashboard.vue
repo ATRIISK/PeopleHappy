@@ -50,12 +50,22 @@ const statusTypeMap = {
 async function loadData() {
   loading.value = true
   try {
-    const [statsRes, recentRes] = await Promise.all([
+    // 用 Promise.allSettled：一个接口失败不影响另一个（code-review 修复）
+    // 原来 Promise.all 一个 reject 就全部丢弃，统计卡片全变 0，误导管理员以为店铺没数据
+    const [statsRes, recentRes] = await Promise.allSettled([
       getDashboardStats(),
       getRecentOrders()
     ])
-    stats.value = statsRes
-    recentOrders.value = recentRes || []
+    if (statsRes.status === 'fulfilled') {
+      stats.value = statsRes.value
+    } else {
+      console.error('加载统计失败:', statsRes.reason)
+    }
+    if (recentRes.status === 'fulfilled') {
+      recentOrders.value = recentRes.value || []
+    } else {
+      console.error('加载最近订单失败:', recentRes.reason)
+    }
   } catch (err) {
     console.error('加载数据看板失败:', err)
   } finally {

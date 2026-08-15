@@ -292,17 +292,17 @@ class OrderServiceImplTest {
     // ==================== 三、退单退款 refundOrder（文档 §7.5） ====================
 
     /**
-     * 用例 9：退单成功 → 先支付宝退款 → 改状态 → 恢复库存（文档 §7.5 完整流程）
+     * 用例 9：退单成功 → 先条件更新状态 1→5 → 支付宝退款 → 恢复库存（文档 §7.5，code-review 调整顺序）
      * <p>
-     * 验证点：支付宝退款参数正确（tradeNo=交易号、幂等键 out_request_no=订单号）、
-     * refundPaidOrder 条件更新、恢复库存、清缓存。
+     * 验证点：refundPaidOrder 条件更新在前（防 admin 发货并发，见用例 10/12 说明）、
+     * 支付宝退款参数正确（tradeNo=交易号、幂等键 out_request_no=订单号）、恢复库存、清缓存。
      */
     @Test
     void refundOrder_成功_退款改状态恢复库存() {
         when(orderMapper.selectById(100L)).thenReturn(order(100L, 1L, 1, "NO1", "TRADE001", "200.00"));
+        when(orderMapper.refundPaidOrder(100L)).thenReturn(1); // 条件更新成功（status 1→5）
         // 支付宝退款成功（tradeNo=TRADE001，幂等键 outRequestNo=NO1）
         when(alipayService.tradeRefund(eq("TRADE001"), any(BigDecimal.class), eq("NO1"), eq("NO1"))).thenReturn(true);
-        when(orderMapper.refundPaidOrder(100L)).thenReturn(1); // 条件更新成功（status 1→5）
         when(orderItemMapper.selectByOrderId(100L)).thenReturn(List.of(orderItem(1L, 2)));
         when(orderMapper.restoreStock(1L, 2)).thenReturn(1);
 
@@ -316,23 +316,26 @@ class OrderServiceImplTest {
     }
 
     /**
-     * 用例 10：支付宝退款失败 → 抛支付异常，且不修改本地状态（文档 §7.5 步骤 3）
+     * 用例 10：支付宝退款失败 → 抛支付异常（code-review 调整后顺序：
+     * 条件更新 1→5 先执行，支付宝退款失败抛异常，事务回滚使 refundPaidOrder 失效，订单回到已支付）
      */
     @Test
     void refundOrder_支付宝退款失败_抛支付异常() {
         when(orderMapper.selectById(100L)).thenReturn(order(100L, 1L, 1, "NO1", "TRADE001", "200.00"));
+        when(orderMapper.refundPaidOrder(100L)).thenReturn(1); // 条件更新先成功
         when(alipayService.tradeRefund(anyString(), any(BigDecimal.class), anyString(), anyString())).thenReturn(false);
 
         BusinessException ex = assertThrows(BusinessException.class,
                 () -> service.refundOrder(1L, 100L));
 
         assertEquals(ResultCodeEnum.PAY_FAIL.getCode(), ex.getCode());
-        verify(orderMapper, never()).refundPaidOrder(anyLong()); // 退款失败不能改状态
-        verify(orderMapper, never()).restoreStock(anyLong(), anyInt()); // 更不能恢复库存
+        // 退款失败 → 抛异常 → 事务回滚，绝不能恢复库存
+        verify(orderMapper).refundPaidOrder(100L);          // 已执行（新顺序：先条件更新）
+        verify(orderMapper, never()).restoreStock(anyLong(), anyInt());
     }
 
     /**
-     * 用例 11：订单没有支付宝交易号 → 抛支付异常（文档 §7.5 步骤 3 前置校验）
+     * 用例 11：订单没有支付宝交易号 → 抛支付异常（fail-fast 前置校验，不改状态）
      */
     @Test
     void refundOrder_无交易号_抛支付异常() {
@@ -343,23 +346,25 @@ class OrderServiceImplTest {
 
         assertEquals(ResultCodeEnum.PAY_FAIL.getCode(), ex.getCode());
         verify(alipayService, never()).tradeRefund(anyString(), any(BigDecimal.class), anyString(), anyString());
+        verify(orderMapper, never()).refundPaidOrder(anyLong()); // 无交易号直接拒绝，不改状态
     }
 
     /**
-     * 用例 12：重复退单（并发/重复请求）→ 跳过，不重复恢复库存（文档 §7.5 步骤 4 的幂等核心）
+     * 用例 12：重复退单（并发/重复请求）→ 跳过，不退款不重复恢复库存（文档 §7.5 幂等核心 + code-review 顺序调整）
      * <p>
-     * 场景：两个退单请求同时进来，都通过了状态校验和支付宝退款（幂等键保证不重复退款），
-     * 但 refundPaidOrder 是条件更新（WHERE status=1），只有第一个能成功（影响行数=1），
-     * 第二个影响行数=0 → 直接 return，绝不重复恢复库存。
+     * 场景：两个退单请求同时进来 / 或与管理员"发货"并发。refundPaidOrder 是条件更新（WHERE status=1），
+     * 只有第一个能成功（影响行数=1）；第二个影响行数=0 → 直接 return——
+     * ★ code-review 后绝不打支付宝退款（原来先退款再改状态，并发下钱退了但状态没改成）。
      */
     @Test
     void refundOrder_重复退单_跳过不重复恢复库存() {
         when(orderMapper.selectById(100L)).thenReturn(order(100L, 1L, 1, "NO1", "TRADE001", "200.00"));
-        when(alipayService.tradeRefund(anyString(), any(BigDecimal.class), anyString(), anyString())).thenReturn(true);
-        when(orderMapper.refundPaidOrder(100L)).thenReturn(0); // 已被并发退单，条件更新失败
+        when(orderMapper.refundPaidOrder(100L)).thenReturn(0); // 已被并发发货/退单，条件更新失败
 
         assertDoesNotThrow(() -> service.refundOrder(1L, 100L)); // 不抛异常，静默返回
 
+        verify(orderMapper).refundPaidOrder(100L);
+        verify(alipayService, never()).tradeRefund(anyString(), any(BigDecimal.class), anyString(), anyString()); // 不退款！
         verify(orderMapper, never()).restoreStock(anyLong(), anyInt());
         verify(orderItemMapper, never()).selectByOrderId(anyLong());
     }

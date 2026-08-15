@@ -38,8 +38,14 @@ request.interceptors.response.use(
       const { status } = error.response
       switch (status) {
         case 401:
+          // 清 token + userInfo（code-review 修复：原来只清 token，残留的 userInfo.role 会让 isAdmin 判断错乱）
           localStorage.removeItem('token')
-          window.location.href = '/login'
+          localStorage.removeItem('userInfo')
+          // 弹出后端返回的提示（如被禁用时"账号已被禁用，请联系管理员"），没有则用默认提示
+          ElMessage.error(error.response.data?.message || '登录已过期，请重新登录')
+          // 带上 redirect 参数：重新登录后回到原来在看的页面（code-review 修复）
+          const redirect = encodeURIComponent(window.location.pathname + window.location.search)
+          window.location.href = '/login?redirect=' + redirect
           break
         case 403:
           ElMessage.error('无权限访问')
