@@ -4,7 +4,9 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.happymart.common.exception.BusinessException;
 import com.happymart.common.result.ResultCodeEnum;
 import com.happymart.entity.Cart;
+import com.happymart.entity.Product;            // 商品实体 → 查库存用
 import com.happymart.mapper.CartMapper;
+import com.happymart.mapper.ProductMapper;       // 商品 Mapper → 加购/改数量时查库存（v1.13）
 import com.happymart.service.CartService;
 import com.happymart.vo.CartVO;
 import lombok.RequiredArgsConstructor;
@@ -42,6 +44,14 @@ public class CartServiceImpl implements CartService {
      * 通过 @RequiredArgsConstructor 自动注入，不用写 @Autowired。
      */
     private final CartMapper cartMapper;
+
+    /**
+     * 商品 Mapper（v1.13 新增）
+     * <p>
+     * 加购 / 改数量时查商品库存，校验"购物车累计数量"不超过库存上限，
+     * 修复"库存 9 的商品可以反复加购到购物车 18 个"的 bug。
+     */
+    private final ProductMapper productMapper;
 
     // ==================== 获取购物车列表 ====================
 
@@ -92,7 +102,15 @@ public class CartServiceImpl implements CartService {
             throw new BusinessException(ResultCodeEnum.PARAM_ERROR, "数量不能小于1");
         }
 
-        // ===== 1. 查一下这个用户的购物车里有没有这个商品 =====
+        // ===== 1. 查商品库存（同时校验商品存在、未被逻辑删除）=====
+        Product product = productMapper.selectById(productId);
+        if (product == null) {
+            log.warn("添加购物车失败: 商品不存在或已删除, productId={}", productId);
+            throw new BusinessException(ResultCodeEnum.NOT_FOUND, "商品不存在");
+        }
+        Integer stock = product.getStock();   // 商品库存（null 视为不限制，防御脏数据）
+
+        // ===== 2. 查一下这个用户的购物车里有没有这个商品 =====
         // LambdaQueryWrapper 是 MyBatis-Plus 的条件构造器
         // eq(字段, 值) → 生成 WHERE 字段 = 值
         LambdaQueryWrapper<Cart> wrapper = new LambdaQueryWrapper<>();
@@ -102,10 +120,27 @@ public class CartServiceImpl implements CartService {
         // selectOne → 查一条记录（有 UNIQUE KEY 保证不会有多条）
         Cart existingCart = cartMapper.selectOne(wrapper);
 
+        // 购物车已有该商品数量（没有则为 0）
+        int existingQty = existingCart == null ? 0 : existingCart.getQuantity();
+
+        // ★ 库存累计校验（v1.13，修复用户报告的 bug）：
+        // 加购【不扣库存】（下单才扣），但购物车累计数量不能超过库存上限。
+        // 场景：库存 9 → 加购 9（购物车 9）→ 返回详情页再加购 9 → 已有 9 + 本次 9 = 18 > 库存 9，
+        // 必须拦截，否则购物车数量虚高、到结算下单才报库存不足。
+        // 前端只能校验"本次输入 ≤ 库存"（v1.8.1），看不到购物车已有数量，
+        // 所以"已有 + 本次"的累计校验必须放后端兜底（前端可被绕过，后端永远要自证）。
+        if (stock != null && existingQty + quantity > stock) {
+            int maxCanAdd = Math.max(0, stock - existingQty);   // 本次最多还能加的数量
+            log.warn("添加购物车失败: 累计数量超库存, productId={}, existingQty={}, quantity={}, stock={}",
+                    productId, existingQty, quantity, stock);
+            throw new BusinessException(ResultCodeEnum.STOCK_NOT_ENOUGH,
+                    "库存不足：该商品库存仅 " + stock + " 件，购物车已有 " + existingQty + " 件，本次最多还能加 " + maxCanAdd + " 件");
+        }
+
         if (existingCart != null) {
-            // ===== 2. 已经有了 → 增加数量 =====
-            // 原数量 + 新数量，比如之前有 2 件再加 1 件 → 变成 3 件
-            int newQuantity = existingCart.getQuantity() + quantity;
+            // ===== 3. 已经有了 → 增加数量 =====
+            // 原数量 + 新数量，比如之前有 2 件再加 1 件 → 变成 3 件（累计已在上方校验不超库存）
+            int newQuantity = existingQty + quantity;
             existingCart.setQuantity(newQuantity);
             cartMapper.updateById(existingCart);
             log.info("购物车已有此商品，更新数量: cartId={}, newQuantity={}", existingCart.getId(), newQuantity);
@@ -142,6 +177,20 @@ public class CartServiceImpl implements CartService {
         if (quantity == null || quantity < 1) {
             log.warn("更新数量失败: 数量不能小于1, quantity={}", quantity);
             throw new BusinessException(ResultCodeEnum.PARAM_ERROR, "数量不能小于1");
+        }
+
+        // ★ 库存校验（v1.13）：改后的数量不能超过商品库存，防购物车数量虚高
+        // （与 addCart 的累计校验一致——这里 quantity 就是"改后总数"，直接和库存比即可）
+        Product product = productMapper.selectById(productId);
+        if (product == null) {
+            log.warn("更新数量失败: 商品不存在或已删除, productId={}", productId);
+            throw new BusinessException(ResultCodeEnum.NOT_FOUND, "商品不存在");
+        }
+        if (product.getStock() != null && quantity > product.getStock()) {
+            log.warn("更新数量失败: 超库存, productId={}, quantity={}, stock={}",
+                    productId, quantity, product.getStock());
+            throw new BusinessException(ResultCodeEnum.STOCK_NOT_ENOUGH,
+                    "库存不足：该商品库存仅 " + product.getStock() + " 件");
         }
 
         // 执行更新：UPDATE cart SET quantity = ? WHERE user_id = ? AND product_id = ?
