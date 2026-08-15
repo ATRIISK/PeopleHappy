@@ -59,6 +59,9 @@ public class AdminProductServiceImpl implements AdminProductService {
     /** 前台商品服务 → 复用 clearProductDetailCache（延时双删清详情缓存） */
     private final ProductService productService;
 
+    /** 商品知识库服务（AI 购物助手 v1.11）→ 商品增删改后增量同步向量索引（同包，无需 import） */
+    private final KnowledgeBaseService knowledgeBaseService;
+
     /**
      * 分页查询全部商品（管理后台用，不过滤上/下架）
      * <p>
@@ -191,6 +194,19 @@ public class AdminProductServiceImpl implements AdminProductService {
             productService.clearProductDetailCache(dto.getId());
             log.info("管理后台修改商品: id={}, name={}", dto.getId(), dto.getName());
         }
+
+        // ===== 4. 知识库增量同步（AI 购物助手，v1.11，见开发文档 §14）=====
+        // 商品增/改后 AI 知识库也要跟着更新：上架(0) → upsert（删旧文档+写新文档，AI 立刻能答新内容）；
+        // 下架(1) → remove（从知识库移除，AI 不再推荐它）。
+        // 重新查库拿"最终状态"（新增默认上架、修改未传 status 时保留原值，内存里的 product.status 不一定准），
+        // 用最新实体做 upsert 也保证向量文档和数据库一致。AI 失败不影响管理端业务（upsert/remove 内部已 try-catch）。
+        Long savedId = dto.getId() != null ? dto.getId() : product.getId();
+        Product latest = productMapper.selectById(savedId);
+        if (latest != null && latest.getStatus() != null && latest.getStatus() == 0) {
+            knowledgeBaseService.upsert(latest);
+        } else {
+            knowledgeBaseService.remove(savedId);
+        }
     }
 
     /**
@@ -220,6 +236,13 @@ public class AdminProductServiceImpl implements AdminProductService {
         productMapper.update(null, wrapper);
         // 上下架影响详情缓存（下架后清掉，避免用户还能看到下架商品的详情页）
         productService.clearProductDetailCache(id);
+        // 知识库增量同步（AI 购物助手，v1.11）：上架 → 加入知识库；下架 → 从知识库移除
+        // （product 是刚才查到的完整实体，字段齐全，直接喂给 upsert）
+        if (status == 0) {
+            knowledgeBaseService.upsert(product);
+        } else {
+            knowledgeBaseService.remove(id);
+        }
         log.info("管理后台上下架商品: id={}, status={}", id, status);
     }
 
@@ -251,6 +274,9 @@ public class AdminProductServiceImpl implements AdminProductService {
 
         // 4. 清商品详情缓存（前台首页/详情不再显示）
         productService.clearProductDetailCache(id);
+
+        // 5. 知识库增量同步（AI 购物助手，v1.11）：从 AI 知识库移除该商品，AI 不再推荐它
+        knowledgeBaseService.remove(id);
 
         log.info("管理后台删除商品: id={}, name={}", id, product.getName());
     }

@@ -51,12 +51,19 @@ services:
     # 不挂 volume 的话，容器重建后上传的图片会丢失
     volumes:
       - ./happy_mart/upload:/app/upload
+      # 商品知识库索引持久化（v1.11 AI 购物助手）
+      # 宿主 E:\PeopleHappy\happy_mart\data ↔ 容器 /app/data（kb.index-file-path: ./data/product_kb_index.json）
+      # 不挂 volume 的话，容器重建后要重新调 embedding 接口全量建库
+      - ./happy_mart/data:/app/data
     environment:
       SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/happy_mart?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai
       SPRING_DATASOURCE_USERNAME: root
       SPRING_DATASOURCE_PASSWORD: 123456
       SPRING_DATA_REDIS_HOST: redis
       SPRING_RABBITMQ_HOST: rabbitmq
+      # AI 购物助手（v1.12）：通义千问 API Key 已配置在 application.yml 里（随 jar 打包），
+      # 这里【不再】传 AI_DASHSCOPE_API_KEY 环境变量——如果传 ${AI_DASHSCOPE_API_KEY:-}，
+      # 且服务器没设该环境变量，空串会【覆盖】yml 里的 key，导致 AI 认证失败（DashScope API key must be set）。
     depends_on:
       - mysql
       - redis

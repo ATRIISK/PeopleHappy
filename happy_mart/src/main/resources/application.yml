@@ -57,6 +57,28 @@ spring:
         initial-interval: 1000ms  # 初始重试间隔：1 秒
         max-attempts: 3  # 最大重试次数：3 次
 
+  # Spring AI（DashScope 通义千问）—— AI 购物助手（v1.11，阶段四，见开发文档 §14）
+  ai:
+    dashscope:
+      # 通义千问 API Key（v1.12：改为项目内配置，随打包部署到服务器）
+      # ★ 为什么直接写死在这里？
+      #   用户要求"不用环境变量，把 key 放在项目里打包部署到服务器"（简历项目/私有仓库可接受），
+      #   这样服务器上无需再配置 AI_DASHSCOPE_API_KEY 环境变量，key 随 jar 一起走。
+      # ★ 演进说明（code-review F1 的结论仍适用）：
+      #   之前用 ${AI_DASHSCOPE_API_KEY:dummy} 走环境变量 + dummy 兜底（spring-ai 对空 key 有
+      #   启动期非空校验，空串/无默认值都会启动失败）。现在 key 写死后启动一定正常。
+      # ★ 注意事项：
+      #   1. key 随 git 进仓库（私有仓库可接受）；
+      #   2. 生产环境/多环境部署建议改回 ${AI_DASHSCOPE_API_KEY}（环境变量注入，key 不进代码库更安全）。
+      api-key: sk-ws-H.RPYEDLX.chMH.MEYCIQDTeaHAUUiRW7ji5M2LQnKQhzMJasQMYNRYlpQMwOUxzQIhAL0Xgv2R6zvV4RvUFL9GoIHkkQgvY6k-GzRnI_0D7Fjy
+      chat:
+        options:
+          model: qwen-turbo             # 对话模型
+      embedding:
+        enabled: true
+        options:
+          model: text-embedding-v2      # 向量模型（商品知识库建库/检索用）
+
 mybatis-plus:
   mapper-locations: classpath:mapper/**/*.xml  # 映射文件路径
   type-aliases-package: com.happymart.entity
@@ -97,22 +119,14 @@ alipay:
 app:
   upload-dir: ./upload
 
-# ⏳ AI 购物助手预留（阶段四，见开发文档 §14）：
-# 接入后取消注释并替换以下配置（API Key 用环境变量，不入库）：
-# spring:
-#   ai:
-#     dashscope:
-#       api-key: ${AI_DASHSCOPE_API_KEY}      # 通义千问 API Key（IDEA Run Configuration 配置）
-#       chat:
-#         options:
-#           model: qwen-turbo                  # 对话模型
-#       embedding:
-#         enabled: true
-#         options:
-#           model: text-embedding-v2           # 向量模型
-# kb:
-#   index-file-path: ./data/product_kb_index.json   # 商品向量索引文件（RAG 知识库）
-#   keyword-top-k: 5
-#   vector-top-k: 5
-#   context-top-n: 5
-#   doc-max-chars: 500
+# 商品知识库 RAG 配置（AI 购物助手，v1.11，见开发文档 §14.2）
+# index-file-path：商品向量索引文件（SimpleVectorStore 持久化）
+#   - 开发（IDEA/mvn）：E:/PeopleHappy/happy_mart/data/product_kb_index.json
+#   - Docker 容器（WORKDIR=/app）：/app/data/product_kb_index.json（docker-compose 已挂 volume 持久化）
+# 启动时索引文件存在则直接加载，不存在则从商品表全量重建
+kb:
+  index-file-path: ./data/product_kb_index.json
+  keyword-top-k: 5   # 关键词召回条数（SQL LIKE 商品名/描述）
+  vector-top-k: 5    # 向量召回条数（embedding 相似度检索）
+  context-top-n: 5   # 拼进 prompt 的上下文商品数（[1][2]... 序号）
+  doc-max-chars: 500 # 单个商品拼入 prompt 的最大字符数（防 token 溢出）

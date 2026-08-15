@@ -52,15 +52,13 @@ public class WebMvcConfig implements WebMvcConfigurer {
                         "/api/product/list",                 // 商品列表 → 游客也能看
                         "/api/product/detail/**",            // 商品详情 → 游客也能看
                         "/api/product/hot",                  // 热门商品 → 游客也能看
-                        "/api/category/**"                   // 分类查询 → 游客也能看
+                        "/api/category/**",                  // 分类查询 → 游客也能看
+                        "/api/ai/**"                         // AI 购物助手（v1.11，阶段四）→ 游客也能问商品（RAG 导购）
                         // ⚠️ 新增公开接口一定要加在这里！
                         // 否则会被 JWT 拦截器拦截，返回 401 未登录
                         // 比如：
                         // "/api/cart/list",   ← 这个不能加！购物车需要登录才能看
                         // "/api/order/**",    ← 这个不能加！订单需要登录才能看
-                        // ⏳ AI 购物助手预留（阶段四，见开发文档 §14）：
-                        // 未来需放行 "/api/ai/**"（游客可问商品），开发时取消注释下面这行
-                        // "/api/ai/**",
                 );
     }
 

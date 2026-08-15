@@ -22,4 +22,19 @@
         <result column="is_deleted" property="deleted" jdbcType="TINYINT"/>
     </resultMap>
 
+    <!-- AI 购物助手关键词召回（v1.11，阶段四，见开发文档 §14）
+         只召回【上架】商品（is_deleted=0 AND status=0，手写 SQL 需显式带逻辑删除条件），
+         按商品名/描述 LIKE 匹配用户问题，销量高的排前面（热门商品优先命中） -->
+    <select id="findForKnowledgeBase" resultMap="BaseResultMap">
+        SELECT id, name, description, price, image, category_id, category_name, sales,
+               stock, rating, status, create_time, update_time, is_deleted
+        FROM product
+        WHERE is_deleted = 0
+          AND status = 0
+          AND (name LIKE CONCAT('%', #{keyword}, '%')
+               OR description LIKE CONCAT('%', #{keyword}, '%'))
+        ORDER BY sales DESC
+        LIMIT #{topK}
+    </select>
+
 </mapper>

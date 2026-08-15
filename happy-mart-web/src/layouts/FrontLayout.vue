@@ -10,6 +10,7 @@ import { Search, ShoppingCart, User, ArrowDown, List, Location, SwitchButton } f
 import { useUserStore } from '@/stores/user'
 import { useCartStore } from '@/stores/cart'
 import { getCategoryTree } from '@/api/category'
+import AiAssistant from '@/components/AiAssistant.vue' // AI 购物助手悬浮组件（v1.11，阶段四）
 
 // 路由
 const router = useRouter()
@@ -237,6 +238,9 @@ onMounted(async () => {
         </div>
       </div>
     </footer>
+
+    <!-- AI 购物助手悬浮组件（v1.11，阶段四）→ 全前台页面右下角可问商品（游客也能用） -->
+    <AiAssistant />
   </div>
 </template>
 
