@@ -7,6 +7,9 @@ import com.happymart.entity.Order;
 import com.happymart.vo.OrderVO;
 import org.apache.ibatis.annotations.Param;
 
+import java.math.BigDecimal;
+import java.util.List;
+
 /**
  * 订单 Mapper 接口
  *
@@ -126,4 +129,54 @@ public interface OrderMapper extends BaseMapper<Order> {
      * @return 影响行数：1=退款状态标记成功，0=订单已不是已支付状态
      */
     int refundPaidOrder(@Param("id") Long id);
+
+    /**
+     * 批量查询订单项（含商品名称/图片），供订单列表分页后组装 items 用
+     * <p>
+     * 为什么单独拆出来（code-review 修复）？
+     * "一对多联表分页"（order LEFT JOIN order_item）会导致 MyBatis-Plus 的
+     * count/LIMIT 作用在展开后的订单项行上：总数虚高、一页装不下几单、
+     * 一个订单的订单项会被分页截断。所以订单列表分页只查订单主表，
+     * 本页所有订单的订单项用这一个 IN 查询一次性查出，Service 层按 orderId 分组组装。
+     *
+     * @param orderIds 订单ID集合（本页所有订单）
+     * @return 订单项列表（每项含 orderId，用于分组）
+     */
+    List<OrderVO.OrderItemVO> selectOrderItemsByOrderIds(@Param("orderIds") List<Long> orderIds);
+
+    /**
+     * 分页查询全部订单（管理后台用，可按状态过滤，联表带下单人用户名）
+     *
+     * @param page   分页对象（MyBatis-Plus 自动处理）
+     * @param status 订单状态（null=查全部）
+     * @return 分页结果（含 items 和 username）
+     */
+    IPage<OrderVO> selectOrderVOListAll(Page<?> page, @Param("status") Integer status);
+
+    /**
+     * 统计已成交订单总金额（管理后台 Dashboard 看板用）
+     * <p>
+     * status IN (1,2,3) = 已支付/已发货/已完成（已付款且未退款）
+     * 排除：0待支付（没付钱）、4已取消、5已退款（钱退回去了）
+     * 单位：元（和 Order.totalAmount 一致，别和 PaymentLog.totalFee 的"分"混用）
+     *
+     * @return 总金额；没有已成交订单返回 0
+     */
+    BigDecimal sumPaidAmount();
+
+    /**
+     * 条件更新：把订单状态从 from 改成 to（管理后台发货用）
+     * <p>
+     * UPDATE `order` SET status = #{to} WHERE id = #{id} AND status = #{from}
+     * <p>
+     * ★ WHERE status = #{from} 防并发（和 cancelPendingOrder/markOrderPaid/refundPaidOrder 同一套路）：
+     * 只有当前状态还是 from 才能改成功（影响行数 1）；
+     * 状态已被其他操作改了 → 影响行数 0 → 上层抛"订单状态异常"
+     *
+     * @param id    订单ID
+     * @param from  期望的当前状态
+     * @param to    目标状态
+     * @return 影响行数：1=修改成功，0=状态已变（并发冲突）
+     */
+    int updateStatusIf(@Param("id") Long id, @Param("from") Integer from, @Param("to") Integer to);
 }

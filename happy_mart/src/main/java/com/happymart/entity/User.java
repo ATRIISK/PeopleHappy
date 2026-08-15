@@ -34,6 +34,12 @@ public class User extends BaseEntity {
 
     private String role;                    // 角色：USER（普通用户）/ ADMIN（管理员）
 
+    // 账号状态：0=正常，1=禁用（管理后台"禁用用户"功能用，对应数据库 user 表的 status 列）
+    // 为什么用 Integer 不用 int？
+    //   数据库 status 是 TINYINT，null/0/1 三种可能；用 Integer 能表示 null（老数据没这列时为 null）
+    //   判断"是否禁用"统一用 Integer.valueOf(1).equals(user.getStatus())，null 时返回 false（安全）
+    private Integer status;
+
     // ⚠️ 你没看到 createTime / updateTime / deleted 这三个字段
     // 因为它们定义在父类 BaseEntity 里，User 继承了它们，所以可以直接用
 }

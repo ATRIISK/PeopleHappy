@@ -23,5 +23,9 @@ public class UserVO {
 
     private String role;                       // 角色：USER / ADMIN
 
+    // 账号状态：0=正常，1=禁用（登录返回 + 管理后台用户列表共用）
+    // UserServiceImpl.convertToUserVO 用 BeanUtils.copyProperties，加了这个字段自动带过去
+    private Integer status;
+
     private LocalDateTime createTime;          // 注册时间（从 BaseEntity 继承来的）
 }

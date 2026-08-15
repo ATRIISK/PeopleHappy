@@ -636,7 +636,8 @@ public class ProductServiceImpl implements ProductService{
      * @param product 数据库查出来的商品实体
      * @return 给前端用的商品 VO
      */
-    private ProductVO convertToVO(Product product) {
+    @Override
+    public ProductVO convertToVO(Product product) {
         // 创建一个空的 VO 对象
         ProductVO vo = new ProductVO();
 

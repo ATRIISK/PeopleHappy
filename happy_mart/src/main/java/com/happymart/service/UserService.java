@@ -36,4 +36,21 @@ public interface UserService {
      * @return 用户信息（不含密码）
      */
     UserVO getUserById(Long id);
+
+    /**
+     * 根据用户 ID 获取用户信息（供 JWT 拦截器校验用）
+     *
+     * 和 getUserById 的区别：
+     * - getUserById：用户不存在会抛 USER_NOT_EXIST 异常（给正常业务接口用）
+     * - getAuthUser：用户不存在直接返回 null，不抛异常（给拦截器用）
+     *
+     * ⚠️ 为什么拦截器不能用 getUserById？
+     * 拦截器在 Controller 之前执行，@RestControllerAdvice 管不到它。
+     * 如果 getUserById 抛异常，不会走全局异常处理器，会直接变成 HTTP 500。
+     * 所以专门做一个"查不到就返回 null"的方法，让拦截器自己判断。
+     *
+     * @param id 用户 ID
+     * @return 用户信息（不含密码）；用户不存在返回 null
+     */
+    UserVO getAuthUser(Long id);
 }

@@ -85,6 +85,10 @@ public class UserServiceImpl implements UserService {
         // 默认角色：普通用户（管理员需要手动在数据库改）
         user.setRole("USER");
 
+        // 账号状态默认"正常"（0=正常，1=禁用）
+        // 数据库 status 列有 DEFAULT 0，这里显式设置是双保险，防止某些插入场景漏了默认值
+        user.setStatus(0);
+
         // ---------- 3. 插入数据库 ----------
         // BaseMapper<User> 自带的 insert() 方法，直接 INSERT INTO user ...
         // MyBatis-Plus 自动填充 createTime 和 updateTime（看 BaseEntity + MetaObjectHandler）
@@ -129,6 +133,19 @@ public class UserServiceImpl implements UserService {
             throw new BusinessException(ResultCodeEnum.LOGIN_FAIL);
         }
 
+        // ---------- 2.5 检查账号是否被禁用（管理后台禁用用户功能） ----------
+        // 管理后台把该用户 status 改成 1 后，这里拦截登录。
+        // 为什么放在"密码比对成功之后"？
+        //   密码错了还是提示"用户名或密码错误"（不暴露账号是否存在），密码对了才提示禁用，逻辑更合理。
+        // 为什么用 Integer.valueOf(1).equals(user.getStatus()) 而不是 user.getStatus() == 1？
+        //   status 是 Integer 包装类，== 1 会把 null 自动拆箱成 int → 空指针异常；
+        //   equals 比较时 status 为 null 直接返回 false（不报错），等于"未禁用"，行为安全。
+        if (Integer.valueOf(1).equals(user.getStatus())) {
+            log.warn("登录失败，账号已被禁用: username={}", dto.getUsername());
+            // 抛业务异常 → 全局异常处理器返回 {code:1003, message:"账号已被禁用"} → 前端弹提示
+            throw new BusinessException(ResultCodeEnum.USER_DISABLED);
+        }
+
         // ---------- 3. 生成 JWT token ----------
         // JwtUtil.generateToken(用户ID, 用户名)
         // token 中包含了用户 ID 和用户名，后面请求时通过 @Auth 拦截器解析出来
@@ -161,6 +178,26 @@ public class UserServiceImpl implements UserService {
             throw new BusinessException(ResultCodeEnum.USER_NOT_EXIST);
         }
 
+        return convertToUserVO(user);
+    }
+
+    /**
+     * 供 JWT 拦截器校验用户状态/角色用（见 UserService 接口注释说明）
+     * <p>
+     * 关键：用户不存在时返回 null，不抛异常。
+     * 拦截器在 Controller 之前执行，抛异常会绕过全局异常处理器变成 HTTP 500。
+     */
+    @Override
+    public UserVO getAuthUser(Long id) {
+        // selectById：按主键查，MyBatis-Plus 自动拼 WHERE is_deleted = 0（逻辑删除过滤）
+        User user = userMapper.selectById(id);
+
+        // 用户不存在（被删除/ID无效）→ 返回 null，让拦截器判断为"未登录/用户不存在"
+        if (user == null) {
+            return null;
+        }
+
+        // 转成 VO（去掉密码），拦截器从中取 role（管理员校验）和 status（禁用校验）
         return convertToUserVO(user);
     }
 

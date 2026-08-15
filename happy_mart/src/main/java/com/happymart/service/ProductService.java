@@ -1,6 +1,7 @@
 package com.happymart.service;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.happymart.entity.Product;
 import com.happymart.vo.ProductVO;
 
 import java.util.List;
@@ -73,4 +74,18 @@ public interface ProductService {
      * @param productId 商品 ID
      */
     void clearProductDetailCache(Long productId);
+
+    /**
+     * 把商品实体转换为商品 VO（Entity → VO）
+     * <p>
+     * 为什么是公开方法（code-review 修复）？
+     * 管理后台 AdminProductServiceImpl 也要把商品转 VO（它查的是全部商品含下架，
+     * 不能复用只查上架的 getProductPage），原来在 AdminProductServiceImpl 里又复制了一份
+     * 转换逻辑（BeanUtils 拷贝 + images JSON→List），两处各写一遍容易漂移。
+     * 把转换方法提到接口公开，管理后台直接复用，单一来源。
+     *
+     * @param product 商品实体
+     * @return 商品 VO（images 转为 List<String>）
+     */
+    ProductVO convertToVO(Product product);
 }

@@ -1,7 +1,9 @@
 <script setup>
 import { useRouter } from 'vue-router'
+import { useUserStore } from '@/stores/user'   // ← 新增：登出时要清 token/userInfo
 
 const router = useRouter()
+const userStore = useUserStore()               // ← 新增：用户状态 Store 实例
 
 const menuItems = [
   { path: '/admin/dashboard', name: '仪表盘', icon: 'Odometer' },
@@ -11,6 +13,9 @@ const menuItems = [
 ]
 
 function handleLogout() {
+  // 登出：先清 token + userInfo（localStorage），再跳回前台首页
+  // 原来只跳转不清 token，会导致返回后还带着管理员身份、后台页面仍可访问
+  userStore.logout()
   router.push('/')
 }
 </script>

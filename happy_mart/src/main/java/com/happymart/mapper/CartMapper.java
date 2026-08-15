@@ -90,6 +90,18 @@ public interface CartMapper extends BaseMapper<Cart> {
             @Param("productId") Long productId,
             @Param("quantity") Integer quantity);
 
-
+    /**
+     * 根据商品ID删除所有购物车记录（管理后台"删除商品"时级联清理用）
+     * <p>
+     * 为什么删除商品要连带删购物车？
+     * 购物车联表查询 selectCartVOList 是手写 LEFT JOIN product，
+     * 而 MyBatis-Plus 的逻辑删除只作用于它自动生成的 SQL，手写 XML 不会自动拼 is_deleted=0，
+     * 所以商品被逻辑删除后还会残留在购物车里，用户下单时查不到该商品会报错。
+     * 删除商品时把购物车里这个商品的记录一起删掉，避免出现"无效购物车项"。
+     *
+     * @param productId 商品ID
+     * @return 删了几条
+     */
+    int deleteByProductId(@Param("productId") Long productId);
 
 }

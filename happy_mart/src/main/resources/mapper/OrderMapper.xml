@@ -33,6 +33,9 @@
         <result column="address_id" property="addressId"/>
         <result column="create_time" property="createTime"/>
 
+        <!-- user 表字段（管理后台订单列表联表用，前台查询列里没有 username 则保持 null，无害） -->
+        <result column="username" property="username"/>
+
         <!-- address 表字段（联表查询） -->
         <result column="address_name" property="addressName"/>
         <result column="address_phone" property="addressPhone"/>
@@ -79,9 +82,15 @@
     </select>
 
     <!--
-    分页查询用户订单列表（含订单项和商品信息）
-    按用户ID过滤，可选按状态过滤
-    按创建时间倒序（最新的在最前面）
+    分页查询用户订单列表（只查订单主表 + 地址，不联 order_item）
+    按用户ID过滤，可选按状态过滤，按创建时间倒序
+
+    ★ 为什么不 LEFT JOIN order_item / product（code-review 修复）？
+      一对多联表分页是经典坑：一个订单展开成多行订单项后，
+      MyBatis-Plus 的 COUNT 和 LIMIT 作用在展开行上 → 总数虚高、
+      一页装不下几单、一个订单的订单项会被分页截断。
+      所以这里只联 address（一对一），分页精确作用于订单本身；
+      每个订单的 items 由 selectOrderItemsByOrderIds 批量查 + Service 组装（见 OrderServiceImpl.fillOrderItems）。
     -->
     <select id="selectOrderVOListByUserId" resultMap="OrderVOResultMap">
         SELECT
@@ -93,22 +102,39 @@
             o.create_time,
             a.name          AS address_name,
             a.phone         AS address_phone,
-            CONCAT(a.province, a.city, IFNULL(a.district,''), a.detail) AS address_detail,
-            oi.id           AS item_id,
-            oi.product_id   AS item_product_id,
-            oi.price        AS item_price,
-            oi.quantity     AS item_quantity,
-            p.name          AS item_product_name,
-            p.image         AS item_product_image
+            CONCAT(a.province, a.city, IFNULL(a.district,''), a.detail) AS address_detail
         FROM `order` o
                  LEFT JOIN address a ON o.address_id = a.id
-                 LEFT JOIN order_item oi ON o.id = oi.order_id
-                 LEFT JOIN product p ON oi.product_id = p.id
         WHERE o.user_id = #{userId}
         <if test="status != null">
             AND o.status = #{status}
         </if>
         ORDER BY o.create_time DESC
+    </select>
+
+    <!--
+    批量查询订单项（含商品信息），供订单列表分页后组装 items 用（code-review 修复）
+    一个 IN 查询查出本页所有订单的订单项，Service 层按 orderId 分组 setItems。
+    结果映射到 OrderVO.OrderItemVO（内部类，MyBatis 用 $ 引用）；
+    列名下划线自动转驼峰（map-underscore-to-camel-case 已配置）：
+    order_id → orderId，product_id → productId，product_name → productName
+    -->
+    <select id="selectOrderItemsByOrderIds" resultType="com.happymart.vo.OrderVO$OrderItemVO">
+        SELECT
+            oi.id,
+            oi.order_id,
+            oi.product_id,
+            oi.price,
+            oi.quantity,
+            p.name   AS product_name,
+            p.image  AS product_image
+        FROM order_item oi
+                 LEFT JOIN product p ON oi.product_id = p.id
+        WHERE oi.order_id IN
+        <foreach collection="orderIds" item="orderId" open="(" separator="," close=")">
+            #{orderId}
+        </foreach>
+        ORDER BY oi.id ASC
     </select>
 
     <!--
@@ -191,6 +217,70 @@
         SET status = 5
         WHERE id = #{id}
           AND status = 1
+    </update>
+
+    <!--
+    分页查询全部订单（管理后台用，含下单人用户名）
+    和 selectOrderVOListByUserId 的区别：
+    - 不按 user_id 过滤（管理员看所有用户的订单）
+    - 额外 LEFT JOIN user 拿 username（下单人用户名），用于后台订单列表展示
+    - 状态可选过滤用 <where> 标签：status 为 null 时不拼 WHERE（查全部）
+
+    ★ 为什么这里不 LEFT JOIN order_item / product（code-review 修复）？
+      一对多联表分页是经典坑：LEFT JOIN 后"一行订单"会展开成"多行订单项"，
+      MyBatis-Plus 自动生成的 COUNT 和 LIMIT 作用在展开后的行上 →
+      总条数虚高、一页装不下几个订单、一个订单的订单项会被分页截断。
+      管理后台订单列表（OrderManage / Dashboard 最近订单）只需要订单主表字段（不含 items），
+      所以这里只联 user / address 两张"一对一"表，分页 count/LIMIT 精确作用于订单本身。
+      返回的 OrderVO.items 为 null（后台页面不用订单项），需要 items 的接口走 selectOrderVOById。
+      ⚠️ 前台 selectOrderVOListByUserId 仍是联表分页，存在同类问题（页面数据少暂未暴露，后续可一并改造）。
+    -->
+    <select id="selectOrderVOListAll" resultMap="OrderVOResultMap">
+        SELECT
+            o.id,
+            o.order_no,
+            o.total_amount,
+            o.status,
+            o.address_id,
+            o.create_time,
+            u.username      AS username,
+            a.name          AS address_name,
+            a.phone         AS address_phone,
+            CONCAT(a.province, a.city, IFNULL(a.district,''), a.detail) AS address_detail
+        FROM `order` o
+                 LEFT JOIN user u ON o.user_id = u.id
+                 LEFT JOIN address a ON o.address_id = a.id
+        <where>
+            <if test="status != null">
+                o.status = #{status}
+            </if>
+        </where>
+        ORDER BY o.create_time DESC
+    </select>
+
+    <!--
+    统计已成交订单总金额（管理后台 Dashboard 看板用）
+    status IN (1,2,3) = 已支付/已发货/已完成（已付款且未退款）
+    排除：0待支付（没付钱）、4已取消、5已退款（钱退回去了）
+    COALESCE(SUM(...), 0)：没有符合条件的记录时 SUM 返回 NULL，转成 0
+    单位：元（和 Order.totalAmount 一致，别和 PaymentLog.totalFee 的"分"混）
+    -->
+    <select id="sumPaidAmount" resultType="java.math.BigDecimal">
+        SELECT COALESCE(SUM(total_amount), 0)
+        FROM `order`
+        WHERE status IN (1, 2, 3)
+    </select>
+
+    <!--
+    条件更新：把订单状态从 from 改成 to（管理后台发货用）
+    WHERE status = #{from} 是防并发的关键（和 cancelPendingOrder 一个套路）：
+    只有当前状态还是 from 才能改成 to；状态已被别的操作改了 → 影响行数 0 → 上层抛异常提示
+    -->
+    <update id="updateStatusIf">
+        UPDATE `order`
+        SET status = #{to}
+        WHERE id = #{id}
+          AND status = #{from}
     </update>
 
 </mapper>

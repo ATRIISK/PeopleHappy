@@ -23,6 +23,7 @@ public enum ResultCodeEnum {
     // 业务
     USER_EXIST(1001, "用户已存在"),
     USER_NOT_EXIST(1002, "用户不存在"),
+    USER_DISABLED(1003, "账号已被禁用，请联系管理员"),   // 禁用用户登录/访问时提示（管理后台禁用功能）
     STOCK_NOT_ENOUGH(2001, "库存不足"),
     ORDER_NOT_FOUND(3001, "订单不存在"),
     ORDER_STATUS_ERROR(3002, "订单状态异常"),

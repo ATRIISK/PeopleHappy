@@ -28,6 +28,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Collectors;
 
@@ -213,8 +214,42 @@ public class OrderServiceImpl implements OrderService {
         Page<OrderVO> pageParam = new Page<>(page, size);
         IPage<OrderVO> result = orderMapper.selectOrderVOListByUserId(pageParam, userId, status);
 
+        // ★ 订单列表分页后批量组装订单项（code-review 修复）
+        // selectOrderVOListByUserId 只查订单主表（保证分页 count/LIMIT 精确），
+        // 本页每个订单的 items 单独批量查再组装，避免"一对多联表分页"导致
+        // 总数虚高、一页装不下几单、订单项被 LIMIT 截断。
+        fillOrderItems(result.getRecords());
+
         log.info("订单列表查询完成: 共 {} 条, 当前页 {}", result.getTotal(), result.getCurrent());
         return result;
+    }
+
+    /**
+     * 为订单列表批量补充订单项（一对多拆分查询）
+     * <p>
+     * 一对多（order → order_item）不能直接联表分页，所以：
+     * 1. 分页只查订单主表（selectOrderVOListByUserId）
+     * 2. 收集本页所有订单ID，一次性 IN 查询所有订单项（selectOrderItemsByOrderIds）
+     * 3. 按 orderId 分组，setItems 到每个订单 VO
+     *
+     * @param orderVOs 本页订单 VO 列表（分页结果）
+     */
+    private void fillOrderItems(List<OrderVO> orderVOs) {
+        // 空列表直接返回（避免多余的 IN 查询）
+        if (orderVOs == null || orderVOs.isEmpty()) {
+            return;
+        }
+        // 1. 收集本页订单ID
+        List<Long> orderIds = orderVOs.stream()
+                .map(OrderVO::getId)
+                .collect(Collectors.toList());
+        // 2. 批量查订单项（一次 IN 查询，比每单单独查高效）
+        List<OrderVO.OrderItemVO> allItems = orderMapper.selectOrderItemsByOrderIds(orderIds);
+        // 3. 按 orderId 分组（一个订单可能有多条订单项）
+        Map<Long, List<OrderVO.OrderItemVO>> itemsByOrder = allItems.stream()
+                .collect(Collectors.groupingBy(OrderVO.OrderItemVO::getOrderId));
+        // 4. 组装到每个订单（没有订单项的订单给空列表，前端 v-for 遍历安全）
+        orderVOs.forEach(vo -> vo.setItems(itemsByOrder.getOrDefault(vo.getId(), List.of())));
     }
 
     @Override

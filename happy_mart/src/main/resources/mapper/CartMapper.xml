@@ -125,4 +125,16 @@ BaseMapper 自带的方法不需要在这里写 SQL（MyBatis-Plus 自动生成�
           AND product_id = #{productId}
     </update>
 
+    <!--
+    ========== 5. 按商品ID删除所有购物车记录（管理后台删除商品时级联清理） ==========
+    管理后台删除商品后，购物车里残留的该商品记录会导致用户下单报错
+    （联表查询查不到已删除商品）。删除商品时连带删掉购物车记录。
+
+    DELETE FROM cart WHERE product_id = #{productId}
+    -->
+    <delete id="deleteByProductId">
+        DELETE FROM cart
+        WHERE product_id = #{productId}
+    </delete>
+
 </mapper>

@@ -12,9 +12,10 @@ const route = useRoute()                                 // 当前路由（取 r
 const userStore = useUserStore()                         // 用户 Store 实例
 
 // ==================== 已登录自动跳转 ====================
-// 如果用户已登录（有 token），直接跳转首页
+// 如果用户已登录（有 token），直接跳转
+// 管理员进后台首页，普通用户进前台首页
 if (userStore.isLoggedIn) {
-  router.replace('/')
+  router.replace(userStore.isAdmin ? '/admin' : '/')
 }
 
 // ==================== 表单响应式变量 ====================
@@ -63,8 +64,9 @@ async function handleLogin() {
     // 第三步：登录成功提示
     ElMessage.success('登录成功')
 
-    // 获取重定向地址（导航守卫传过来的），默认跳转首页
-    const redirect = route.query.redirect || '/'
+    // 获取重定向地址（导航守卫传过来的，比如从购物车被拦到登录页再回购物车）
+    // 没带 redirect 时：管理员跳后台首页，普通用户跳前台首页
+    const redirect = route.query.redirect || (userStore.isAdmin ? '/admin' : '/')
     router.push(redirect)
   } catch (error) {
     // 表单校验失败：validate() 内部已展示错误信息，无需额外处理

@@ -3,6 +3,8 @@ package com.happymart.interceptor;                    // 包声明 → 拦截器
 import com.happymart.common.annotation.Auth;                    // 自定义 @Auth 注解
 import com.happymart.common.result.Result;                      // 统一返回结果
 import com.happymart.common.result.ResultCodeEnum;              // 错误码枚举
+import com.happymart.service.UserService;                       // 用户服务 → 拦截器查用户状态/角色
+import com.happymart.vo.UserVO;                                 // 用户信息 VO → 拦截器读 role/status
 import com.happymart.util.JwtUtil;                              // JWT 工具类
 import jakarta.servlet.http.HttpServletRequest;                 // 请求对象 → 取请求头、设置属性
 import jakarta.servlet.http.HttpServletResponse;                // 响应对象 → 写返回数据
@@ -33,6 +35,11 @@ public class JwtAuthInterceptor implements HandlerInterceptor {
 
     private final JwtUtil jwtUtil;                     // JWT 工具 → 校验 token、解析用户 ID
     private final ObjectMapper objectMapper;           // Jackson 的 JSON 转换器 → 把 Result 转成 JSON 写回前端
+
+    // 用户服务 → 拦截器查当前登录用户的 status（禁用拦截）和 role（管理员校验）
+    // 依赖链：WebMvcConfig → JwtAuthInterceptor → UserService → UserMapper（单向，无循环依赖）
+    // @RequiredArgsConstructor 会自动把这个 final 字段加进构造器注入
+    private final UserService userService;
 
     /**
      * 请求到达 Controller 之前执行
@@ -87,19 +94,58 @@ public class JwtAuthInterceptor implements HandlerInterceptor {
             return false;
         }
 
-        // ---------- 6. 解析用户 ID，放到请求属性中 ----------
-        // 这样 Controller 方法里从 request 就能拿到当前登录用户 ID
+        // ---------- 6. 解析用户 ID（token 里的 subject） ----------
         Long userId = jwtUtil.getUserIdFromToken(token);
+
+        // ---------- 6.5 查用户状态（禁用即时生效 + 管理员角色） ----------
+        // 为什么每次 @Auth 请求都要查一次数据库？
+        //   token 里只存了 userId 和 username，没有 status/role。
+        //   如果只靠 token，管理后台改了用户状态（禁用/改角色）后，
+        //   已登录用户拿着旧 token 照样能访问，禁用就不"即时生效"了。
+        //   所以这里每次 @Auth 请求都查一次 user 表（主键查询，代价很小），拿最新的 status 和 role。
+        // 为什么不把 role 写进 token？
+        //   角色被改（如 USER 升 ADMIN）要重新登录才生效；查库则立即生效，不用重新登录。
+        UserVO authUser;
+        try {
+            // 查数据库拿最新的 status 和 role
+            authUser = userService.getAuthUser(userId);
+        } catch (Exception e) {
+            // 数据库暂时不可用时认证查询会失败。拦截器在 Controller 之前执行，
+            // 异常不会走 @RestControllerAdvice，直接抛会变成非 JSON 的 500（code-review 修复）。
+            // 这里捕获并返回可读的 500 JSON：前端 request.js 弹"服务器异常"，且不会误清用户 token。
+            log.error("认证时查询用户失败: userId={}, error={}", userId, e.getMessage());
+            writeServerError(response, "服务暂时不可用，请稍后重试");
+            return false;
+        }
+
+        // 用户不存在（被删除）→ 当作未登录处理
+        if (authUser == null) {
+            log.warn("认证失败：用户不存在或已被删除, userId={}", userId);
+            writeUnauthorized(response, "用户不存在，请重新登录");
+            return false;
+        }
+
+        // 账号被禁用（管理后台 status=1）→ 立即踢出，所有需要登录的接口都进不去
+        // 用 Integer.valueOf(1).equals(...)：authUser.getStatus() 为 null 时返回 false（不空指针）
+        if (Integer.valueOf(1).equals(authUser.getStatus())) {
+            log.warn("认证失败：账号已被禁用, userId={}", userId);
+            writeUnauthorized(response, "账号已被禁用，请联系管理员");
+            return false;
+        }
+
+        // 把用户 ID 放到请求属性中，Controller 里用 request.getAttribute("currentUserId") 取
         request.setAttribute("currentUserId", userId);
         log.debug("token 校验通过，userId={}", userId);
 
-        // ---------- 7. 如果 @Auth 要求管理员权限，检查角色 ----------
-        // TODO：如果需要管理员校验，可以从 token 中解析 role 字段
-        // 目前先留着扩展点，后续开发管理后台再实现
+        // ---------- 7. 需要管理员权限 → 校验角色（强制，不再只是打日志） ----------
         if (auth.requireAdmin()) {
-            String role = jwtUtil.getUsernameFromToken(token); // 这里暂用，后续改成 getRoleFromToken
-            // 这里先简单记录日志，完整的管理员校验以后加
-            log.debug("需要管理员权限，当前用户 role={}", role);
+            // 只有 role = "ADMIN" 的管理员能访问带 @Auth(requireAdmin = true) 的接口
+            if (!"ADMIN".equals(authUser.getRole())) {
+                log.warn("权限不足：非管理员访问管理接口, userId={}", userId);
+                // 返回 403 → 前端 request.js 响应拦截器会弹"无权限访问"
+                writeForbidden(response, "无权限访问");
+                return false;
+            }
         }
 
         // 全部校验通过 → 放行到 Controller
@@ -119,6 +165,44 @@ public class JwtAuthInterceptor implements HandlerInterceptor {
 
         // 构建统一的返回格式 Result.fail(UNAUTHORIZED, message)
         Result<Void> result = Result.fail(ResultCodeEnum.UNAUTHORIZED, message);
+
+        // 用 ObjectMapper 把 Result 对象转成 JSON 字符串，写到响应体里
+        String json = objectMapper.writeValueAsString(result);
+        response.getWriter().write(json);
+    }
+
+    /**
+     * 返回 403 无权限错误给前端（普通用户访问管理员接口时用）
+     * <p>
+     * 和 writeUnauthorized 一样的套路，只是状态码从 401 变成 403。
+     * 前端 request.js 已处理：HTTP 403 → ElMessage.error("无权限访问")
+     */
+    private void writeForbidden(HttpServletResponse response, String message) throws Exception {
+        // 设置响应状态码 403（Forbidden = 已登录但没权限）和 Content-Type
+        response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+        response.setContentType("application/json;charset=UTF-8"); // 告诉前端返回的是 JSON
+
+        // 构建统一的返回格式 Result.fail(FORBIDDEN, message)
+        Result<Void> result = Result.fail(ResultCodeEnum.FORBIDDEN, message);
+
+        // 用 ObjectMapper 把 Result 对象转成 JSON 字符串，写到响应体里
+        String json = objectMapper.writeValueAsString(result);
+        response.getWriter().write(json);
+    }
+
+    /**
+     * 返回 500 服务器错误给前端（认证时数据库不可用等场景）
+     * <p>
+     * 前端 request.js 已处理：HTTP 500 → ElMessage.error("服务器异常")
+     * 用 500 而不是 401：数据库故障不是"未登录"，不应让前端清掉用户 token
+     */
+    private void writeServerError(HttpServletResponse response, String message) throws Exception {
+        // 设置响应状态码 500（服务器内部错误）和 Content-Type
+        response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+        response.setContentType("application/json;charset=UTF-8"); // 告诉前端返回的是 JSON
+
+        // 构建统一的返回格式 Result.fail(SYSTEM_ERROR, message)
+        Result<Void> result = Result.fail(ResultCodeEnum.SYSTEM_ERROR, message);
 
         // 用 ObjectMapper 把 Result 对象转成 JSON 字符串，写到响应体里
         String json = objectMapper.writeValueAsString(result);

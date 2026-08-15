@@ -3,6 +3,8 @@
  * 包含前台布局路由、独立页面（登录/注册）、后台管理路由、404 页面
  */
 import { createRouter, createWebHistory } from 'vue-router'
+import { ElMessage } from 'element-plus'           // ← 新增：路由守卫里弹"无权限访问"提示
+import { useUserStore } from '@/stores/user'       // ← 新增：判断当前登录用户是否管理员
 
 const routes = [
   // ==================== 前台页面（带 FrontLayout 布局） ====================
@@ -79,7 +81,7 @@ const routes = [
   {
     path: '/admin',
     component: () => import('@/layouts/AdminLayout.vue'),
-    meta: { requireAuth: true },
+    meta: { requireAuth: true, requiresAdmin: true },   // ← 新增 requiresAdmin：后台页面除登录外还必须管理员角色
     children: [
       {
         path: '',
@@ -141,6 +143,17 @@ router.beforeEach((to, from, next) => {
     if (!token) {
       // 未登录，跳转到登录页并携带重定向地址
       next({ name: 'Login', query: { redirect: to.fullPath } })
+      return
+    }
+  }
+
+  // 检查是否需要管理员权限（管理后台页面）
+  if (to.meta.requiresAdmin) {
+    const userStore = useUserStore()   // 拿当前用户信息（userInfo 已持久化，刷新也有效）
+    if (!userStore.isAdmin) {
+      // 非管理员：提示并跳回首页（后端拦截器 403 是最终防线，这里只是体验层提前拦）
+      ElMessage.warning('无权限访问')
+      next('/')
       return
     }
   }

@@ -52,6 +52,12 @@ public class OrderVO {
      */
     private String addressDetail;
 
+    /**
+     * 下单人用户名
+     * 管理后台订单列表联表 user 表查询用（前台订单列表不需要，为 null 无影响）
+     */
+    private String username;
+
     /** 创建时间 */
     private LocalDateTime createTime;
 
@@ -67,6 +73,12 @@ public class OrderVO {
 
         /** 订单项ID */
         private Long id;
+
+        /**
+         * 所属订单ID
+         * 订单列表"分页查主表 + 批量查 items 组装"时按它分组用（code-review 修复）
+         */
+        private Long orderId;
 
         /** 商品ID */
         private Long productId;

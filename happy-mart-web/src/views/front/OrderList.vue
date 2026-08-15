@@ -22,6 +22,11 @@ const orderList = ref([])
 /** 页面加载状态 */
 const loading = ref(false)
 
+/** 分页参数（code-review 修复：订单列表支持翻页，原来固定 page:1,size:10 看不到后续订单） */
+const currentPage = ref(1)   // 当前页码
+const pageSize = ref(5)      // 每页条数
+const total = ref(0)         // 总条数
+
 // ==================== 状态配置 ====================
 
 /**
@@ -73,12 +78,13 @@ const statusTypeMap = {
 async function loadOrders() {
   loading.value = true
   try {
-    const params = { page: 1, size: 10 }
+    const params = { page: currentPage.value, size: pageSize.value }
     if (activeStatus.value !== null) {
       params.status = activeStatus.value
     }
     const res = await getOrderList(params)
     orderList.value = res.records || []
+    total.value = res.total || 0   // 记录总条数（分页组件显示用）
   } catch (err) {
     console.error('获取订单列表失败:', err)
     ElMessage.error('获取订单列表失败，请稍后重试')
@@ -88,10 +94,19 @@ async function loadOrders() {
 }
 
 /**
- * 切换状态 Tab 时重新加载数据
+ * 切换状态 Tab 时重新加载数据（回到第一页）
  */
 function handleStatusChange(status) {
   activeStatus.value = status
+  currentPage.value = 1
+  loadOrders()
+}
+
+/**
+ * 每页条数变化时：回到第一页重新加载
+ */
+function handleSizeChange() {
+  currentPage.value = 1
   loadOrders()
 }
 
@@ -298,6 +313,20 @@ onMounted(() => {
           </div>
         </div>
       </div>
+
+      <!-- ==================== 分页（有订单时才显示） ==================== -->
+      <div class="pagination-wrap">
+        <el-pagination
+          v-model:current-page="currentPage"
+          v-model:page-size="pageSize"
+          :page-sizes="[5, 10, 20]"
+          :total="total"
+          layout="total, sizes, prev, pager, next, jumper"
+          background
+          @current-change="loadOrders"
+          @size-change="handleSizeChange"
+        />
+      </div>
     </template>
   </div>
 </template>
@@ -483,5 +512,13 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 12px;
+}
+
+/* ==================== 分页 ==================== */
+.pagination-wrap {
+  margin-top: 16px;
+  padding: 0 20px 16px;
+  display: flex;
+  justify-content: flex-end;
 }
 </style>
