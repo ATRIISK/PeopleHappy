@@ -27,3 +27,8 @@ Thumbs.db
 .env.local
 # ===== Redis (if started in project dir) =====
 dump.rdb
+
+# ===== 本地上传目录 =====
+# 商品图片仅手动批量入库一次（2026-08-15 已 push 200 张演示图到 upload/20260815/），
+# 后续在管理后台上传的新图片不入 git（避免仓库无限膨胀）
+happy_mart/upload/
