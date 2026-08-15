@@ -149,6 +149,24 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * 处理上传文件超过大小限制（v1.10 商品图片本地上传）
+     * <p>
+     * 为什么必须单独接住？
+     * multipart 解析发生在 DispatcherServlet.checkMultipart（先于拦截器/Controller），
+     * 文件超过 spring.servlet.multipart.max-file-size 时会抛 MaxUploadSizeExceededException。
+     * 如果不单独处理，会掉进下面的兜底 Exception → HTTP 500「系统异常」，体验差。
+     * <p>
+     * 返回业务错误码 400（HTTP 状态码仍是 200，和项目所有业务错误统一——错误码在 JSON body 里，
+     * 前端 el-upload 的 on-success 能拿到）。
+     * 提示语不硬编码具体大小（限制在 application.yml 配置，改了也不会误导用户）。
+     */
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public Result<Void> handleMaxUploadSizeExceeded(MaxUploadSizeExceededException e) {
+        log.warn("上传文件超过大小限制: {}", e.getMessage());
+        return Result.fail(ResultCodeEnum.PARAM_ERROR, "上传文件大小超出限制");
+    }
+
+    /**
      * 处理所有未捕获的异常（兜底）
      * <p>
      * 这是最后一道防线。
@@ -172,22 +190,6 @@ public class GlobalExceptionHandler {
      * @param e 未捕获的异常
      * @return Result.fail(SYSTEM_ERROR)
      */
-    /**
-     * 处理上传文件超过大小限制（v1.10 商品图片本地上传）
-     * <p>
-     * 为什么必须单独接住？
-     * multipart 解析发生在 DispatcherServlet.checkMultipart（先于拦截器/Controller），
-     * 文件超过 spring.servlet.multipart.max-file-size 时会抛 MaxUploadSizeExceededException。
-     * 如果不单独处理，会掉进下面的兜底 Exception → HTTP 500「系统异常」，体验差。
-     * <p>
-     * 这里返回参数错误（400）+"图片大小不能超过 5MB"，前端友好提示。
-     */
-    @ExceptionHandler(MaxUploadSizeExceededException.class)
-    public Result<Void> handleMaxUploadSizeExceeded(MaxUploadSizeExceededException e) {
-        log.warn("上传文件超过大小限制: {}", e.getMessage());
-        return Result.fail(ResultCodeEnum.PARAM_ERROR, "图片大小不能超过 5MB");
-    }
-
     @ExceptionHandler(Exception.class)
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)  // HTTP 状态码设为 500
     public Result<Void> handleException(Exception e) {

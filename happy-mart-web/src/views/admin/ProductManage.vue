@@ -72,8 +72,15 @@ const rules = {
 /**
  * 上传请求头：el-upload 走原生 XHR，不经过 axios 拦截器，
  * 必须手动把 Bearer token 放进 headers（后端 @Auth(requireAdmin=true) 才能通过）
+ * 用 ref 而不是常量（code-review 修复）：SPA 登出再登录后 token 会变，
+ * 常量在组件加载时快照旧 token 会导致上传一直 401；打开弹窗时调 refreshUploadHeaders() 刷新
  */
-const uploadHeaders = { Authorization: 'Bearer ' + (localStorage.getItem('token') || '') }
+const uploadHeaders = ref({ Authorization: 'Bearer ' + (localStorage.getItem('token') || '') })
+
+/** 打开新增/编辑弹窗时刷新上传请求头（登出重登后 token 已更新，避免旧 token 快照） */
+function refreshUploadHeaders() {
+  uploadHeaders.value.Authorization = 'Bearer ' + (localStorage.getItem('token') || '')
+}
 
 /** 主图是否上传中（防重复点击） */
 const mainUploading = ref(false)
@@ -105,6 +112,18 @@ function beforeImageUpload(file) {
 }
 
 /**
+ * 主图专用上传前处理：先走公共校验，通过后标记主图上传中（防重复点击）
+ * 轮播图共用 beforeImageUpload（不设 mainUploading，避免传轮播图时主图按钮误变 loading）
+ */
+function beforeMainUpload(file) {
+  const ok = beforeImageUpload(file)
+  if (ok) {
+    mainUploading.value = true
+  }
+  return ok
+}
+
+/**
  * 主图上传成功回调：response 是后端 Result JSON（原生 XHR 已自动 JSON.parse）
  * code===200 时 data 是相对 URL，写回 form.image
  */
@@ -115,6 +134,7 @@ function handleMainUploadSuccess(response) {
   } else {
     ElMessage.error(response?.message || '主图上传失败')
   }
+  mainUploading.value = false   // 复位上传中状态（code-review 修复）
 }
 
 /**
@@ -151,9 +171,22 @@ function syncCarousel() {
  */
 function handleUploadError(err) {
   const status = err?.status
-  if (status === 401) ElMessage.error('登录已过期，请重新登录')
-  else if (status === 403) ElMessage.error('无权限访问')
-  else ElMessage.error('上传失败：' + (err?.message || '网络错误'))
+  if (status === 401) {
+    // 与 request.js 的 401 策略保持一致（code-review 修复）：清 token/userInfo + 跳登录，
+    // 否则死 token 残留，上传永远失败
+    localStorage.removeItem('token')
+    localStorage.removeItem('userInfo')
+    ElMessage.error('登录已过期，请重新登录')
+    window.location.href = '/login'
+  } else if (status === 403) {
+    ElMessage.error('无权限访问')
+  } else if (status === 413) {
+    // nginx client_max_body_size 拦截（code-review 修复）：明确提示，而不是误导性的"网络错误"
+    ElMessage.error('图片大小不能超过 5MB')
+  } else {
+    ElMessage.error('上传失败：' + (err?.message || '网络错误'))
+  }
+  mainUploading.value = false   // 复位上传中状态
 }
 
 // ==================== 数据加载 ====================
@@ -232,6 +265,7 @@ function handleAdd() {
     stock: 0, status: 0, rating: 0, image: '', images: '', description: ''
   })
   carouselUrls.value = []   // 清空轮播图上传列表
+  refreshUploadHeaders()    // 刷新上传 token（防登出重登后旧 token 快照）
   dialogVisible.value = true
 }
 
@@ -258,6 +292,7 @@ function handleEdit(row) {
   // form.images 的 JSON 字符串由 syncCarousel 统一生成
   carouselUrls.value = (row.images && row.images.length) ? [...row.images] : []
   syncCarousel()
+  refreshUploadHeaders()    // 刷新上传 token（防登出重登后旧 token 快照）
   dialogVisible.value = true
 }
 
@@ -470,7 +505,7 @@ onMounted(() => {
               name="file"
               :headers="uploadHeaders"
               :show-file-list="false"
-              :before-upload="beforeImageUpload"
+              :before-upload="beforeMainUpload"
               :on-success="handleMainUploadSuccess"
               :on-error="handleUploadError"
               :disabled="mainUploading"
@@ -490,7 +525,9 @@ onMounted(() => {
         <!-- 轮播图：多张本地图片上传（v1.10），缩略图 + 移除按钮 -->
         <el-form-item label="轮播图" prop="images">
           <div style="display: flex; flex-wrap: wrap; gap: 12px; align-items: center;">
-            <div v-for="(url, idx) in carouselUrls" :key="url" style="text-align: center;">
+            <!-- :key 用 idx 而不是 url（code-review 修复）：images 数组可能含重复 URL，
+                 用 url 当 key 会产生重复 Vue key 导致移除时误删缩略图 -->
+            <div v-for="(url, idx) in carouselUrls" :key="idx" style="text-align: center;">
               <el-image
                 :src="url"
                 fit="cover"

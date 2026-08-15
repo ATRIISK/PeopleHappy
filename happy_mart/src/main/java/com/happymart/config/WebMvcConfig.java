@@ -81,6 +81,14 @@ public class WebMvcConfig implements WebMvcConfigurer {
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
         // 把 app.upload-dir（默认 ./upload）转成绝对路径的 file:// URI
         String location = Paths.get(uploadDir).toAbsolutePath().toUri().toString();
+        // ★ 必须保证以 / 结尾（code-review 修复）：
+        // Path.toUri() 在目录不存在时不补尾斜杠（file:///E:/.../upload），
+        // Spring 静态资源解析会用 new URL(base, "20260815/x.jpg") 拼接，
+        // base 无尾斜杠时会把最后一段 "upload" 当文件名替换掉 → 映射到错误目录、图片 404。
+        // upload 目录被 .gitignore 忽略，全新 clone 时不存在，最容易触发。
+        if (!location.endsWith("/")) {
+            location += "/";
+        }
         // /upload/** 的请求 → 从磁盘 upload 目录找文件返回
         registry.addResourceHandler("/upload/**").addResourceLocations(location);
     }
