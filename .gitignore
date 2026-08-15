@@ -27,3 +27,6 @@ Thumbs.db
 .env.local
 # ===== Redis (if started in project dir) =====
 dump.rdb
+
+# ===== 本地上传目录（用户图片，不入 git，v1.10） =====
+happy_mart/upload/

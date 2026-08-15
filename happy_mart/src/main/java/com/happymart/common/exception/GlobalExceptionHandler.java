@@ -8,6 +8,7 @@ import org.springframework.dao.DataAccessException;
 import org.springframework.http.HttpStatus;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -171,6 +172,22 @@ public class GlobalExceptionHandler {
      * @param e 未捕获的异常
      * @return Result.fail(SYSTEM_ERROR)
      */
+    /**
+     * 处理上传文件超过大小限制（v1.10 商品图片本地上传）
+     * <p>
+     * 为什么必须单独接住？
+     * multipart 解析发生在 DispatcherServlet.checkMultipart（先于拦截器/Controller），
+     * 文件超过 spring.servlet.multipart.max-file-size 时会抛 MaxUploadSizeExceededException。
+     * 如果不单独处理，会掉进下面的兜底 Exception → HTTP 500「系统异常」，体验差。
+     * <p>
+     * 这里返回参数错误（400）+"图片大小不能超过 5MB"，前端友好提示。
+     */
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public Result<Void> handleMaxUploadSizeExceeded(MaxUploadSizeExceededException e) {
+        log.warn("上传文件超过大小限制: {}", e.getMessage());
+        return Result.fail(ResultCodeEnum.PARAM_ERROR, "图片大小不能超过 5MB");
+    }
+
     @ExceptionHandler(Exception.class)
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)  // HTTP 状态码设为 500
     public Result<Void> handleException(Exception e) {

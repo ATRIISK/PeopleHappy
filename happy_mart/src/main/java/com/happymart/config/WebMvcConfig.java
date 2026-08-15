@@ -2,9 +2,13 @@ package com.happymart.config;                    // 包声明 → 配置类统�
 
 import com.happymart.interceptor.JwtAuthInterceptor; // 拦截器 → 从 interceptor 包导入
 import lombok.RequiredArgsConstructor;             // @RequiredArgsConstructor → 自动构造器注入
+import org.springframework.beans.factory.annotation.Value; // @Value → 读取配置（上传目录）
 import org.springframework.context.annotation.Configuration; // @Configuration → 标记这是一个配置类
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry; // 拦截器注册器 → 注册拦截器用的
+import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry; // 静态资源注册器 → 映射 /upload 目录
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;   // WebMvcConfigurer → Spring MVC 配置接口
+
+import java.nio.file.Paths;                        // Paths → 把上传目录转成绝对路径 URI
 
 /**
  * Web MVC 配置类
@@ -23,6 +27,13 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;   // 
 public class WebMvcConfig implements WebMvcConfigurer {
 
     private final JwtAuthInterceptor jwtAuthInterceptor; // 注入刚才写的拦截器
+
+    /**
+     * 商品图片本地上传目录（application.yml 的 app.upload-dir，默认 ./upload）
+     * 注意：非 final 字段，用 @Value 注入，不影响 @RequiredArgsConstructor（它只注入 final 字段）
+     */
+    @Value("${app.upload-dir:./upload}")
+    private String uploadDir;
 
     /**
      * 注册拦截器
@@ -51,5 +62,26 @@ public class WebMvcConfig implements WebMvcConfigurer {
                         // 未来需放行 "/api/ai/**"（游客可问商品），开发时取消注释下面这行
                         // "/api/ai/**",
                 );
+    }
+
+    /**
+     * 静态资源映射：把磁盘 upload 目录暴露为 /upload/** 静态资源（v1.10 商品图片本地上传）
+     * <p>
+     * 前端 <img src="/upload/yyyyMMdd/xxx.jpg"> 不需要登录即可访问（商品图游客也要看）。
+     * 拦截器对非 Controller 方法（静态资源由 ResourceHttpRequestHandler 处理）直接放行，
+     * 所以 /upload/** 不需要加进上面拦截器的排除列表，天然公开。
+     * <p>
+     * 为什么用 Paths.get(uploadDir).toAbsolutePath().toUri() 而不是写死 file:./upload/？
+     *   toUri() 会生成正确的 file:// 协议 URL：
+     *   - Windows 开发：file:///E:/PeopleHappy/happy_mart/upload/
+     *   - Linux Docker 容器（WORKDIR=/app）：file:///app/upload/
+     *   两种环境通吃，避免相对路径 + 反斜杠在 Windows 下解析出问题。
+     */
+    @Override
+    public void addResourceHandlers(ResourceHandlerRegistry registry) {
+        // 把 app.upload-dir（默认 ./upload）转成绝对路径的 file:// URI
+        String location = Paths.get(uploadDir).toAbsolutePath().toUri().toString();
+        // /upload/** 的请求 → 从磁盘 upload 目录找文件返回
+        registry.addResourceHandler("/upload/**").addResourceLocations(location);
     }
 }

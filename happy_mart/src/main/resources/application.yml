@@ -5,6 +5,13 @@ spring:
   application:
     name: happy-mart
 
+  servlet:
+    multipart:
+      # 文件上传大小限制（管理后台商品图片本地上传，v1.10）
+      # 超过 max-file-size 抛 MaxUploadSizeExceededException（GlobalExceptionHandler 已单独接住，提示"图片大小不能超过 5MB"）
+      max-file-size: 5MB      # 单文件最大 5MB
+      max-request-size: 10MB  # 单次请求体最大 10MB（多文件/表单开销预留）
+
   datasource:
     url: jdbc:mysql://localhost:3306/happy_mart?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=false
     username: root
@@ -81,6 +88,14 @@ alipay:
   sign-type: RSA2
   charset: UTF-8
   format: json
+
+# 商品图片本地上传目录（管理后台 v1.10）
+# 相对后端工作目录：
+#   - 开发（IDEA/mvn）：E:\PeopleHappy\happy_mart\upload
+#   - Docker 容器（WORKDIR=/app）：/app/upload（docker-compose 已挂 volume 持久化）
+# WebMvcConfig 把 /upload/** 映射到这个目录（静态资源，游客也能看图）
+app:
+  upload-dir: ./upload
 
 # ⏳ AI 购物助手预留（阶段四，见开发文档 §14）：
 # 接入后取消注释并替换以下配置（API Key 用环境变量，不入库）：

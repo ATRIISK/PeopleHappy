@@ -46,6 +46,11 @@ services:
     restart: unless-stopped
     ports:
       - "8074:8074"
+    # 本地上传图片目录持久化（v1.10 商品图片本地上传）
+    # 宿主 E:\PeopleHappy\happy_mart\upload ↔ 容器 /app/upload（WORKDIR=/app + app.upload-dir: ./upload）
+    # 不挂 volume 的话，容器重建后上传的图片会丢失
+    volumes:
+      - ./happy_mart/upload:/app/upload
     environment:
       SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/happy_mart?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai
       SPRING_DATASOURCE_USERNAME: root

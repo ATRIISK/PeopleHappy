@@ -67,6 +67,95 @@ const rules = {
   stock: [{ required: true, message: '请输入库存', trigger: 'blur' }]
 }
 
+// ==================== 图片本地上传（v1.10） ====================
+
+/**
+ * 上传请求头：el-upload 走原生 XHR，不经过 axios 拦截器，
+ * 必须手动把 Bearer token 放进 headers（后端 @Auth(requireAdmin=true) 才能通过）
+ */
+const uploadHeaders = { Authorization: 'Bearer ' + (localStorage.getItem('token') || '') }
+
+/** 主图是否上传中（防重复点击） */
+const mainUploading = ref(false)
+
+/** 轮播图 URL 数组（和 form.images 的 JSON 字符串保持同步） */
+const carouselUrls = ref([])
+
+/** 允许的图片扩展名（和后端 AdminUploadServiceImpl 白名单一致） */
+const ALLOWED_IMG_EXT = ['jpg', 'jpeg', 'png', 'gif', 'webp']
+
+/** 单张图片最大 5MB（和后端 spring.servlet.multipart.max-file-size 一致） */
+const MAX_IMG_SIZE = 5 * 1024 * 1024
+
+/**
+ * 上传前校验（体验层，后端才是最终防线）：类型白名单 + 大小
+ * 返回 false 会中止本次上传
+ */
+function beforeImageUpload(file) {
+  const ext = (file.name.split('.').pop() || '').toLowerCase()
+  if (!ALLOWED_IMG_EXT.includes(ext)) {
+    ElMessage.error('仅支持 jpg/jpeg/png/gif/webp 格式')
+    return false
+  }
+  if (file.size > MAX_IMG_SIZE) {
+    ElMessage.error('图片大小不能超过 5MB')
+    return false
+  }
+  return true
+}
+
+/**
+ * 主图上传成功回调：response 是后端 Result JSON（原生 XHR 已自动 JSON.parse）
+ * code===200 时 data 是相对 URL，写回 form.image
+ */
+function handleMainUploadSuccess(response) {
+  if (response && response.code === 200) {
+    form.image = response.data
+    ElMessage.success('主图上传成功')
+  } else {
+    ElMessage.error(response?.message || '主图上传失败')
+  }
+}
+
+/**
+ * 轮播图上传成功回调：把返回的 URL 追加进数组，并同步 form.images（JSON 字符串）
+ */
+function handleCarouselUploadSuccess(response) {
+  if (response && response.code === 200) {
+    carouselUrls.value.push(response.data)
+    syncCarousel()
+  } else {
+    ElMessage.error(response?.message || '轮播图上传失败')
+  }
+}
+
+/**
+ * 移除某张轮播图
+ */
+function removeCarousel(idx) {
+  carouselUrls.value.splice(idx, 1)
+  syncCarousel()
+}
+
+/**
+ * 轮播图数组 → form.images（JSON 字符串），保持提交格式不变
+ * （后端 ProductSaveDTO.images 存 JSON 数组字符串）
+ */
+function syncCarousel() {
+  form.images = carouselUrls.value.length ? JSON.stringify(carouselUrls.value) : ''
+}
+
+/**
+ * 上传失败回调（网络错误/401/403/500）
+ * el-upload 不经过 axios 响应拦截器，需要手动处理这些状态
+ */
+function handleUploadError(err) {
+  const status = err?.status
+  if (status === 401) ElMessage.error('登录已过期，请重新登录')
+  else if (status === 403) ElMessage.error('无权限访问')
+  else ElMessage.error('上传失败：' + (err?.message || '网络错误'))
+}
+
 // ==================== 数据加载 ====================
 
 /**
@@ -142,6 +231,7 @@ function handleAdd() {
     id: null, name: '', categoryId: null, price: 0, originalPrice: null,
     stock: 0, status: 0, rating: 0, image: '', images: '', description: ''
   })
+  carouselUrls.value = []   // 清空轮播图上传列表
   dialogVisible.value = true
 }
 
@@ -162,9 +252,12 @@ function handleEdit(row) {
     status: row.status,
     rating: row.rating || 0,   // 保留原评分（编辑不能把评分重置成 0）
     image: row.image || '',
-    images: row.images && row.images.length ? JSON.stringify(row.images) : '',
     description: row.description || ''
   })
+  // 轮播图回显：后端返回的是数组，直接喂给 uploader 展示缩略图；
+  // form.images 的 JSON 字符串由 syncCarousel 统一生成
+  carouselUrls.value = (row.images && row.images.length) ? [...row.images] : []
+  syncCarousel()
   dialogVisible.value = true
 }
 
@@ -368,19 +461,57 @@ onMounted(() => {
           </el-radio-group>
         </el-form-item>
 
-        <!-- 主图 URL -->
-        <el-form-item label="主图 URL" prop="image">
-          <el-input v-model="form.image" placeholder="https://example.com/img.jpg" />
+        <!-- 主图：本地上传 + 预览 + 移除（v1.10）
+             form.image 仍是字符串 URL：本地图是 /upload/... 相对地址，外部 URL 商品编辑时也能回显 -->
+        <el-form-item label="主图" prop="image">
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <el-upload
+              action="/api/admin/upload/image"
+              name="file"
+              :headers="uploadHeaders"
+              :show-file-list="false"
+              :before-upload="beforeImageUpload"
+              :on-success="handleMainUploadSuccess"
+              :on-error="handleUploadError"
+              :disabled="mainUploading"
+            >
+              <el-button type="primary" :loading="mainUploading">上传主图</el-button>
+            </el-upload>
+            <el-image
+              v-if="form.image"
+              :src="form.image"
+              fit="cover"
+              style="width: 80px; height: 80px; border-radius: 6px; border: 1px solid #eee"
+            />
+            <el-button v-if="form.image" link type="danger" @click="form.image = ''">移除</el-button>
+          </div>
         </el-form-item>
 
-        <!-- 轮播图 JSON 字符串 -->
+        <!-- 轮播图：多张本地图片上传（v1.10），缩略图 + 移除按钮 -->
         <el-form-item label="轮播图" prop="images">
-          <el-input
-            v-model="form.images"
-            type="textarea"
-            :rows="2"
-            placeholder='JSON 数组格式，如 ["https://a.jpg","https://b.jpg"]'
-          />
+          <div style="display: flex; flex-wrap: wrap; gap: 12px; align-items: center;">
+            <div v-for="(url, idx) in carouselUrls" :key="url" style="text-align: center;">
+              <el-image
+                :src="url"
+                fit="cover"
+                style="width: 80px; height: 80px; border-radius: 6px; border: 1px solid #eee"
+              />
+              <div>
+                <el-button link type="danger" @click="removeCarousel(idx)">移除</el-button>
+              </div>
+            </div>
+            <el-upload
+              action="/api/admin/upload/image"
+              name="file"
+              :headers="uploadHeaders"
+              :show-file-list="false"
+              :before-upload="beforeImageUpload"
+              :on-success="handleCarouselUploadSuccess"
+              :on-error="handleUploadError"
+            >
+              <el-button>添加图片</el-button>
+            </el-upload>
+          </div>
         </el-form-item>
 
         <!-- 商品描述 -->
