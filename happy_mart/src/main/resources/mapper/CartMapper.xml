@@ -116,7 +116,7 @@ BaseMapper 自带的方法不需要在这里写 SQL（MyBatis-Plus 自动生成�
 
     注意：
     - quantity 不能小于 1（前端 el-input-number 的 min=1 限制了）
-    - 这里不做库存校验，库存校验在下单时做
+    - 库存校验在 Service 层做（v1.13：改后数量 ≤ 库存 + 商品必须上架）
     -->
     <update id="updateQuantityByUserIdAndProductId">
         UPDATE cart
@@ -136,5 +136,19 @@ BaseMapper 自带的方法不需要在这里写 SQL（MyBatis-Plus 自动生成�
         DELETE FROM cart
         WHERE product_id = #{productId}
     </delete>
+
+    <!--
+    ========== 6. 加购 upsert（v1.13 code-review F1） ==========
+    INSERT ... ON DUPLICATE KEY UPDATE：
+    - 该用户该商品购物车记录不存在 → INSERT 新增
+    - 已存在（撞唯一键 uk_user_product）→ 原子累加 quantity = quantity + #{quantity}
+    并发加购同一商品时：数据库层面原子累加，不抛 DuplicateKeyException、不丢更新。
+    前提：cart 表有 (user_id, product_id) 唯一键。
+    -->
+    <insert id="upsertCart">
+        INSERT INTO cart (user_id, product_id, quantity, create_time)
+        VALUES (#{userId}, #{productId}, #{quantity}, NOW())
+        ON DUPLICATE KEY UPDATE quantity = quantity + #{quantity}
+    </insert>
 
 </mapper>

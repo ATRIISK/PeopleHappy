@@ -91,6 +91,36 @@ public interface CartMapper extends BaseMapper<Cart> {
             @Param("quantity") Integer quantity);
 
     /**
+     * 悲观锁查询购物车记录（v1.13 code-review F1 修复）
+     * <p>
+     * SELECT ... FOR UPDATE：在事务里锁定"该用户该商品"的购物车行，
+     * 使并发的同商品加购【读-校验-写】串行化——
+     * 解决两个并发加购同时读到旧数量、都通过库存校验、然后互相覆盖（丢更新）的问题。
+     * <p>
+     * 注意：记录【不存在】时锁不住行（空行无法加锁），两个并发 insert 会撞唯一键 uk_user_product，
+     * 由 Service 层捕获 DuplicateKeyException 兜底（重新锁行按"已有"累加）。
+     *
+     * @param userId    用户 ID
+     * @param productId 商品 ID
+     * @return 购物车记录（可能为 null）
+     */
+    /**
+     * 加购 upsert（v1.13 code-review F1）：INSERT ... ON DUPLICATE KEY UPDATE
+     * <p>
+     * 该用户该商品购物车记录不存在 → 新增；已存在 → 数据库层面【原子累加】数量。
+     * 并发加购同一商品时：不会抛 DuplicateKeyException、不会丢更新（MySQL 原子累加），
+     * 比"先查再 insert + catch 唯一键"更稳（catch 唯一键会把 @Transactional 事务标记回滚）。
+     * <p>
+     * 前提：cart 表有 (user_id, product_id) 唯一键 uk_user_product。
+     *
+     * @param userId    用户 ID
+     * @param productId 商品 ID
+     * @param quantity  本次加购数量
+     * @return 影响行数
+     */
+    int upsertCart(@Param("userId") Long userId, @Param("productId") Long productId, @Param("quantity") Integer quantity);
+
+    /**
      * 根据商品ID删除所有购物车记录（管理后台"删除商品"时级联清理用）
      * <p>
      * 为什么删除商品要连带删购物车？

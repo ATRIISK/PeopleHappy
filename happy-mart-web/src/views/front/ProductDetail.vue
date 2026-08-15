@@ -30,6 +30,10 @@ const product = ref(null)
 /** 加载状态 */
 const loading = ref(true)
 
+/** 加购/立即购买请求中标记（v1.13 code-review F1 防连点）：
+ *  请求进行中把按钮置为 loading + 忽略重复点击，防用户连点并发加购 */
+const addingToCart = ref(false)
+
 /** 错误信息（加载失败或商品不存在） */
 const error = ref('')
 
@@ -151,6 +155,9 @@ function normalizeQuantity() {
  * 已登录：调用购物车接口添加商品
  */
 async function handleAddToCart() {
+  // ★ 防连点（v1.13 code-review F1）：请求进行中忽略重复点击
+  if (addingToCart.value) return
+
   // 检查登录状态
   if (!userStore.isLoggedIn) {
     ElMessage.warning('请先登录')
@@ -167,6 +174,7 @@ async function handleAddToCart() {
     return
   }
 
+  addingToCart.value = true
   try {
     // 调用购物车 Store 的 addItem 方法（传入合法数量）
     await cartStore.addItem(product.value.id, qty)
@@ -174,6 +182,8 @@ async function handleAddToCart() {
   } catch (err) {
     console.error('加入购物车失败:', err)
     ElMessage.error('加入购物车失败，请稍后重试')
+  } finally {
+    addingToCart.value = false
   }
 }
 
@@ -187,6 +197,9 @@ async function handleAddToCart() {
  * 未登录：提示并跳转登录页
  */
 async function handleBuyNow() {
+  // ★ 防连点（v1.13 code-review F1）：请求进行中忽略重复点击
+  if (addingToCart.value) return
+
   // 检查登录状态
   if (!userStore.isLoggedIn) {
     ElMessage.warning('请先登录')
@@ -203,6 +216,7 @@ async function handleBuyNow() {
     return
   }
 
+  addingToCart.value = true
   try {
     // 先把商品加入购物车（带上用户输入/选择的合法数量）
     await cartStore.addItem(product.value.id, qty)
@@ -212,6 +226,8 @@ async function handleBuyNow() {
   } catch (err) {
     console.error('加入购物车失败:', err)
     ElMessage.error('操作失败，请稍后重试')
+  } finally {
+    addingToCart.value = false
   }
 }
 
@@ -350,6 +366,7 @@ onMounted(() => {
               size="large"
               :icon="ShoppingCart"
               :disabled="isOutOfStock"
+              :loading="addingToCart"
               @click="handleAddToCart"
             >
               加入购物车
@@ -358,6 +375,7 @@ onMounted(() => {
               type="warning"
               size="large"
               :disabled="isOutOfStock"
+              :loading="addingToCart"
               @click="handleBuyNow"
             >
               立即购买
