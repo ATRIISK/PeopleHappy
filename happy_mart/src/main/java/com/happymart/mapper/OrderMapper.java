@@ -48,10 +48,11 @@ public interface OrderMapper extends BaseMapper<Order> {
      * 扣减商品库存（安全扣减）
      *
      * UPDATE product SET stock = stock - #{quantity}
-     * WHERE id = #{productId} AND stock >= #{quantity}
+     * WHERE id = #{productId} AND stock >= #{quantity} AND status = 0
      *
      * WHERE stock >= #{quantity} 是关键：
      * 如果库存不够，影响行数为 0，Java 代码抛异常回滚
+     * AND status = 0（v1.13）：下架商品即使残留在购物车里，下单扣库存也拦截（影响行数 0 → 回滚）
      *
      * @param productId 商品ID
      * @param quantity  扣减数量

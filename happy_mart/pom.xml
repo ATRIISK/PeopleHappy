@@ -133,7 +133,7 @@
 
         <!-- Spring AI Alibaba（DashScope 通义千问）—— AI 购物助手（v1.11，阶段四，见开发文档 §14）
              用途：商品知识库 RAG 混合检索（关键词 LIKE + embedding 向量召回）+ 通义千问 qwen-turbo 导购回答
-             API Key 用环境变量 AI_DASHSCOPE_API_KEY（IDEA Run Configuration 配置，不入库）
+             API Key 直接配置在 application.yml（v1.12 起项目内配置，随 jar 打包部署；生产环境建议改环境变量）
              代码复用自 AI 博客项目 D:\ai_blog_show（同 Boot 3.5.14，已验证可运行） -->
         <dependency>
             <groupId>com.alibaba.cloud.ai</groupId>
