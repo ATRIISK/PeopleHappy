@@ -44,7 +44,7 @@ import static org.mockito.Mockito.when;
  *
  * <p>为什么写这套测试？—— 严格对照开发文档的核心业务规则，验证"最容易被问、最不能出错"的逻辑：
  * <ul>
- *   <li>开发文档 §7.2 下单流程：金额计算（不信任前端）、库存扣减（乐观锁）、清缓存、发超时消息</li>
+ *   <li>开发文档 §7.2 下单流程：金额计算（不信任前端）、库存扣减（原子条件更新）、清缓存、发超时消息</li>
  *   <li>开发文档 §7.3 支付回调：条件更新幂等（重复通知不重复处理）</li>
  *   <li>开发文档 §7.4 超时取消：条件更新防并发（已支付订单绝不被误取消、库存不重复恢复）</li>
  *   <li>开发文档 §7.5 退单退款：先退款再改状态、幂等键防重复退款、重复退单不重复恢复库存</li>
@@ -107,7 +107,7 @@ class OrderServiceImplTest {
         }).when(orderMapper).insert(any(Order.class));
 
         when(orderItemMapper.insertBatch(anyList())).thenReturn(1);   // 批量插入订单项
-        when(orderMapper.updateStock(1L, 2)).thenReturn(1);           // 乐观锁扣库存成功
+        when(orderMapper.updateStock(1L, 2)).thenReturn(1);           // 条件更新扣库存成功
         when(orderMapper.selectOrderVOById(100L)).thenReturn(new OrderVO()); // 查完整订单返回
 
         // 执行
@@ -210,7 +210,7 @@ class OrderServiceImplTest {
     }
 
     /**
-     * 用例 5：扣库存并发冲突（乐观锁 WHERE stock >= quantity 影响行数=0）→ 抛库存异常
+     * 用例 5：扣库存并发冲突（条件更新 WHERE stock >= quantity 影响行数=0）→ 抛库存异常
      * <p>
      * 这是文档 §7.2 步骤 7 强调的并发场景：虽然前置检查库存够，但并发下其他用户可能同时下单把库存抢光，
      * updateStock 返回 0 就要抛异常回滚，不能超卖。
@@ -225,7 +225,7 @@ class OrderServiceImplTest {
             return 1;
         }).when(orderMapper).insert(any(Order.class));
         when(orderItemMapper.insertBatch(anyList())).thenReturn(1);
-        when(orderMapper.updateStock(1L, 2)).thenReturn(0); // 乐观锁条件不满足，扣库存失败
+        when(orderMapper.updateStock(1L, 2)).thenReturn(0); // WHERE 条件不满足（行锁重判后失败），扣库存失败
 
         BusinessException ex = assertThrows(BusinessException.class,
                 () -> service.createOrder(1L, 10L, null));

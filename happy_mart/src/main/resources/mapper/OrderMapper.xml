@@ -6,7 +6,7 @@
 8 个自定义 SQL：
 1. selectOrderVOById → 查单个订单（含订单项 + 商品 + 地址信息）
 2. selectOrderVOListByUserId → 分页查用户订单列表（含地址信息）
-3. updateStock → 扣减库存（带 stock >= quantity 乐观锁）
+3. updateStock → 扣减库存（原子条件更新，WHERE stock >= quantity 校验）
 4. restoreStock → 恢复库存（取消/退单时回补）
 5. selectByOrderNo → 按订单号查询（支付宝回调用）
 6. cancelPendingOrder → 取消待付款订单（status 0→4，条件更新防并发）
@@ -142,9 +142,12 @@
     UPDATE product SET stock = stock - #{quantity}
     WHERE id = #{productId} AND stock >= #{quantity}
 
-    这个 WHERE stock >= #{quantity} 非常关键！
-    它是乐观锁，保证不会出现"库存为负"的情况
-    如果库存不够，影响行数 = 0，Java 代码抛异常触发事务回滚
+    ★ 命名纠正：这不是"乐观锁"！product 表没有 version 字段，不具备乐观锁结构。
+    底层机制：InnoDB 执行 UPDATE 的瞬间对匹配行加排他行锁（X 锁），
+    并发事务阻塞排队等待，拿到锁后重判 stock >= #{quantity}，
+    条件不满足 → 影响行数 = 0 → Java 代码抛异常触发事务回滚。
+    冲突处理是"阻塞重判"，不是乐观锁的"失败后应用层重试"。
+    正确叫法：基于 InnoDB 行级排他锁的"原子条件更新"（悲观锁机制 + WHERE 条件校验）。
     -->
     <update id="updateStock">
         UPDATE product

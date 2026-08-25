@@ -32,7 +32,7 @@
 | 商品模块 | 分类树 / 商品分页 / 详情 / 热门榜 / 一级分类自动包含子分类 | ✅ |
 | 购物车模块 | 增删改查清，联表查商品信息；**加购/改数量校验累计 ≤ 库存**，下架商品拦截 | ✅ |
 | 地址模块 | 收货地址增删改查 / 默认地址 | ✅ |
-| 订单模块 | 下单（乐观锁扣库存）/ 取消 / 确认收货 / 修改地址 / 退单退款 | ✅ |
+| 订单模块 | 下单（原子条件更新扣库存）/ 取消 / 确认收货 / 修改地址 / 退单退款 | ✅ |
 | 支付模块 | 支付宝沙箱扫码支付 + RSA2 验签回调 + 主动查询兜底 + 退款 | ✅ |
 | 订单超时取消 | RabbitMQ 原生 TTL + 死信队列（DLX），30 分钟未支付自动取消并恢复库存 | ✅ |
 | Redis 缓存 | 商品详情 / 分类树 `@Cacheable` + 热门榜 ZSet 定时刷新 + 延时双删 + 故障降级 | ✅ |
@@ -215,7 +215,7 @@ docker compose up -d --build
 
 | 方法 | 路径 | 说明 | 认证 |
 |---|---|---|---|
-| POST | `/api/order/create` | 创建订单（从购物车，可选 `productIds`；乐观锁扣库存） | 是 |
+| POST | `/api/order/create` | 创建订单（从购物车，可选 `productIds`；原子条件更新扣库存） | 是 |
 | GET | `/api/order/list` | 我的订单（分页；批量组装订单项，避免一对多联表截断） | 是 |
 | GET | `/api/order/detail/{id}` | 订单详情（含地址） | 是 |
 | PUT | `/api/order/cancel/{id}` | 取消订单（仅待支付；条件更新防并发） | 是 |
@@ -283,7 +283,7 @@ docker compose up -d --build
 
 ### 3. 并发安全
 
-- **乐观锁扣库存**：`UPDATE product SET stock=stock-? WHERE id=? AND stock>=?`，并发下影响行数 0 → 抛异常不超卖。
+- **原子条件更新扣库存（非乐观锁）**：`UPDATE product SET stock=stock-? WHERE id=? AND stock>=?`。InnoDB 执行时对匹配行加排他行锁，并发事务阻塞排队，拿到锁后重判条件，不满足 → 影响行数 0 → 抛异常不超卖。（注意：无 version 字段、冲突时阻塞而非应用层重试，属悲观锁机制，不满足乐观锁定义。）
 - **条件更新防竞态**：`cancelPendingOrder(0→4)` / `refundPaidOrder(1→5)` / `markOrderPaid(0→1)` 全部带 `WHERE status=xx`，保证「已支付不被误取消、退款不重复、回调不重复处理」。
 - **加购 upsert 原子累加**：`INSERT ... ON DUPLICATE KEY UPDATE` 数据库层累加，替代"先查再改"，并发加购不撞唯一键 / 不丢更新 / 不死锁。
 - **退款幂等**：支付宝退款传 `out_request_no = 订单号`，同一订单重复退款返回幂等结果。
@@ -302,7 +302,7 @@ docker compose up -d --build
 ### 6. 工程化
 
 - 严格 MVC 三层 + VO/DTO 隔离，Entity 不直接返回前端。
-- **16 个订单核心单元测试**（JUnit 5 + Mockito），覆盖乐观锁扣库存、条件更新防并发、退单/回调幂等，不连库秒级跑完。
+- **16 个订单核心单元测试**（JUnit 5 + Mockito），覆盖条件更新扣库存、状态机条件更新防并发、退单/回调幂等，不连库秒级跑完。
 - 前端 axios 统一封装 token / 401 处理 / 错误提示；管理后台路由守卫 + 后端 `@Auth(requireAdmin=true)` 双端鉴权。
 
 ---

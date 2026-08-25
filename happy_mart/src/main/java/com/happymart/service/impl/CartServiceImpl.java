@@ -137,7 +137,7 @@ public class CartServiceImpl implements CartService {
         // 前端只能校验"本次输入 ≤ 库存"（v1.8.1），看不到购物车已有数量，
         // 所以"已有 + 本次"的累计校验必须放后端兜底（前端可被绕过，后端永远要自证）。
         // 说明：串行请求下这里严格拦截；极端并发（多个请求同时读到旧值）下可能都通过校验、
-        // 实际累加略超库存——但下单时 updateStock 乐观锁（WHERE stock >= quantity）兜底防超卖，
+        // 实际累加略超库存——但下单时 updateStock 原子条件更新（WHERE stock >= quantity，InnoDB 行锁重判）兜底防超卖，
         // 购物车数量只是 UI 合理约束，不影响库存正确性（取舍：用 upsert 换无死锁）。
         checkCartStock(stock, existingQty, quantity);
 
