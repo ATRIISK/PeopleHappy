@@ -22,17 +22,31 @@
         <result column="is_deleted" property="deleted" jdbcType="TINYINT"/>
     </resultMap>
 
-    <!-- AI 购物助手关键词召回（v1.11，阶段四，见开发文档 §14）
-         只召回【上架】商品（is_deleted=0 AND status=0，手写 SQL 需显式带逻辑删除条件），
-         按商品名/描述 LIKE 匹配用户问题，销量高的排前面（热门商品优先命中） -->
+    <!-- AI 购物助手关键词召回（v1.11 阶段四；2026-10-05 A 档修复 P0）
+         只召回【上架】商品（is_deleted=0 AND status=0，手写 SQL 需显式带逻辑删除条件）。
+
+         ★ 修复前的问题：keyword 传的是【完整用户问句】（如"推荐适合运动的耳机"），
+           SQL 用 name LIKE '%整句%' 匹配 —— 商品名不可能包含整句，导致召回恒 0 命中，
+           kb.keyword-top-k 形同虚设，"混合检索"实际只有向量路生效。
+
+         ★ 修复后：传【分词后的词组列表】，任一词命中即召回（OR 语义）。
+           排序策略说明：SQL 侧只做粗排（按销量 + 限量 topK*3 过量召回），
+           精排（字段权重 + 命中词数）放在 KnowledgeBaseService 的 scoreKeywordHits() 里做，
+           原因：权重规则要频繁调优，放 Java 可直接写单元测试，也避免 SQL 里写死 keywords[n] 下标
+           （列表长度变化时会直接报下标越界）。 -->
     <select id="findForKnowledgeBase" resultMap="BaseResultMap">
         SELECT id, name, description, price, image, category_id, category_name, sales,
                stock, rating, status, create_time, update_time, is_deleted
         FROM product
         WHERE is_deleted = 0
           AND status = 0
-          AND (name LIKE CONCAT('%', #{keyword}, '%')
-               OR description LIKE CONCAT('%', #{keyword}, '%'))
+          AND (
+        <foreach collection="keywords" item="kw" separator=" OR ">
+              name LIKE CONCAT('%', #{kw}, '%')
+           OR description LIKE CONCAT('%', #{kw}, '%')
+           OR category_name LIKE CONCAT('%', #{kw}, '%')
+        </foreach>
+          )
         ORDER BY sales DESC
         LIMIT #{topK}
     </select>

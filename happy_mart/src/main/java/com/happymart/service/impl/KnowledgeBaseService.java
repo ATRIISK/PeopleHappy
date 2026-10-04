@@ -15,11 +15,13 @@ import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -212,45 +214,71 @@ public class KnowledgeBaseService {
     }
 
     /**
-     * 混合检索：关键词召回 + 向量召回 → 合并去重 → 回表取完整商品 → 组装 context 与 sources
+     * 混合检索：关键词召回 + 向量召回 → 融合排序去重 → 回表取完整商品 → 组装 context 与 sources
      * <p>
      * 为什么"关键词 + 向量"双路混合？
-     * - 关键词 LIKE：商品名/描述里的专有名词、型号（如"华为 Mate 70"）命中精准；
+     * - 关键词路：商品名/描述里的专有名词、型号（如"华为 Mate 70"）、品类词（如"运动"）命中精准；
      * - 向量召回：能理解语义（如"适合运动的耳机"能召回描述里含"运动/跑步"的耳机），
-     *   弥补关键词死板匹配的不足。两路结果去重合并，命中更全更准。
+     *   弥补关键词死板匹配的不足。两路结果融合后命中更全更准。
+     * <p>
+     * <b>2026-10-05 A 档修复</b>：原实现有关键词路恒 0 命中的 P0 缺陷 ——
+     * 把【完整用户问句】当 keyword 传给 SQL 的 {@code name LIKE '%整句%'}，
+     * 商品名不可能包含整句，导致 keyword-top-k 形同虚设、混合检索实际只有向量路生效。
+     * 修复为：先把问句切成关键词（extractKeywords），再按词组 OR 召回。
+     * 同时把向量 similarity score 真正用起来参与排序（原实现用 LinkedHashSet 插入序，
+     * 关键词结果恒在前，score 被完全丢弃），并去掉 context 里重复的价格字段。
      * <p>
      * 返回的 context 是带 [n] 序号的文本（塞进 system prompt），
      * sources 是参考商品列表（前端渲染卡片）。
      */
     public KbSearchResult hybridSearch(String query) {
-        // LinkedHashSet：去重 + 保持插入顺序（关键词结果在前）
+        // 召回打分表：productId -> 综合得分（RRF 融合，见下）
+        Map<Long, Double> rrfScores = new HashMap<>();
+        // 关键词命中集合（用于回表后二次校验与去重）
         LinkedHashSet<Long> ids = new LinkedHashSet<>();
 
-        // 1. 关键词召回：SQL LIKE 商品名/描述（ProductMapper.findForKnowledgeBase，只查上架商品）
+        // 1. 关键词召回：先分词，再按词组 OR 匹配（ProductMapper.findForKnowledgeBase）
+        // ★ 分词而不是传整句：整句 LIKE 匹配不到商品名（详见方法 javadoc 的 P0 说明）
         // ★ 转义 LIKE 通配符（code-review F6）：用户消息里的 % / _ 会被 MySQL 当通配符
         //   （如"100%纯棉"的 % 匹配所有商品），先转义成 \% / \_ 只按普通字符匹配，
         //   否则关键词召回会退化成"按销量取前 N"，污染 RAG 上下文。
-        try {
-            String likeEscaped = query.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
-            List<Product> keywordHits = productMapper.findForKnowledgeBase(likeEscaped, keywordTopK);
-            if (keywordHits != null) {
-                keywordHits.forEach(p -> ids.add(p.getId()));
+        List<String> keywords = extractKeywords(query);
+        if (!keywords.isEmpty()) {
+            try {
+                // 传 topK * 3 过量召回，把精排留给 Java 侧 scoreKeywordHits()（见 Mapper javadoc）
+                List<Product> keywordHits = productMapper.findForKnowledgeBase(keywords, keywordTopK * 3);
+                if (keywordHits != null) {
+                    // 按相关度打分后排序（商品名命中权重最高），再取 topK 进融合
+                    List<Product> scored = scoreKeywordHits(keywordHits, keywords);
+                    for (Product p : scored) {
+                        ids.add(p.getId());
+                    }
+                }
+            } catch (Exception e) {
+                log.warn("商品关键词召回失败: {}", e.getMessage());
             }
-        } catch (Exception e) {
-            log.warn("商品关键词召回失败: {}", e.getMessage());
         }
 
         // 2. 向量召回：embedding 相似度检索（Top-K）
+        // ★ 修复：原实现丢弃了 similarity score，导致排序完全由 LinkedHashSet 插入顺序决定。
+        //   现在取 score 参与 RRF 融合（rank 越靠前贡献越大）。
         try {
             List<Document> docs = vectorStore.similaritySearch(
                     SearchRequest.builder().query(query).topK(vectorTopK).build());
             if (docs != null) {
-                docs.forEach(d -> {
+                // rank 从 1 开始，与 RRF 公式一致
+                int rank = 1;
+                for (Document d : docs) {
                     Object pid = d.getMetadata().get("productId");
                     if (pid != null) {
-                        ids.add(Long.valueOf(pid.toString()));
+                        Long id = Long.valueOf(pid.toString());
+                        ids.add(id);
+                        // RRF（Reciprocal Rank Fusion）：score += 1 / (K + rank)
+                        // K 取 60 是社区常用值，作用是压制头部排名的绝对优势、让多路命中更容易叠加
+                        rrfScores.merge(id, 1.0 / (60 + rank), Double::sum);
+                        rank++;
                     }
-                });
+                }
             }
         } catch (Exception e) {
             log.warn("商品向量召回失败: {}", e.getMessage());
@@ -270,10 +298,6 @@ public class KnowledgeBaseService {
             log.warn("按 ID 取商品失败: {}", e.getMessage());
             return new KbSearchResult("", List.of());
         }
-        // ★ 按相关性重排（code-review F3）：MySQL IN 查询返回顺序【不保证】与传入 id 顺序一致
-        //   （代码库 ProductServiceImpl.convertToVOByOrder 已踩过此坑：'IN 查询返回顺序不保证和传入顺序一致'）。
-        //   这里按 ids（LinkedHashSet，关键词结果在前、相关性高的在前）重排，
-        //   保证后面 limit(contextTopN) 截断和 [n] 编号始终按"相关性"而非"主键顺序"。
         Map<Long, Product> productById = products.stream()
                 .collect(Collectors.toMap(Product::getId, p -> p, (a, b) -> a));
         products = ids.stream()
@@ -281,7 +305,16 @@ public class KnowledgeBaseService {
                 .filter(Objects::nonNull)
                 .collect(Collectors.toList());
 
-        // 4. 组装 context（带 [1][2]... 序号）与 sources 引用列表
+        // 4. 融合排序（2026-10-05 A 档）：
+        //   关键词命中给基础分（按字段权重：名称 > 分类 > 描述），向量命中叠加 RRF 分。
+        //   排序不再依赖 LinkedHashSet 插入序——两路分数可比，取综合分降序。
+        final Map<Long, Double> keywordScores = buildKeywordScores(products, keywords);
+        products.sort(Comparator.comparingDouble(
+                (Product p) -> keywordScores.getOrDefault(p.getId(), 0.0)
+                        + rrfScores.getOrDefault(p.getId(), 0.0))
+                .reversed());
+
+        // 5. 组装 context（带 [1][2]... 序号）与 sources 引用列表
         StringBuilder ctx = new StringBuilder();
         List<ProductSource> sources = new ArrayList<>();
         int i = 1;
@@ -289,12 +322,211 @@ public class KnowledgeBaseService {
             // sources：前端参考商品卡片
             sources.add(new ProductSource(p.getId(), p.getName(), p.getPrice(), p.getImage(), "/product/" + p.getId()));
             // context：拼进 prompt 的参考文本
-            String text = buildProductText(p);
-            ctx.append("[").append(i).append("] 《").append(p.getName()).append("》")
-               .append(" 价格 ¥").append(p.getPrice() == null ? "?" : p.getPrice().toPlainString())
-               .append("\n").append(text).append("\n\n");
+            // ★ 修复：原来这里额外拼了一次"价格 ¥x"，而 buildProductText 内部已含"价格: ¥x"，
+            //   同一信息在 prompt 里出现两遍、白白吃 token。改为只拼 buildProductText 的结果。
+            ctx.append("[").append(i).append("] ")
+               .append(buildProductText(p))
+               .append("\n\n");
             i++;
         }
         return new KbSearchResult(ctx.toString().trim(), sources);
     }
+
+    /**
+     * 从用户问句中提取关键词（2026-10-05 A 档新增，P0 修复的核心）
+     * <p>
+     * 为什么要分词：原实现把整句当 keyword 传 SQL，商品名不可能包含"推荐适合运动的耳机"整句，
+     * 召回恒 0 命中。切成词组后，"运动""耳机"能分别命中商品描述与分类名。
+     * <p>
+     * <b>中文没有空格，必须做二次切分</b>——这是实测踩到的坑：
+     * 第一版只按非中英文数字切分，"推荐适合运动的耳机"整串是一个连续 token，
+     * 等于没切分，召回照样是 0 命中。所以纯中文串再按【二元组（bigram）】切：
+     * "推荐适合运动的耳机" → 推荐/适合/运动/动的/的耳/耳机，能正确切出"运动""耳机"。
+     * bigram 是无分词器场景下的经典做法（召回率优先，噪声靠停用词过滤）。
+     * <p>
+     * 完整规则：
+     * <ol>
+     *   <li>先按非中英文数字切（覆盖空格与标点）；</li>
+     *   <li>英文/数字词直接保留（型号如 "mate70"）；</li>
+     *   <li>中文串：长度 2 直接保留；长度 &gt;2 切成 bigram；</li>
+     *   <li>丢弃停用词、以及含停用字的 bigram（如"荐一""的耳"）；</li>
+     *   <li>做 LIKE 通配符转义（% / _ / \），否则"100%棉"会匹配所有商品；</li>
+     *   <li>去重后最多取前 8 个（太多会让 OR 条件过宽、召回噪声变大）。</li>
+     * </ol>
+     *
+     * @param query 用户原始问句
+     * @return 关键词列表（可能为空，此时跳过关键词路）
+     */
+    private List<String> extractKeywords(String query) {
+        if (query == null || query.isBlank()) {
+            return List.of();
+        }
+        // 1. 按非中英文数字的字符切分（覆盖空白 + 标点）
+        String[] tokens = query.split("[^\\u4e00-\\u9fa5a-zA-Z0-9]+");
+        Set<String> result = new LinkedHashSet<>();
+        for (String token : tokens) {
+            if (token == null || token.isBlank()) {
+                continue;
+            }
+            String lower = token.toLowerCase();
+            for (String piece : splitToken(lower)) {
+                // 2. 停用词过滤（整词）
+                if (STOP_WORDS.contains(piece)) {
+                    continue;
+                }
+                // 3. 含停用字的片段直接丢（"荐一""的耳"这类 bigram 噪声）
+                if (hasStopChar(piece)) {
+                    continue;
+                }
+                // 4. 长度下限：单字中文噪声大（"跑""鞋"单独召回太宽），但英文/数字型号如 "70" 保留
+                if (piece.length() < 2) {
+                    continue;
+                }
+                // 5. LIKE 通配符转义（code-review F6）
+                result.add(escapeLike(piece));
+                if (result.size() >= 8) {
+                    return new ArrayList<>(result);
+                }
+            }
+        }
+        return new ArrayList<>(result);
+    }
+
+    /**
+     * 单个 token 切分：中文串按 bigram 切，英文/数字原样返回（2026-10-05 A 档）
+     * <p>
+     * 中文没有空格分词，"推荐适合运动的耳机"整串是一个 token，直接当关键词等于没分词。
+     * bigam（相邻两字）是无分词器时最实用的切法：能切出"运动""耳机"，
+     * 代价是产生"荐一""的耳"等噪声，靠 hasStopChar 过滤。
+     */
+    private List<String> splitToken(String token) {
+        // 纯英文/数字（含型号如 mate70、iphone15）：不切，原样保留
+        if (!token.matches("[\\u4e00-\\u9fa5]+")) {
+            return List.of(token);
+        }
+        int len = token.length();
+        if (len <= 2) {
+            return List.of(token);
+        }
+        List<String> bigrams = new ArrayList<>(len - 1);
+        for (int i = 0; i + 2 <= len; i++) {
+            bigrams.add(token.substring(i, i + 2));
+        }
+        return bigrams;
+    }
+
+    /**
+     * 判断片段是否含停用字（含则丢弃该片段）
+     * <p>
+     * 用于过滤 bigram 噪声："一下""的耳""荐一"这类片段本身不是词，
+     * 拿去 LIKE 匹配只会引入无关商品。
+     */
+    private boolean hasStopChar(String piece) {
+        for (int i = 0; i < piece.length(); i++) {
+            if (STOP_CHARS.indexOf(piece.charAt(i)) >= 0) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * 关键词召回结果打分与排序（2026-10-05 A 档新增）
+     * <p>
+     * 权重设计：商品名命中 3 分 > 分类名 2 分 > 描述 1 分。
+     * 理由：专有名词与型号基本都出现在商品名里，名字命中最可能是用户要找的那个；
+     * 描述文本长、容易蹭到泛化词，权重最低；分类名能兜住只说品类的问句。
+     *
+     * @param hits     关键词路召回的商品
+     * @param keywords 实际使用的关键词列表
+     * @return 按分数降序排列的商品列表
+     */
+    private List<Product> scoreKeywordHits(List<Product> hits, List<String> keywords) {
+        Map<Long, Double> scores = new HashMap<>();
+        for (Product p : hits) {
+            double score = 0;
+            String name = lower(p.getName());
+            String desc = lower(p.getDescription());
+            String cat = lower(p.getCategoryName());
+            for (String kw : keywords) {
+                if (name.contains(kw)) {
+                    score += 3;
+                }
+                if (cat.contains(kw)) {
+                    score += 2;
+                }
+                if (desc.contains(kw)) {
+                    score += 1;
+                }
+            }
+            // 命中词越多越相关；同分时靠销量（SQL 已按销量粗排，这里稳定排序即可）
+            scores.put(p.getId(), score);
+        }
+        List<Product> sorted = new ArrayList<>(hits);
+        sorted.sort(Comparator.comparingDouble((Product p) -> scores.getOrDefault(p.getId(), 0.0)).reversed());
+        return sorted.stream().limit(keywordTopK).collect(Collectors.toList());
+    }
+
+    /**
+     * 回表后重新计算关键词得分（用于与向量 RRF 分做融合排序）
+     */
+    private Map<Long, Double> buildKeywordScores(List<Product> products, List<String> keywords) {
+        Map<Long, Double> scores = new HashMap<>();
+        if (keywords.isEmpty()) {
+            return scores;
+        }
+        for (Product p : products) {
+            double score = 0;
+            String name = lower(p.getName());
+            String desc = lower(p.getDescription());
+            String cat = lower(p.getCategoryName());
+            for (String kw : keywords) {
+                if (name.contains(kw)) {
+                    score += 3;
+                }
+                if (cat.contains(kw)) {
+                    score += 2;
+                }
+                if (desc.contains(kw)) {
+                    score += 1;
+                }
+            }
+            scores.put(p.getId(), score);
+        }
+        return scores;
+    }
+
+    /** null 安全的 lowercase */
+    private String lower(String s) {
+        return s == null ? "" : s.toLowerCase();
+    }
+
+    /**
+     * LIKE 通配符转义：把用户输入里的 % 和 _ 转成字面量匹配
+     * <p>
+     * 不转义的后果："100%纯棉" 的 % 会被 MySQL 当通配符匹配所有行，
+     * 关键词召回退化成"按销量取前 N"，把无关商品灌进 RAG 上下文。
+     */
+    private String escapeLike(String raw) {
+        return raw.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
+    }
+
+    /**
+     * 停用词（无检索价值，问句里高频但不该参与 LIKE 匹配）
+     */
+    private static final Set<String> STOP_WORDS = Set.of(
+            "的", "了", "和", "与", "或", "是", "在", "有", "个", "些", "什么", "怎么", "如何",
+            "推荐", "有没有", "适合", "我想", "我要", "请问", "帮忙", "一下", "哪些", "哪个",
+            "求", "给", "来", "吧", "呢", "吗", "啊", "呀", "哦", "嗯", "这", "那", "都",
+            "the", "a", "an", "is", "are", "for", "to", "of", "and", "or", "what", "how",
+            "please", "recommend", "me", "i", "want", "need", "any", "some", "can", "you"
+    );
+
+    /**
+     * 单字停用字符（2026-10-05 A 档新增）
+     * <p>
+     * 用于过滤 bigram 噪声片段：中文按二元组切会产生"一下""的耳""荐一"这类非词片段，
+     * 它们拿去 LIKE 匹配只会引入无关商品。含这些字的片段一律丢弃。
+     */
+    private static final String STOP_CHARS = "的了和与或在有个些什么怎如求给来吧呢吗啊呀哦嗯这那都我你他她它";
 }
