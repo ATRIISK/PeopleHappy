@@ -1,12 +1,14 @@
 <template>
   <!-- 地址管理页面 -->
   <div class="address-manager">
-    <div class="page-header">
+    <div class="page-header hm-page-header">
       <div class="header-left">
-        <el-button text @click="goBack" class="back-btn">← 返回</el-button>
-        <h2>地址管理</h2>
+        <div>
+          <h2 class="hm-page-header__title">地址管理</h2>
+          <p class="hm-page-header__desc">管理常用收货地址，让每一份期待准确抵达</p>
+        </div>
       </div>
-      <el-button type="primary" @click="showAddDialog">
+      <el-button type="primary" class="add-address-btn" @click="showAddDialog">
         <el-icon><Plus /></el-icon>添加新地址
       </el-button>
     </div>
@@ -16,16 +18,23 @@
       <el-skeleton :rows="3" animated />
     </div>
 
-    <el-empty v-else-if="addressList.length === 0" description="暂无地址，点击上方按钮添加" />
+    <div v-else-if="addressList.length === 0" class="empty-wrapper">
+      <el-empty description="暂无地址，点击上方按钮添加" />
+    </div>
 
     <div v-else class="address-list">
-      <div v-for="item in addressList" :key="item.id" class="address-card">
+      <div
+        v-for="item in addressList"
+        :key="item.id"
+        class="address-card"
+        :class="{ 'is-default': item.isDefault === 1 }"
+      >
         <div class="address-info">
           <div class="address-name">
             <span class="name">{{ item.name }}</span>
             <span class="phone">{{ item.phone }}</span>
             <!-- 默认地址标签 -->
-            <el-tag v-if="item.isDefault === 1" type="danger" size="small" effect="plain">默认</el-tag>
+            <el-tag v-if="item.isDefault === 1" type="primary" size="small" effect="light">默认地址</el-tag>
           </div>
           <div class="address-detail">
             {{ item.province }}{{ item.city }}{{ item.district ? item.district : '' }}{{ item.detail }}
@@ -51,6 +60,7 @@
       v-model="dialogVisible"
       :title="isEditing ? '编辑地址' : '新增地址'"
       width="520px"
+      class="address-dialog"
     >
       <el-form
         ref="formRef"
@@ -106,13 +116,11 @@
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
 import { getAddressList, addAddress, updateAddress, deleteAddress } from '@/api/address'
 
 // ===== 状态 =====
-const router = useRouter()
 const addressList = ref([])       // 地址列表
 const loading = ref(false)        // 加载中
 const saving = ref(false)         // 保存中
@@ -150,11 +158,6 @@ onMounted(async () => {
 })
 
 // ===== 方法 =====
-
-/** 返回上一页 */
-function goBack() {
-  router.back()
-}
 
 /** 加载地址列表 */
 async function loadAddressList() {
@@ -255,95 +258,229 @@ async function handleSetDefault(item) {
 
 <style scoped>
 .address-manager {
-  max-width: 800px;
+  width: 100%;
+  max-width: 980px;
+  min-width: 0;
+  box-sizing: border-box;
   margin: 0 auto;
-  padding: 20px;
+  padding: 28px 20px 40px;
 }
 
 .page-header {
-  display: flex;
-  justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
+  margin-bottom: 24px;
 }
 
 .header-left {
   display: flex;
   align-items: center;
-  gap: 8px;
-}
-
-.back-btn {
-  font-size: 14px;
-  color: #666;
-  border: 1px solid #d9d9d9;
-  border-radius: 4px;
-  padding: 4px 12px;
-}
-
-.back-btn:hover {
-  color: #1a1a2e;
-  border-color: #1a1a2e;
-  background: #f8f8f8;
+  gap: 16px;
+  min-width: 0;
 }
 
 .page-header h2 {
   margin: 0;
-  font-size: 22px;
-  color: #1a1a2e;
 }
 
-.loading-wrapper {
-  padding: 40px;
+.add-address-btn {
+  height: 42px;
+  padding: 0 20px;
+  border-radius: var(--hm-radius-md);
+  box-shadow: 0 6px 14px rgba(232, 80, 30, 0.18);
+}
+
+.loading-wrapper,
+.empty-wrapper {
+  padding: 36px;
+  border: 1px solid var(--hm-ink-100);
+  border-radius: var(--hm-radius-lg);
+  background: var(--hm-white);
+  box-shadow: var(--hm-shadow-sm);
+}
+
+.empty-wrapper {
+  padding: 48px 20px;
+}
+
+.address-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
 }
 
 .address-card {
+  position: relative;
+  min-width: 0;
+  min-height: 178px;
+  box-sizing: border-box;
   display: flex;
+  flex-direction: column;
   justify-content: space-between;
-  align-items: flex-start;
-  padding: 16px 20px;
-  border: 1px solid #e8e8e8;
-  border-radius: 8px;
-  margin-bottom: 12px;
-  transition: all 0.2s;
+  padding: 22px 22px 12px;
+  border: 1px solid var(--hm-ink-200);
+  border-radius: var(--hm-radius-lg);
+  background: var(--hm-white);
+  box-shadow: var(--hm-shadow-sm);
+  overflow: hidden;
+  transition: border-color var(--hm-transition), box-shadow var(--hm-transition), transform var(--hm-transition);
+}
+
+.address-card::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 4px;
+  background: transparent;
+}
+
+.address-card.is-default {
+  border-color: var(--hm-primary-border);
+  background: linear-gradient(145deg, var(--hm-white) 55%, var(--hm-primary-soft));
+  box-shadow: 0 8px 22px rgba(232, 80, 30, 0.1);
+}
+
+.address-card.is-default::before {
+  background: var(--hm-primary);
 }
 
 .address-card:hover {
-  border-color: #c0c0c0;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  border-color: var(--hm-primary-border);
+  box-shadow: var(--hm-shadow-md);
+  transform: translateY(-2px);
 }
 
 .address-info {
   flex: 1;
+  min-width: 0;
 }
 
 .address-name {
-  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  margin-bottom: 14px;
 }
 
 .address-name .name {
-  font-size: 16px;
+  color: var(--hm-ink-900);
+  font-size: 18px;
   font-weight: 600;
-  color: #1a1a2e;
-  margin-right: 12px;
 }
 
 .address-name .phone {
-  font-size: 14px;
-  color: #666;
-  margin-right: 12px;
+  color: var(--hm-ink-500);
+  font-size: var(--hm-font-base);
+  font-variant-numeric: tabular-nums;
 }
 
 .address-detail {
-  font-size: 14px;
-  color: #666;
-  line-height: 1.5;
+  color: var(--hm-ink-600);
+  font-size: var(--hm-font-base);
+  line-height: 1.8;
+  overflow-wrap: anywhere;
 }
 
 .address-actions {
   display: flex;
-  gap: 8px;
+  justify-content: flex-end;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
   flex-shrink: 0;
-  margin-left: 16px;
+  margin: 18px -6px 0;
+  padding-top: 8px;
+  border-top: 1px solid var(--hm-ink-100);
+}
+
+.address-actions :deep(.el-button + .el-button) {
+  margin-left: 0;
+}
+
+.address-form :deep(.el-input__wrapper),
+.address-form :deep(.el-textarea__inner) {
+  background: var(--hm-ink-050);
+}
+
+:global(.address-dialog) {
+  max-width: calc(100vw - 32px);
+}
+
+:global(.address-dialog .el-dialog__footer) {
+  padding-top: 16px;
+  border-top: 1px solid var(--hm-ink-100);
+}
+
+@media (max-width: 1024px) {
+  .address-manager {
+    max-width: 900px;
+  }
+
+  .address-card {
+    padding: 20px 18px 12px;
+  }
+}
+
+@media (max-width: 768px) {
+  .address-manager {
+    padding: 24px 16px 32px;
+  }
+
+  .page-header {
+    align-items: flex-start;
+  }
+
+  .header-left {
+    width: 100%;
+  }
+
+  .add-address-btn {
+    align-self: flex-end;
+  }
+
+  .address-list {
+    grid-template-columns: 1fr;
+  }
+
+  .address-card {
+    min-height: 0;
+  }
+}
+
+@media (max-width: 480px) {
+  .address-manager {
+    padding: 20px 12px 28px;
+  }
+
+  .header-left {
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .add-address-btn {
+    width: 100%;
+  }
+
+  .loading-wrapper {
+    padding: 24px 18px;
+  }
+
+  .address-card {
+    padding: 20px 18px 10px;
+  }
+
+  .address-actions {
+    justify-content: flex-start;
+  }
+
+  .address-form :deep(.el-row) {
+    display: block;
+  }
+
+  .address-form :deep(.el-col) {
+    width: 100%;
+    max-width: 100%;
+    padding: 0 !important;
+  }
 }
 </style>

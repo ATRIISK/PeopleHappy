@@ -8,6 +8,7 @@ import { ref, watch, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { getProducts } from '@/api/product'
 import { getCategoryTree } from '@/api/category'
+import StateBlock from '@/components/StateBlock.vue'   // 统一加载/空/错误状态展示
 
 // 路由
 const route = useRoute()
@@ -152,7 +153,7 @@ function handlePageChange(page) {
 }
 
 /**
- * 每页条数变更时重置到第一页并重新加载
+ * 每页条数变更时重置到第一页并重新加载数据
  * @param {number} size - 新每页条数
  */
 function handleSizeChange(size) {
@@ -209,7 +210,13 @@ watch(
   <div class="product-list-page">
     <!-- ==================== 左侧分类筛选侧边栏 ==================== -->
     <aside class="sidebar">
-      <div class="sidebar-title">商品分类</div>
+      <div class="sidebar-heading">
+        <div>
+          <div class="sidebar-title">商品分类</div>
+          <div class="sidebar-subtitle">按品类慢慢挑</div>
+        </div>
+        <span class="sidebar-mark">CATEGORY</span>
+      </div>
       <el-tree
         :data="treeData"
         :props="{ label: 'label', children: 'children' }"
@@ -223,10 +230,12 @@ watch(
 
     <!-- ==================== 右侧商品主区域 ==================== -->
     <div class="main-area">
-
       <!-- 顶部工具栏：显示商品总数 + 排序下拉 -->
       <div class="toolbar">
-        <span class="total-info">共 {{ total }} 件商品</span>
+        <div class="toolbar-info">
+          <span class="toolbar-title">全部好物</span>
+          <span class="total-info">共 {{ total }} 件商品</span>
+        </div>
         <el-select
           v-model="sortBy"
           placeholder="排序方式"
@@ -243,63 +252,57 @@ watch(
         </el-select>
       </div>
 
-      <!-- 加载中状态：居中显示旋转的 Loading 图标 -->
-      <div v-if="loading" class="loading-container">
-        <el-icon class="loading-icon" :size="32" color="#409eff">
-          <Loading />
-        </el-icon>
-        <span class="loading-text">加载中...</span>
-      </div>
-
-      <!-- 错误状态：显示错误提示和重新加载按钮 -->
-      <div v-else-if="error" class="error-container">
-        <el-empty :description="error" />
-        <el-button type="primary" @click="loadProducts">重新加载</el-button>
-      </div>
-
-      <!-- 空状态：无匹配商品时显示 -->
-      <div v-else-if="products.length === 0" class="empty-container">
-        <el-empty description="暂无相关商品" />
-      </div>
+      <!-- 加载中 / 错误 / 空数据：统一用 StateBlock 展示（仅替换展示层，数据逻辑不变） -->
+      <StateBlock
+        v-if="loading"
+        type="loading"
+        message="正在加载商品…"
+      />
+      <StateBlock
+        v-else-if="error"
+        type="error"
+        :message="error"
+        @retry="loadProducts"
+      />
+      <StateBlock
+        v-else-if="products.length === 0"
+        type="empty"
+        message="暂无相关商品"
+        description="换个关键词或分类试试"
+      />
 
       <!-- 有数据时显示商品网格和分页 -->
       <template v-else>
-        <!-- 4 列商品卡片网格 -->
-        <div class="product-grid">
+        <div class="hm-product-grid">
           <div
             v-for="product in products"
             :key="product.id"
-            class="product-card"
+            class="hm-product-card"
             @click="goToProduct(product.id)"
           >
-            <!-- 商品图片（1:1 比例） -->
-            <div class="product-image-wrapper">
+            <div class="hm-product-card__thumb">
+              <span class="hm-product-card__flag">精选</span>
               <el-image
                 :src="product.image"
                 :alt="product.name"
-                class="product-image"
                 fit="cover"
               />
             </div>
-            <!-- 商品信息区域 -->
-            <div class="product-info">
-              <!-- 商品名称（单行省略） -->
-              <div class="product-name" :title="product.name">{{ product.name }}</div>
-              <!-- 价格行：现价 + 原价（划线） -->
-              <div class="product-price-row">
-                <span class="product-price">¥{{ product.price.toFixed(2) }}</span>
-                <span class="product-original-price">¥{{ product.originalPrice.toFixed(2) }}</span>
+            <div class="hm-product-card__info">
+              <div class="hm-product-card__name" :title="product.name">{{ product.name }}</div>
+              <div class="hm-product-card__price-row">
+                <span class="hm-product-card__price">¥{{ product.price.toFixed(2) }}</span>
+                <span class="hm-product-card__orig">¥{{ product.originalPrice.toFixed(2) }}</span>
               </div>
-              <!-- 评分和销量 -->
-              <div class="product-meta">
+              <div class="hm-product-card__meta">
                 <el-rate
                   :model-value="product.rating"
                   disabled
                   show-score
-                  text-color="#ff9900"
+                  text-color="#d9992b"
                   score-template="{value}"
                 />
-                <span class="product-sales">已售 {{ product.sales }}</span>
+                <span>已售 {{ product.sales }}</span>
               </div>
             </div>
           </div>
@@ -324,198 +327,165 @@ watch(
 </template>
 
 <style scoped>
-/* ==================== 页面布局：侧边栏 + 主区域 ==================== */
 .product-list-page {
   display: flex;
-  gap: 20px;
+  gap: var(--hm-space-5);
   align-items: flex-start;
 }
 
-/* ==================== 左侧分类筛选侧边栏 ==================== */
+/* ==================== 分类侧栏 ==================== */
 .sidebar {
-  width: 200px;
+  width: 218px;
   flex-shrink: 0;
-  background: #fff;
-  border: 1px solid #eee;
-  border-radius: 8px;
-  padding: 16px;
-  /* 粘性定位，滚动时侧边栏保持在可视区域 */
+  padding: var(--hm-space-5) var(--hm-space-4);
+  border: 1px solid var(--hm-ink-100);
+  border-radius: var(--hm-radius-lg);
+  background: var(--hm-white);
+  box-shadow: var(--hm-shadow-sm);
   position: sticky;
-  top: 20px;
+  top: calc(var(--hm-header-h) + var(--hm-category-h) + var(--hm-space-4));
 }
-
-/* 侧边栏标题 */
+.sidebar-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--hm-space-2);
+  margin-bottom: var(--hm-space-3);
+  padding: 0 var(--hm-space-2) var(--hm-space-4);
+  border-bottom: 1px solid var(--hm-ink-100);
+}
 .sidebar-title {
-  font-size: 16px;
-  font-weight: bold;
-  color: #1a1a2e;
-  margin-bottom: 12px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid #eee;
+  color: var(--hm-ink-900);
+  font-size: var(--hm-font-lg);
+  font-weight: var(--hm-fw-bold);
+  letter-spacing: 1px;
+}
+.sidebar-subtitle {
+  margin-top: 3px;
+  color: var(--hm-ink-400);
+  font-size: var(--hm-font-xs);
+}
+.sidebar-mark {
+  padding-top: 3px;
+  color: var(--hm-primary-border);
+  font-size: 9px;
+  font-weight: var(--hm-fw-bold);
+  letter-spacing: 1px;
+  writing-mode: vertical-rl;
+}
+.sidebar :deep(.el-tree) {
+  background: transparent;
+  color: var(--hm-ink-600);
+  --el-tree-node-hover-bg-color: var(--hm-primary-soft);
+}
+.sidebar :deep(.el-tree-node__content) {
+  height: 36px;
+  margin: 2px 0;
+  border-radius: 10px;
+  transition: all var(--hm-transition);
+}
+.sidebar :deep(.el-tree-node__expand-icon) {
+  color: var(--hm-ink-400);
+}
+.sidebar :deep(.el-tree-node.is-current > .el-tree-node__content) {
+  background: var(--hm-primary-soft);
+  color: var(--hm-primary);
+  font-weight: var(--hm-fw-bold);
+}
+.sidebar :deep(.el-tree-node__content:hover) {
+  color: var(--hm-primary);
 }
 
-/* ==================== 右侧商品主区域 ==================== */
+/* ==================== 商品主区域 ==================== */
 .main-area {
   flex: 1;
   min-width: 0;
 }
-
-/* ==================== 顶部工具栏 ==================== */
 .toolbar {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 16px;
-  padding: 12px 16px;
-  background: #fff;
-  border-radius: 8px;
-  border: 1px solid #eee;
+  gap: var(--hm-space-4);
+  margin-bottom: var(--hm-space-5);
+  padding: 14px 18px;
+  border: 1px solid var(--hm-ink-100);
+  border-radius: var(--hm-radius-lg);
+  background: var(--hm-white);
+  box-shadow: var(--hm-shadow-sm);
 }
-
-/* 商品总数文字 */
-.total-info {
-  font-size: 14px;
-  color: #666;
-}
-
-/* ==================== 加载中状态 ==================== */
-.loading-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 80px 0;
-  gap: 12px;
-}
-
-/* 旋转的 Loading 图标动画 */
-.loading-icon {
-  animation: rotating 1.5s linear infinite;
-}
-
-@keyframes rotating {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-/* 加载文字 */
-.loading-text {
-  font-size: 14px;
-  color: #999;
-}
-
-/* ==================== 错误状态 ==================== */
-.error-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 60px 0;
-  gap: 16px;
-}
-
-/* ==================== 空状态 ==================== */
-.empty-container {
-  display: flex;
-  justify-content: center;
-  padding: 60px 0;
-}
-
-/* ==================== 商品网格 ==================== */
-.product-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 16px;
-  margin-bottom: 24px;
-}
-
-/* ==================== 商品卡片 ==================== */
-.product-card {
-  background: #fff;
-  border-radius: 8px;
-  overflow: hidden;
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-/* 卡片 hover 效果：上移 3px，阴影加深 */
-.product-card:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
-}
-
-/* 商品图片容器：保持 1:1 宽高比 */
-.product-image-wrapper {
-  aspect-ratio: 1;
-  overflow: hidden;
-}
-
-/* 商品图片 */
-.product-image {
-  width: 100%;
-  height: 100%;
-  display: block;
-}
-
-/* 商品信息区域 */
-.product-info {
-  padding: 12px;
-}
-
-/* 商品名称：单行省略号 */
-.product-name {
-  font-size: 14px;
-  color: #333;
-  line-height: 1.4;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  margin-bottom: 8px;
-}
-
-/* 价格行：现价和原价并排 */
-.product-price-row {
+.toolbar-info {
   display: flex;
   align-items: baseline;
-  gap: 8px;
-  margin-bottom: 8px;
+  gap: var(--hm-space-3);
+  min-width: 0;
 }
-
-/* 现价：红色加粗大号显示 */
-.product-price {
-  font-size: 20px;
-  font-weight: bold;
-  color: #e4393c;
-}
-
-/* 原价：灰色划线小字 */
-.product-original-price {
-  font-size: 13px;
-  color: #999;
-  text-decoration: line-through;
-}
-
-/* 评分与销量行 */
-.product-meta {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-/* 销量文字 */
-.product-sales {
-  font-size: 12px;
-  color: #999;
+.toolbar-title {
+  color: var(--hm-ink-900);
+  font-size: var(--hm-font-md);
+  font-weight: var(--hm-fw-bold);
   white-space: nowrap;
 }
-
-/* ==================== 分页 ==================== */
+.total-info {
+  color: var(--hm-ink-400);
+  font-size: var(--hm-font-sm);
+  white-space: nowrap;
+}
 .pagination-wrapper {
   display: flex;
   justify-content: center;
-  padding: 20px 0;
+  margin-top: var(--hm-space-8);
+  padding: var(--hm-space-5);
+  border: 1px solid var(--hm-ink-100);
+  border-radius: var(--hm-radius-lg);
+  background: var(--hm-white);
+  overflow-x: auto;
+}
+
+@media (max-width: 1024px) {
+  .sidebar {
+    width: 190px;
+  }
+  .product-list-page {
+    gap: var(--hm-space-4);
+  }
+}
+
+@media (max-width: 768px) {
+  .product-list-page {
+    flex-direction: column;
+  }
+  .sidebar {
+    position: static;
+    width: 100%;
+    max-height: 260px;
+    overflow-y: auto;
+    box-sizing: border-box;
+  }
+  .sidebar-heading {
+    align-items: center;
+    padding-bottom: var(--hm-space-3);
+  }
+  .sidebar-mark {
+    writing-mode: initial;
+  }
+  .main-area {
+    width: 100%;
+  }
+  .pagination-wrapper {
+    justify-content: flex-start;
+    padding: var(--hm-space-4);
+  }
+}
+
+@media (max-width: 480px) {
+  .toolbar {
+    padding: 12px 14px;
+  }
+  .toolbar-title {
+    display: none;
+  }
+  .total-info {
+    font-size: var(--hm-font-xs);
+  }
 }
 </style>

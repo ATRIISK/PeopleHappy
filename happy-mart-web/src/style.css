@@ -1,12 +1,20 @@
+/* ============================================================
+   全局 reset（仅基础重置）
+   ------------------------------------------------------------
+   字体、颜色、间距、组件样式等已迁至 styles/design-system.css，
+   此处只保留与第三方组件无关的最小重置，避免样式重复定义。
+   ============================================================ */
+
 * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
 }
 
-html, body, #app {
+html,
+body,
+#app {
   height: 100%;
-  font-family: 'Helvetica Neue', Helvetica, 'PingFang SC', 'Microsoft YaHei', sans-serif;
 }
 
 a {

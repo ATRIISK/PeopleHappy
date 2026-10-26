@@ -6,6 +6,8 @@ import * as ElementPlusIconsVue from '@element-plus/icons-vue'
 import App from './App.vue'
 import router from './router'
 import './style.css'
+// 设计系统：设计令牌 + 基础层 + .hm-* 组件类（含响应式断点）
+import './styles/design-system.css'
 
 const app = createApp(App)
 

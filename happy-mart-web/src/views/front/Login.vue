@@ -82,63 +82,81 @@ async function handleLogin() {
   <div class="login-page">
     <!-- 白色登录卡片 -->
     <div class="login-card">
-      <!-- 标题 -->
-      <h2 class="login-title">众乐电子商城</h2>
-      <!-- 副标题 -->
-      <p class="login-subtitle">欢迎回来，请登录您的账户</p>
+      <section class="login-brand" aria-label="众乐电子商城品牌介绍">
+        <span class="brand-badge">暖橙市集 · 品质生活</span>
+        <div class="brand-mark" aria-hidden="true">众</div>
+        <!-- 标题 -->
+        <h2 class="login-title">众乐电子商城</h2>
+        <p class="brand-desc">把日常好物与温暖心意，一起装进购物车。</p>
+        <div class="brand-points" aria-hidden="true">
+          <span>精选好物</span>
+          <span>安心选购</span>
+          <span>贴心服务</span>
+        </div>
+      </section>
 
-      <!-- 登录表单 -->
-      <el-form
-        ref="loginFormRef"
-        :model="loginForm"
-        :rules="rules"
-        label-width="0"
-        size="large"
-        @keyup.enter="handleLogin"
-      >
-        <!-- 用户名输入框 -->
-        <el-form-item prop="username">
-          <el-input
-            v-model="loginForm.username"
-            placeholder="请输入用户名"
-            :prefix-icon="User"
-          />
-        </el-form-item>
+      <section class="login-content">
+        <div class="login-heading">
+          <span class="login-eyebrow">WELCOME BACK</span>
+          <h1>欢迎登录</h1>
+          <!-- 副标题 -->
+          <p class="login-subtitle">欢迎回来，请登录您的账户</p>
+        </div>
 
-        <!-- 密码输入框 -->
-        <el-form-item prop="password">
-          <el-input
-            v-model="loginForm.password"
-            type="password"
-            placeholder="请输入密码"
-            :prefix-icon="Lock"
-            show-password
-          />
-        </el-form-item>
+        <!-- 登录表单 -->
+        <el-form
+          ref="loginFormRef"
+          :model="loginForm"
+          :rules="rules"
+          label-width="0"
+          size="large"
+          @keyup.enter="handleLogin"
+        >
+          <!-- 用户名输入框 -->
+          <el-form-item prop="username">
+            <el-input
+              v-model="loginForm.username"
+              placeholder="请输入用户名"
+              :prefix-icon="User"
+            />
+          </el-form-item>
 
-        <!-- 记住我 复选框 -->
-        <el-form-item>
-          <el-checkbox v-model="loginForm.rememberMe">记住我</el-checkbox>
-        </el-form-item>
+          <!-- 密码输入框 -->
+          <el-form-item prop="password">
+            <el-input
+              v-model="loginForm.password"
+              type="password"
+              placeholder="请输入密码"
+              :prefix-icon="Lock"
+              show-password
+            />
+          </el-form-item>
 
-        <!-- 提交按钮：100% 宽度，loading 状态防重复提交 -->
-        <el-form-item>
-          <el-button
-            type="primary"
-            :loading="loading"
-            style="width: 100%"
-            @click="handleLogin"
-          >
-            登录
-          </el-button>
-        </el-form-item>
-      </el-form>
+          <!-- 记住我 复选框 -->
+          <el-form-item class="remember-item">
+            <el-checkbox v-model="loginForm.rememberMe">记住我</el-checkbox>
+          </el-form-item>
 
-      <!-- 底部：没有账号，跳转注册页 -->
-      <div class="login-footer">
-        没有账号？
-        <router-link to="/register" class="register-link">立即注册</router-link>
-      </div>
+          <!-- 提交按钮：100% 宽度，loading 状态防重复提交 -->
+          <el-form-item>
+            <el-button
+              type="primary"
+              :loading="loading"
+              style="width: 100%"
+              class="login-submit"
+              @click="handleLogin"
+            >
+              登录
+            </el-button>
+          </el-form-item>
+        </el-form>
+
+        <!-- 底部：没有账号，跳转注册页 -->
+        <div class="login-footer">
+          没有账号？
+          <router-link to="/register" class="register-link">立即注册</router-link>
+        </div>
+      </section>
     </div>
   </div>
 </template>
@@ -147,7 +165,12 @@ async function handleLogin() {
 /* 全屏浅灰背景，flex 居中 */
 .login-page {
   min-height: 100vh;
-  background: #f0f2f5;
+  box-sizing: border-box;
+  padding: 40px 20px;
+  background:
+    radial-gradient(circle at 12% 18%, rgba(232, 80, 30, 0.1), transparent 30%),
+    radial-gradient(circle at 88% 82%, rgba(217, 153, 43, 0.12), transparent 32%),
+    var(--hm-bg-page);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -155,44 +178,260 @@ async function handleLogin() {
 
 /* 白色卡片容器 — 与注册页保持一致 */
 .login-card {
-  width: 420px;
-  background: #fff;
-  border-radius: 8px;
-  padding: 40px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+  width: min(900px, 100%);
+  background: var(--hm-white);
+  border: 1px solid var(--hm-ink-100);
+  border-radius: 24px;
+  box-shadow: var(--hm-shadow-lg);
+  display: grid;
+  grid-template-columns: minmax(0, 0.92fr) minmax(0, 1.08fr);
+  overflow: hidden;
+}
+
+.login-brand {
+  position: relative;
+  isolation: isolate;
+  padding: 48px 40px;
+  color: var(--hm-white);
+  background:
+    radial-gradient(circle at 90% 8%, rgba(255, 255, 255, 0.2) 0 72px, transparent 73px),
+    radial-gradient(circle at 4% 96%, rgba(255, 255, 255, 0.1) 0 110px, transparent 111px),
+    linear-gradient(145deg, #f06b36 0%, var(--hm-primary) 52%, #c93f12 100%);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.brand-badge {
+  align-self: flex-start;
+  padding: 5px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: var(--hm-radius-pill);
+  background: rgba(255, 255, 255, 0.12);
+  font-size: var(--hm-font-xs);
+  letter-spacing: 1px;
+}
+
+.brand-mark {
+  width: 62px;
+  height: 62px;
+  margin: 36px 0 22px;
+  border-radius: 18px;
+  background: var(--hm-white);
+  color: var(--hm-primary);
+  box-shadow: 0 12px 24px rgba(116, 42, 13, 0.18);
+  display: grid;
+  place-items: center;
+  font-size: 30px;
+  font-weight: 700;
 }
 
 /* 标题：24px，深色文字 */
 .login-title {
-  font-size: 24px;
-  color: #1a1a2e;
-  text-align: center;
-  margin-bottom: 8px;
+  margin: 0 0 12px;
+  color: var(--hm-white);
+  font-size: 30px;
+  line-height: 1.3;
+  letter-spacing: 2px;
+}
+
+.brand-desc {
+  max-width: 260px;
+  margin: 0;
+  color: rgba(255, 255, 255, 0.84);
+  line-height: 1.9;
+}
+
+.brand-points {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin-top: 42px;
+  color: rgba(255, 255, 255, 0.88);
+  font-size: var(--hm-font-xs);
+}
+
+.brand-points span::before {
+  content: '';
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  margin-right: 6px;
+  border-radius: 50%;
+  background: #ffd9a8;
+  vertical-align: 2px;
+}
+
+.login-content {
+  box-sizing: border-box;
+  padding: 48px 52px 40px;
+}
+
+.login-heading {
+  margin-bottom: 28px;
+}
+
+.login-eyebrow {
+  color: var(--hm-primary);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 2px;
+}
+
+.login-heading h1 {
+  margin: 7px 0 8px;
+  color: var(--hm-ink-900);
+  font-size: 28px;
+  line-height: 1.35;
 }
 
 /* 副标题 */
 .login-subtitle {
-  text-align: center;
-  color: #999;
-  font-size: 14px;
-  margin-bottom: 30px;
+  margin: 0;
+  color: var(--hm-ink-500);
+  font-size: var(--hm-font-base);
+}
+
+.login-content :deep(.el-form-item) {
+  margin-bottom: 20px;
+}
+
+.login-content :deep(.el-input__wrapper) {
+  min-height: 46px;
+  padding: 1px 15px;
+}
+
+.login-content :deep(.el-input__prefix) {
+  color: var(--hm-ink-400);
+}
+
+.login-content :deep(.remember-item) {
+  margin: -4px 0 18px;
+}
+
+.login-content :deep(.remember-item .el-form-item__content) {
+  line-height: 1;
+}
+
+.login-submit {
+  height: 46px;
+  border: none;
+  font-size: 16px;
+  letter-spacing: 4px;
+  box-shadow: 0 8px 18px rgba(232, 80, 30, 0.22);
 }
 
 /* 底部链接容器 */
 .login-footer {
+  margin-top: 4px;
+  padding-top: 20px;
+  border-top: 1px solid var(--hm-ink-100);
   text-align: center;
-  margin-top: 16px;
-  font-size: 14px;
-  color: #666;
+  font-size: var(--hm-font-base);
+  color: var(--hm-ink-500);
 }
 
 /* 注册链接样式 */
 .register-link {
-  color: #409eff;
+  margin-left: 4px;
+  color: var(--hm-primary);
+  font-weight: 600;
   text-decoration: none;
 }
 
 .register-link:hover {
+  color: var(--hm-primary-active);
   text-decoration: underline;
+}
+
+@media (max-width: 1024px) {
+  .login-card {
+    width: min(820px, 100%);
+  }
+
+  .login-brand {
+    padding: 40px 32px;
+  }
+
+  .login-content {
+    padding: 44px 40px 36px;
+  }
+}
+
+@media (max-width: 768px) {
+  .login-page {
+    padding: 28px 16px;
+  }
+
+  .login-card {
+    width: min(520px, 100%);
+    grid-template-columns: 1fr;
+  }
+
+  .login-brand {
+    padding: 28px 32px;
+  }
+
+  .brand-mark {
+    width: 48px;
+    height: 48px;
+    margin: 22px 0 14px;
+    border-radius: 14px;
+    font-size: 24px;
+  }
+
+  .login-title {
+    font-size: 24px;
+  }
+
+  .brand-desc {
+    max-width: none;
+  }
+
+  .brand-points {
+    margin-top: 20px;
+  }
+}
+
+@media (max-width: 480px) {
+  .login-page {
+    padding: 16px 12px;
+    align-items: flex-start;
+  }
+
+  .login-card {
+    border-radius: 18px;
+  }
+
+  .login-brand {
+    padding: 24px;
+  }
+
+  .brand-badge,
+  .brand-points,
+  .brand-desc {
+    display: none;
+  }
+
+  .brand-mark {
+    margin: 0 0 14px;
+  }
+
+  .login-title {
+    margin: 0;
+    font-size: 22px;
+  }
+
+  .login-content {
+    padding: 28px 24px 24px;
+  }
+
+  .login-heading {
+    margin-bottom: 22px;
+  }
+
+  .login-heading h1 {
+    font-size: 24px;
+  }
 }
 </style>

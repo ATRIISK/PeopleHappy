@@ -7,7 +7,7 @@
     </div>
 
     <!-- 错误状态 -->
-    <el-empty v-else-if="error" :description="error" />
+    <el-empty v-else-if="error" :description="error" class="detail-empty" />
 
     <!-- 订单详情 -->
     <template v-else-if="order">
@@ -17,13 +17,13 @@
           <h2>订单详情</h2>
           <span class="order-no">订单号：{{ order.orderNo }}</span>
         </div>
-        <el-tag :type="statusType" size="large" effect="dark">
+        <el-tag :type="statusType" size="large" effect="light" class="order-status-tag">
           {{ statusText }}
         </el-tag>
       </div>
 
       <!-- 订单信息卡片 -->
-      <div class="info-card">
+      <div class="info-card hm-card">
         <div class="info-row">
           <span class="info-label">创建时间</span>
           <span class="info-value">{{ order.createTime }}</span>
@@ -54,7 +54,7 @@
           修改地址
         </el-button>
       </div>
-      <div class="address-card">
+      <div class="address-card hm-card">
         <div class="address-info">
           <div class="address-name-row">
             <span class="addr-name">{{ order.addressName }}</span>
@@ -66,7 +66,7 @@
 
       <!-- 商品列表 -->
       <div class="section-title">商品信息</div>
-      <div class="product-list">
+      <div class="product-list hm-card">
         <div v-for="item in order.items" :key="item.id" class="product-item">
           <el-image
             :src="item.productImage || '/placeholder.png'"
@@ -77,14 +77,14 @@
             <div class="product-name">{{ item.productName }}</div>
             <div class="product-price">¥{{ item.price }} × {{ item.quantity }}</div>
           </div>
-          <div class="product-subtotal">¥{{ (item.price * item.quantity).toFixed(2) }}</div>
+          <div class="product-subtotal hm-price">¥{{ (item.price * item.quantity).toFixed(2) }}</div>
         </div>
       </div>
 
       <!-- 订单合计 -->
-      <div class="total-row">
-        <span class="total-label">合计</span>
-        <span class="total-amount">¥{{ order.totalAmount }}</span>
+      <div class="total-row hm-card">
+        <span class="total-label">订单合计</span>
+        <span class="total-amount hm-price">¥{{ order.totalAmount }}</span>
       </div>
 
       <!-- 操作按钮 -->
@@ -111,6 +111,7 @@
     v-model="showAddressDialog"
     title="修改收货地址"
     width="520px"
+    class="order-address-dialog"
     :close-on-click-modal="false"
     destroy-on-close
   >
@@ -404,99 +405,138 @@ function goBack() {
 
 <style scoped>
 .order-detail {
-  max-width: 800px;
+  width: 100%;
+  max-width: 920px;
+  min-width: 0;
+  box-sizing: border-box;
   margin: 0 auto;
-  padding: 20px;
+  padding: 28px 20px 40px;
 }
 
-.loading-wrapper {
+.loading-wrapper,
+.detail-empty {
   padding: 40px;
+  border: 1px solid var(--hm-ink-100);
+  border-radius: var(--hm-radius-lg);
+  background: var(--hm-white);
+  box-shadow: var(--hm-shadow-sm);
 }
 
 .order-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 20px;
   margin-bottom: 20px;
-  padding-bottom: 16px;
-  border-bottom: 2px solid #1a1a2e;
+  padding: 24px 26px;
+  border: 1px solid var(--hm-ink-100);
+  border-radius: var(--hm-radius-lg);
+  background: var(--hm-white);
+  box-shadow: var(--hm-shadow-sm);
+}
+
+.order-header-left {
+  min-width: 0;
 }
 
 .order-header-left h2 {
-  margin: 0 0 4px 0;
-  font-size: 22px;
-  color: #1a1a2e;
+  margin: 0 0 7px;
+  color: var(--hm-ink-900);
+  font-size: 26px;
+  line-height: 1.3;
+  letter-spacing: 1px;
 }
 
 .order-no {
-  font-size: 13px;
-  color: #999;
+  color: var(--hm-ink-500);
+  font-size: var(--hm-font-sm);
+  overflow-wrap: anywhere;
+}
+
+.order-status-tag {
+  height: 32px;
+  flex-shrink: 0;
+  padding: 0 14px;
+  border-radius: var(--hm-radius-pill);
 }
 
 .info-card {
-  background: #f9f9f9;
-  border-radius: 8px;
-  padding: 16px 20px;
-  margin-bottom: 24px;
+  padding: 10px 24px 18px;
+  margin-bottom: 26px;
+  background: var(--hm-white);
 }
 
 .info-row {
   display: flex;
-  padding: 6px 0;
-  font-size: 14px;
+  gap: 20px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--hm-ink-100);
+  font-size: var(--hm-font-base);
 }
 
 .info-label {
-  width: 80px;
-  color: #999;
+  width: 76px;
   flex-shrink: 0;
+  color: var(--hm-ink-500);
 }
 
 .info-value {
-  color: #333;
+  min-width: 0;
+  color: var(--hm-ink-800);
+  font-weight: 500;
+  overflow-wrap: anywhere;
 }
 
 /* ==================== 支付超时倒计时 ==================== */
 .countdown-tip {
   display: flex;
   align-items: center;
-  gap: 6px;
-  margin-top: 12px;
-  padding: 10px 12px;
-  background: #f0f9ff;
-  border-radius: 6px;
-  font-size: 14px;
-  color: #409eff;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 16px;
+  padding: 12px 14px;
+  border: 1px solid var(--hm-primary-border);
+  border-radius: var(--hm-radius-md);
+  background: var(--hm-primary-soft);
+  color: var(--hm-primary-active);
+  font-size: var(--hm-font-base);
 }
 
 .countdown-tip strong {
-  font-size: 16px;
-  font-weight: 600;
-  color: #e4393c;
   margin: 0 2px;
+  color: var(--hm-primary);
+  font-size: 18px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
 }
 
 .section-title {
-  font-size: 16px;
-  font-weight: 600;
-  color: #1a1a2e;
   margin-bottom: 12px;
-  padding-left: 10px;
-  border-left: 3px solid #1a1a2e;
+  padding-left: 12px;
+  border-left: 4px solid var(--hm-primary);
+  border-radius: 2px;
+  color: var(--hm-ink-900);
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+.section-title :deep(.el-button) {
+  vertical-align: 1px;
 }
 
 .product-list {
-  border: 1px solid #e8e8e8;
-  border-radius: 8px;
-  overflow: hidden;
   margin-bottom: 16px;
+  border-color: var(--hm-ink-100);
+  background: var(--hm-white);
+  overflow: hidden;
 }
 
 .product-item {
   display: flex;
   align-items: center;
-  padding: 16px 20px;
-  border-bottom: 1px solid #f0f0f0;
+  padding: 18px 22px;
+  border-bottom: 1px solid var(--hm-ink-100);
 }
 
 .product-item:last-child {
@@ -504,98 +544,124 @@ function goBack() {
 }
 
 .product-image {
-  width: 80px;
-  height: 80px;
-  border-radius: 4px;
+  width: 84px;
+  height: 84px;
   flex-shrink: 0;
-  margin-right: 16px;
-  background: #f5f5f5;
+  margin-right: 18px;
+  border: 1px solid var(--hm-ink-100);
+  border-radius: var(--hm-radius-md);
+  background: var(--hm-ink-050);
 }
 
 .product-info {
   flex: 1;
+  min-width: 0;
 }
 
 .product-name {
+  margin-bottom: 8px;
+  color: var(--hm-ink-800);
   font-size: 15px;
-  color: #333;
-  margin-bottom: 6px;
+  font-weight: 500;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
 }
 
 .product-price {
-  font-size: 13px;
-  color: #999;
+  color: var(--hm-ink-500);
+  font-size: var(--hm-font-sm);
 }
 
 .product-subtotal {
-  font-size: 16px;
-  font-weight: 600;
-  color: #e4393c;
   flex-shrink: 0;
   margin-left: 16px;
+  font-size: 18px;
 }
 
 .total-row {
   display: flex;
   justify-content: flex-end;
   align-items: center;
-  padding: 16px 20px;
-  background: #fafafa;
-  border-radius: 8px;
-  margin-bottom: 24px;
+  gap: 18px;
+  padding: 20px 24px;
+  margin-bottom: 18px;
+  background: linear-gradient(90deg, var(--hm-white), var(--hm-primary-soft));
 }
 
 .total-label {
-  font-size: 14px;
-  color: #666;
-  margin-right: 12px;
+  color: var(--hm-ink-600);
+  font-size: var(--hm-font-base);
 }
 
 .total-amount {
-  font-size: 22px;
-  font-weight: bold;
-  color: #e4393c;
+  font-size: 28px;
+  line-height: 1.2;
 }
 
 .action-bar {
   display: flex;
-  justify-content: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
   gap: 12px;
-  padding: 20px 0;
+  padding: 18px 20px;
+  border: 1px solid var(--hm-ink-100);
+  border-radius: var(--hm-radius-lg);
+  background: var(--hm-white);
+  box-shadow: var(--hm-shadow-sm);
+}
+
+.action-bar :deep(.el-button) {
+  min-width: 108px;
+  margin: 0;
+  border-radius: var(--hm-radius-md);
 }
 
 /* ==================== 收货地址卡片 ==================== */
 .address-card {
-  background: #f0f9ff;
-  border: 1px solid #b3e0ff;
-  border-radius: 8px;
-  padding: 16px 20px;
-  margin-bottom: 24px;
+  position: relative;
+  margin-bottom: 26px;
+  padding: 20px 24px;
+  border-color: var(--hm-primary-border);
+  background: linear-gradient(135deg, var(--hm-white), var(--hm-primary-soft));
+  overflow: hidden;
+}
+
+.address-card::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 4px;
+  background: var(--hm-primary);
 }
 
 .address-info {
-  line-height: 1.6;
+  line-height: 1.7;
 }
 
 .address-name-row {
-  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  margin-bottom: 7px;
 }
 
 .address-card .addr-name {
-  font-size: 15px;
+  margin-right: 0;
+  color: var(--hm-ink-900);
+  font-size: 17px;
   font-weight: 600;
-  color: #333;
-  margin-right: 10px;
 }
 
 .address-card .addr-phone {
-  font-size: 14px;
-  color: #666;
+  color: var(--hm-ink-500);
+  font-size: var(--hm-font-base);
 }
 
 .address-card .addr-detail {
-  font-size: 14px;
-  color: #555;
+  color: var(--hm-ink-600);
+  font-size: var(--hm-font-base);
+  overflow-wrap: anywhere;
 }
 
 /* ==================== 修改地址弹窗 ==================== */
@@ -604,50 +670,74 @@ function goBack() {
 }
 
 .addr-select-list {
-  max-height: 320px;
+  max-height: 340px;
+  padding: 2px;
   overflow-y: auto;
 }
 
 .addr-select-item {
-  border: 1px solid #e8e8e8;
-  border-radius: 8px;
-  padding: 12px 16px;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
+  padding: 15px 16px;
+  border: 1px solid var(--hm-ink-200);
+  border-radius: var(--hm-radius-md);
+  background: var(--hm-white);
   cursor: pointer;
-  transition: all 0.2s;
+  transition: border-color var(--hm-transition), background var(--hm-transition), box-shadow var(--hm-transition);
 }
 
 .addr-select-item:hover {
-  border-color: #c0c0c0;
+  border-color: var(--hm-primary-border);
+  box-shadow: var(--hm-shadow-sm);
 }
 
 .addr-select-item.is-active {
-  border-color: #409eff;
-  background: #f0f9ff;
+  border-color: var(--hm-primary);
+  background: var(--hm-primary-soft);
+  box-shadow: 0 0 0 2px rgba(232, 80, 30, 0.08);
+}
+
+.addr-select-item :deep(.el-radio) {
+  width: 100%;
+  height: auto;
+  align-items: flex-start;
+  margin-right: 0;
+}
+
+.addr-select-item :deep(.el-radio__input) {
+  margin-top: 3px;
+}
+
+.addr-select-item :deep(.el-radio__label) {
+  flex: 1;
+  min-width: 0;
+  white-space: normal;
 }
 
 .addr-info {
   display: inline-block;
+  width: 100%;
   vertical-align: middle;
 }
 
 .addr-name {
+  margin-right: 10px;
+  color: var(--hm-ink-800);
   font-size: 15px;
   font-weight: 600;
-  color: #333;
-  margin-right: 10px;
 }
 
 .addr-phone {
-  font-size: 14px;
-  color: #666;
   margin-right: 10px;
+  color: var(--hm-ink-500);
+  font-size: var(--hm-font-base);
 }
 
 .addr-detail-text {
-  font-size: 13px;
-  color: #999;
-  line-height: 1.4;
+  margin-top: 5px;
+  color: var(--hm-ink-500);
+  font-size: var(--hm-font-sm);
+  line-height: 1.6;
+  overflow-wrap: anywhere;
 }
 
 .addr-dialog-footer {
@@ -656,7 +746,123 @@ function goBack() {
   align-items: center;
   gap: 12px;
   margin-top: 20px;
-  padding-top: 16px;
-  border-top: 1px solid #f0f0f0;
+  padding-top: 18px;
+  border-top: 1px solid var(--hm-ink-100);
+}
+
+.addr-dialog-footer :deep(.el-button) {
+  margin: 0;
+}
+
+:global(.order-address-dialog) {
+  max-width: calc(100vw - 32px);
+}
+
+@media (max-width: 1024px) {
+  .order-detail {
+    max-width: 860px;
+  }
+}
+
+@media (max-width: 768px) {
+  .order-detail {
+    padding: 24px 16px 32px;
+  }
+
+  .order-header {
+    padding: 20px 22px;
+  }
+
+  .product-item {
+    padding: 16px 18px;
+  }
+
+  .product-image {
+    width: 72px;
+    height: 72px;
+    margin-right: 14px;
+  }
+}
+
+@media (max-width: 480px) {
+  .order-detail {
+    padding: 20px 12px 28px;
+  }
+
+  .loading-wrapper {
+    padding: 24px 18px;
+  }
+
+  .order-header {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 14px;
+    padding: 20px;
+  }
+
+  .order-header-left h2 {
+    font-size: 23px;
+  }
+
+  .info-card {
+    padding: 8px 18px 16px;
+  }
+
+  .info-row {
+    gap: 12px;
+  }
+
+  .info-label {
+    width: 64px;
+  }
+
+  .countdown-tip {
+    align-items: flex-start;
+  }
+
+  .product-item {
+    padding: 14px;
+  }
+
+  .product-image {
+    width: 60px;
+    height: 60px;
+    margin-right: 12px;
+    border-radius: 10px;
+  }
+
+  .product-name {
+    font-size: var(--hm-font-base);
+  }
+
+  .product-subtotal {
+    margin-left: 8px;
+    font-size: 15px;
+  }
+
+  .total-row {
+    padding: 18px;
+  }
+
+  .total-amount {
+    font-size: 24px;
+  }
+
+  .action-bar {
+    padding: 14px;
+  }
+
+  .action-bar :deep(.el-button) {
+    flex: 1 1 calc(50% - 6px);
+    min-width: 0;
+  }
+
+  .address-card {
+    padding: 18px 20px;
+  }
+
+  .addr-select-item {
+    padding: 13px 12px;
+  }
 }
 </style>

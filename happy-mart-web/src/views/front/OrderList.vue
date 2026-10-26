@@ -203,7 +203,13 @@ onMounted(() => {
 <template>
   <div class="order-list-page">
     <!-- ==================== 页面标题 ==================== -->
-    <h1 class="page-title">我的订单</h1>
+    <div class="page-heading hm-page-header">
+      <div>
+        <span class="page-eyebrow">ORDER CENTER</span>
+        <h1 class="page-title hm-page-header__title">我的订单</h1>
+        <p class="hm-page-header__desc">查看订单进度，轻松管理每一次购物</p>
+      </div>
+    </div>
 
     <!-- ==================== 状态 Tab 切换 ==================== -->
     <div class="status-tabs">
@@ -236,7 +242,7 @@ onMounted(() => {
       <div
         v-for="order in orderList"
         :key="order.id"
-        class="order-card"
+        class="order-card hm-card"
       >
         <!-- ===== 订单头部：订单号 + 下单时间 + 状态标签 ===== -->
         <div class="order-header">
@@ -275,8 +281,8 @@ onMounted(() => {
             </div>
             <!-- 价格和数量 -->
             <div class="item-price-qty">
-              <span class="item-price">¥{{ item.price.toFixed(2) }}</span>
-              <span class="item-qty">x{{ item.quantity }}</span>
+              <span class="item-price hm-price">¥{{ item.price.toFixed(2) }}</span>
+              <span class="item-qty">× {{ item.quantity }}</span>
             </div>
           </div>
         </div>
@@ -284,13 +290,13 @@ onMounted(() => {
         <!-- ===== 订单底部：实付金额 + 操作按钮 ===== -->
         <div class="order-footer">
           <div class="order-footer-left">
-            <span class="total-label">实付金额：</span>
-            <span class="total-amount">¥{{ order.totalAmount.toFixed(2) }}</span>
+            <span class="total-label">实付金额</span>
+            <span class="total-amount hm-price">¥{{ order.totalAmount.toFixed(2) }}</span>
           </div>
           <div class="order-footer-right">
             <!-- 待付款：显示去付款 + 取消订单 -->
             <template v-if="order.status === 0">
-              <el-button type="danger" @click="handlePay(order)">
+              <el-button type="primary" class="pay-order-btn" @click="handlePay(order)">
                 去付款
               </el-button>
               <el-button @click="handleCancel(order)">
@@ -334,57 +340,105 @@ onMounted(() => {
 <style scoped>
 /* ==================== 页面容器 ==================== */
 .order-list-page {
+  width: 100%;
+  max-width: 1080px;
+  min-width: 0;
+  margin: 0 auto;
   background: transparent;
 }
 
 /* ==================== 页面标题 ==================== */
+.page-heading {
+  margin-bottom: 22px;
+}
+
+.page-eyebrow {
+  display: block;
+  margin-bottom: 7px;
+  color: var(--hm-primary);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 2px;
+}
+
 .page-title {
-  font-size: 22px;
-  font-weight: bold;
-  color: #1a1a2e;
-  margin-bottom: 20px;
-  padding-bottom: 16px;
-  border-bottom: 2px solid #f0f0f0;
+  margin: 0;
+  font-size: 26px;
+  letter-spacing: 1px;
 }
 
 /* ==================== 状态 Tab 切换 ==================== */
 .status-tabs {
+  max-width: 100%;
+  box-sizing: border-box;
   margin-bottom: 20px;
+  padding: 7px;
+  border: 1px solid var(--hm-ink-100);
+  border-radius: 14px;
+  background: var(--hm-white);
+  box-shadow: var(--hm-shadow-sm);
+  overflow-x: auto;
 }
 
-.status-tabs .el-radio-button__inner {
-  font-size: 14px;
-  padding: 8px 20px;
+.status-tabs :deep(.el-radio-group) {
+  display: inline-flex;
+  min-width: max-content;
+}
+
+.status-tabs :deep(.el-radio-button__inner) {
+  padding: 9px 22px;
+  border: 0;
+  border-radius: var(--hm-radius-sm) !important;
+  background: transparent;
+  color: var(--hm-ink-600);
+  box-shadow: none !important;
+  font-size: var(--hm-font-base);
+}
+
+.status-tabs :deep(.el-radio-button__original-radio:checked + .el-radio-button__inner) {
+  background: var(--hm-primary);
+  color: var(--hm-white);
+  box-shadow: 0 4px 10px rgba(232, 80, 30, 0.18) !important;
+}
+
+.status-tabs :deep(.el-radio-button:first-child .el-radio-button__inner),
+.status-tabs :deep(.el-radio-button:last-child .el-radio-button__inner) {
+  border-radius: var(--hm-radius-sm);
 }
 
 /* ==================== 加载中状态 ==================== */
 .loading-state {
-  background: #fff;
-  border-radius: 8px;
-  padding: 24px;
+  padding: 32px;
+  border: 1px solid var(--hm-ink-100);
+  border-radius: var(--hm-radius-lg);
+  background: var(--hm-white);
+  box-shadow: var(--hm-shadow-sm);
 }
 
 /* ==================== 空状态 ==================== */
 .empty-state {
-  background: #fff;
-  border-radius: 8px;
-  padding: 80px 0;
+  padding: 64px 20px;
+  border: 1px solid var(--hm-ink-100);
+  border-radius: var(--hm-radius-lg);
+  background: var(--hm-white);
+  box-shadow: var(--hm-shadow-sm);
   display: flex;
   justify-content: center;
 }
 
 /* ==================== 订单卡片 ==================== */
 .order-card {
-  background: #fff;
-  border-radius: 8px;
-  border: 1px solid #e8e8e8;
-  margin-bottom: 16px;
-  transition: box-shadow 0.25s ease;
+  margin-bottom: 18px;
+  border-color: var(--hm-ink-100);
+  overflow: hidden;
+  transition: border-color var(--hm-transition), box-shadow var(--hm-transition), transform var(--hm-transition);
 }
 
 /* hover 时显示阴影 */
 .order-card:hover {
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+  border-color: var(--hm-primary-border);
+  box-shadow: var(--hm-shadow-md);
+  transform: translateY(-2px);
 }
 
 /* ==================== 订单头部 ==================== */
@@ -392,53 +446,75 @@ onMounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px 20px;
-  background: #fafafa;
-  border-bottom: 1px solid #e8e8e8;
-  border-radius: 8px 8px 0 0;
+  gap: 12px;
+  padding: 15px 22px;
+  background: var(--hm-ink-050);
+  border-bottom: 1px solid var(--hm-ink-100);
 }
 
 .order-header-left {
   display: flex;
   align-items: center;
-  gap: 16px;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  min-width: 0;
+}
+
+.order-header-right {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  gap: 8px;
 }
 
 .order-no {
-  font-size: 14px;
+  color: var(--hm-ink-800);
+  font-size: var(--hm-font-base);
   font-weight: 600;
-  color: #333;
+  overflow-wrap: anywhere;
 }
 
 .order-time {
-  font-size: 13px;
-  color: #999;
+  color: var(--hm-ink-500);
+  font-size: var(--hm-font-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.order-header-right :deep(.el-tag) {
+  height: 26px;
+  padding: 0 10px;
+  border-radius: var(--hm-radius-pill);
+}
+
+.order-header-right :deep(.el-button) {
+  margin: 0;
 }
 
 /* ==================== 订单商品列表 ==================== */
 .order-items {
-  padding: 16px 20px;
+  padding: 10px 22px;
 }
 
 .order-item {
   display: flex;
   align-items: center;
-  gap: 16px;
-  padding: 12px 0;
+  gap: 18px;
+  padding: 16px 0;
 }
 
 /* 商品之间虚线分隔 */
 .order-item.item-divider {
-  border-bottom: 1px dashed #e8e8e8;
+  border-bottom: 1px dashed var(--hm-ink-200);
 }
 
 /* 商品缩略图 60×60 */
 .item-thumb {
-  width: 60px;
-  height: 60px;
-  border-radius: 6px;
-  border: 1px solid #eee;
+  width: 72px;
+  height: 72px;
   flex-shrink: 0;
+  border: 1px solid var(--hm-ink-100);
+  border-radius: var(--hm-radius-md);
+  background: var(--hm-ink-050);
   object-fit: cover;
 }
 
@@ -449,9 +525,10 @@ onMounted(() => {
 }
 
 .item-name {
-  font-size: 14px;
-  color: #333;
-  line-height: 1.4;
+  color: var(--hm-ink-800);
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 1.6;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
@@ -462,20 +539,19 @@ onMounted(() => {
 /* 价格和数量区域 */
 .item-price-qty {
   display: flex;
-  align-items: center;
-  gap: 8px;
+  align-items: flex-end;
+  flex-direction: column;
+  gap: 5px;
   flex-shrink: 0;
 }
 
 .item-price {
-  font-size: 14px;
-  color: #e4393c;
-  font-weight: 600;
+  font-size: 16px;
 }
 
 .item-qty {
-  font-size: 13px;
-  color: #999;
+  color: var(--hm-ink-500);
+  font-size: var(--hm-font-sm);
 }
 
 /* ==================== 订单底部 ==================== */
@@ -483,42 +559,162 @@ onMounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px 20px;
-  background: #fafafa;
-  border-top: 1px solid #e8e8e8;
-  border-radius: 0 0 8px 8px;
+  gap: 16px;
+  padding: 16px 22px;
+  background: linear-gradient(90deg, var(--hm-ink-050), var(--hm-primary-soft));
+  border-top: 1px solid var(--hm-ink-100);
 }
 
 .order-footer-left {
   display: flex;
-  align-items: center;
-  gap: 4px;
+  align-items: baseline;
+  gap: 10px;
 }
 
 .total-label {
-  font-size: 14px;
-  color: #666;
+  color: var(--hm-ink-600);
+  font-size: var(--hm-font-base);
 }
 
 /* 实付金额：红色 18px 加粗 */
 .total-amount {
-  font-size: 18px;
-  font-weight: bold;
-  color: #e4393c;
+  font-size: 24px;
   line-height: 1;
 }
 
 .order-footer-right {
   display: flex;
   align-items: center;
-  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.order-footer-right :deep(.el-button) {
+  margin: 0;
+  border-radius: 10px;
+}
+
+.order-footer-right :deep(.pay-order-btn) {
+  padding-left: 24px;
+  padding-right: 24px;
+  box-shadow: 0 5px 12px rgba(232, 80, 30, 0.18);
 }
 
 /* ==================== 分页 ==================== */
 .pagination-wrap {
-  margin-top: 16px;
-  padding: 0 20px 16px;
+  max-width: 100%;
+  box-sizing: border-box;
+  margin-top: 20px;
+  padding: 16px 20px;
+  border: 1px solid var(--hm-ink-100);
+  border-radius: var(--hm-radius-lg);
+  background: var(--hm-white);
+  box-shadow: var(--hm-shadow-sm);
   display: flex;
   justify-content: flex-end;
+  overflow-x: auto;
+}
+
+.pagination-wrap :deep(.el-pagination) {
+  max-width: 100%;
+  flex-wrap: wrap;
+  row-gap: 10px;
+}
+
+@media (max-width: 1024px) {
+  .order-list-page {
+    max-width: 960px;
+  }
+}
+
+@media (max-width: 768px) {
+  .page-heading {
+    margin-bottom: 18px;
+  }
+
+  .status-tabs {
+    width: 100%;
+  }
+
+  .order-header {
+    align-items: flex-start;
+    padding: 14px 18px;
+  }
+
+  .order-items {
+    padding: 8px 18px;
+  }
+
+  .order-footer {
+    padding: 15px 18px;
+  }
+
+  .pagination-wrap {
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 480px) {
+  .page-title {
+    font-size: 23px;
+  }
+
+  .status-tabs {
+    padding: 5px;
+  }
+
+  .status-tabs :deep(.el-radio-button__inner) {
+    padding: 8px 15px;
+  }
+
+  .loading-state {
+    padding: 24px 18px;
+  }
+
+  .order-header {
+    flex-direction: column;
+  }
+
+  .order-header-right {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .order-item {
+    gap: 12px;
+  }
+
+  .item-thumb {
+    width: 58px;
+    height: 58px;
+    border-radius: 10px;
+  }
+
+  .item-name {
+    font-size: var(--hm-font-base);
+  }
+
+  .item-price {
+    font-size: var(--hm-font-base);
+  }
+
+  .order-footer {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .order-footer-right {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .total-amount {
+    font-size: 22px;
+  }
+
+  .pagination-wrap {
+    padding: 14px 12px;
+  }
 }
 </style>

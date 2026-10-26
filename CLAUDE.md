@@ -35,10 +35,42 @@
 - 不说教语气（不用"你应该/记住/避坑"这类表达）。
 - 大范围 / 多文件改动，先给方案确认后再动手。
 
+## 样式 / 视觉类需求（2026-10-05 教训，务必遵守）
+
+本项目已有 `happy-mart-web/src/styles/design-system.css`（令牌 + `.hm-*` 组件类 + 三断点）与 `StateBlock`/`PageHeader` 两个纯展示组件。
+
+**改样式前先分清两类改动，分别验收：**
+
+| 类型 | 含义 | ATRI 能否感知 |
+|---|---|---|
+| 基础设施 | 建令牌 / 补规范 / 样式重构 | ❌ 不能 —— 别当成"美化"交付 |
+| 视觉替换 | 把页面的 class 与样式真正换掉 | ✅ 能 —— 这才是"美化" |
+
+**硬规则：**
+
+1. **禁等值令牌**：把原色值原样搬进变量（如 `--hm-ink-800: #1a1a2e`）等于没改。改前把新旧值逐一比对。
+2. **落到具体元素**：至少把高频页（Home / ProductList / ProductDetail / Cart / OrderList）的卡片、按钮、价格、网格真正替换成 `.hm-card` `.hm-btn` `.hm-price`。
+3. **改完自查可感知**：`grep -c "hm-card\|hm-btn\|hm-state" src/views/front/*.vue` 确认目标页真的用上了新类；只有 1-2 处命中说明等于没做。
+4. **验收标准**是"ATRI 打开页面一眼看出不同"，不是"构建通过"。
+5. 状态展示（加载/空/错误）只在异常态出现，**不能作为"页面变好看了"的证据**。
+
+**当前状态（2026-10-26）**：ATRI 选定「A · 暖橙市集」方向，已全站落地。`design-system.css` 为米白底 `#f6f2ec` + 朱橙主色 `#e8501e` + 深棕标题 `#241d17` 的暖色令牌，并同步覆盖 Element Plus 变量；前台 11 页、后台 4 页、两个布局与 `AiAssistant` 均已替换旧内联样式，接口、stores、router、后端零改动。详见 `memory/frontend-visual-baseline.md`。
+
 ## 上线前必须处理
 
 - `POST /api/pay/simulate/{orderId}` 模拟支付调试口 —— **移除**
 - `alipay.private-key` / `spring.ai.dashscope.api-key` 明文在 `application.yml` —— **改环境变量注入**
+
+## 本地启动（踩过的坑）
+
+**启动顺序**：MySQL(3306) / RabbitMQ(5672) → Redis(6379) → 后端(8074) → 前端(3000)
+
+- **Redis 必须用托管后台任务启动**：`D:\Redis\redis-server.exe redis.windows.conf`。
+  Git Bash 的 `nohup ... &` 和 PowerShell `Start-Process` **都会被回收**（日志显示启动成功但几秒后连不上）。
+  验证：`redis-cli.exe ping` 返 PONG 且 `netstat -ano | findstr :6379` 有 LISTENING。
+- **后端启动若报端口冲突**：`Port xxxxx was already in use` 而配置是 8074，说明 Tomcat 抢到了别的端口（ATRI 的 imdoc 后端以随机端口在 IDEA 里跑，**不要杀那个进程**）。
+  解法：`./mvnw -o spring-boot:run -Dspring-boot.run.arguments=--server.port=8074`
+- 前端 `npm run dev` → 3000，Vite 已代理 `/api` 与 `/upload` 到 8074。
 
 ## 面试材料红线
 

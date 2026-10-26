@@ -137,47 +137,73 @@ onMounted(() => {
 </script>
 
 <template>
-  <div>
+  <div class="order-page">
     <!-- ==================== 页面标题 + 筛选 ==================== -->
-    <div class="toolbar">
-      <h1 class="page-title">订单管理</h1>
-      <!-- 状态筛选 Tab
-           v-model 双向绑定：选中值自动写回 activeStatus（code-review 修复：
-           原来用 :model-value 单向绑定 + @change 不接收参数，选中状态永远停在"全部"） -->
-      <el-radio-group v-model="activeStatus" @change="handleStatusChange">
-        <el-radio-button v-for="tab in statusTabs" :key="tab.value" :value="tab.value">
-          {{ tab.label }}
-        </el-radio-button>
-      </el-radio-group>
+    <div class="hm-page-header">
+      <div>
+        <h1 class="hm-page-header__title">订单管理</h1>
+        <p class="hm-page-header__desc">筛选交易状态并处理待发货订单</p>
+      </div>
+      <span class="order-summary">共 {{ total }} 笔订单</span>
     </div>
 
+    <el-card class="filter-card" shadow="never">
+      <div class="filter-toolbar">
+        <div class="filter-copy">
+          <strong>订单状态</strong>
+          <span>按当前交易阶段筛选</span>
+        </div>
+        <!-- 状态筛选 Tab
+             v-model 双向绑定：选中值自动写回 activeStatus（code-review 修复：
+             原来用 :model-value 单向绑定 + @change 不接收参数，选中状态永远停在"全部"） -->
+        <el-radio-group v-model="activeStatus" class="status-filter" @change="handleStatusChange">
+          <el-radio-button v-for="tab in statusTabs" :key="tab.value" :value="tab.value">
+            {{ tab.label }}
+          </el-radio-button>
+        </el-radio-group>
+      </div>
+    </el-card>
+
     <!-- ==================== 订单表格 ==================== -->
-    <el-card shadow="never">
-      <el-table :data="orderList" v-loading="loading" empty-text="暂无订单" stripe>
-        <el-table-column prop="orderNo" label="订单号" min-width="190" />
-        <el-table-column prop="username" label="下单人" width="110" />
-        <el-table-column label="金额" width="110">
-          <template #default="{ row }">¥{{ Number(row.totalAmount).toFixed(2) }}</template>
+    <el-card class="data-card" shadow="never">
+      <template #header>
+        <div class="data-card__head">
+          <div>
+            <h2>订单列表</h2>
+            <p>查看订单金额、进度与下单时间</p>
+          </div>
+          <span class="record-count">{{ total }} 条记录</span>
+        </div>
+      </template>
+      <div class="table-scroll">
+      <el-table :data="orderList" v-loading="loading" empty-text="暂无订单">
+        <el-table-column prop="orderNo" label="订单号" min-width="200">
+          <template #default="{ row }"><span class="order-no">{{ row.orderNo }}</span></template>
         </el-table-column>
-        <el-table-column label="状态" width="100">
+        <el-table-column prop="username" label="下单人" width="110" />
+        <el-table-column label="金额" width="120">
+          <template #default="{ row }"><span class="hm-price">¥{{ Number(row.totalAmount).toFixed(2) }}</span></template>
+        </el-table-column>
+        <el-table-column label="状态" width="110">
           <!-- 状态彩色标签 -->
           <template #default="{ row }">
-            <el-tag :type="statusTypeMap[row.status]" size="small">
+            <el-tag :type="statusTypeMap[row.status]" size="small" effect="light" round>
               {{ ORDER_STATUS[row.status] }}
             </el-tag>
           </template>
         </el-table-column>
         <el-table-column prop="createTime" label="下单时间" min-width="180" />
-        <el-table-column label="操作" width="100" fixed="right">
+        <el-table-column label="操作" width="110" fixed="right">
           <template #default="{ row }">
             <!-- 只有"已支付"（status=1）的订单才能发货 -->
-            <el-button v-if="row.status === 1" link type="primary" @click="handleShip(row)">
+            <el-button v-if="row.status === 1" type="primary" size="small" plain @click="handleShip(row)">
               发货
             </el-button>
-            <span v-else style="color: #ccc">-</span>
+            <span v-else class="empty-action">-</span>
           </template>
         </el-table-column>
       </el-table>
+      </div>
 
       <!-- ==================== 分页 ==================== -->
       <div class="pagination-wrap">
@@ -197,25 +223,158 @@ onMounted(() => {
 </template>
 
 <style scoped>
-/* 工具栏：标题 + 状态筛选 */
-.toolbar {
+/* ==================== 工具栏（标题 + 右侧操作） ==================== */
+.order-page .hm-page-header {
+  margin-bottom: var(--hm-space-5);
+}
+.order-summary,
+.record-count {
+  padding: 5px 11px;
+  border: 1px solid var(--hm-primary-border);
+  border-radius: var(--hm-radius-pill);
+  background: var(--hm-primary-soft);
+  color: var(--hm-primary);
+  font-size: var(--hm-font-xs);
+  white-space: nowrap;
+}
+.filter-card {
+  margin-bottom: var(--hm-space-4);
+  border-radius: var(--hm-radius-lg);
+  background: linear-gradient(110deg, var(--hm-white), var(--hm-bg-subtle));
+}
+.filter-card :deep(.el-card__body) {
+  padding: var(--hm-space-4) var(--hm-space-5);
+}
+.filter-toolbar {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
+  gap: var(--hm-space-5);
+}
+.filter-copy {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  gap: 2px;
+}
+.filter-copy strong {
+  color: var(--hm-ink-800);
+  font-size: var(--hm-font-sm);
+}
+.filter-copy span {
+  color: var(--hm-ink-500);
+  font-size: var(--hm-font-xs);
+}
+.status-filter {
+  flex-wrap: wrap;
+}
+.status-filter :deep(.el-radio-button__inner) {
+  border-color: var(--hm-ink-200);
+  color: var(--hm-ink-600);
+  background: var(--hm-white);
+}
+.status-filter :deep(.el-radio-button__original-radio:checked + .el-radio-button__inner) {
+  border-color: var(--hm-primary);
+  background: var(--hm-primary);
+  box-shadow: -1px 0 0 0 var(--hm-primary);
+}
+.data-card {
+  border-radius: var(--hm-radius-lg);
+}
+.data-card :deep(.el-card__header) {
+  padding: var(--hm-space-4) var(--hm-space-5);
+  border-bottom-color: var(--hm-ink-100);
+}
+.data-card :deep(.el-card__body) {
+  padding: 0;
+}
+.data-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--hm-space-3);
+}
+.data-card__head h2 {
+  margin: 0;
+  color: var(--hm-ink-900);
+  font-size: var(--hm-font-md);
+}
+.data-card__head p {
+  margin: 4px 0 0;
+  color: var(--hm-ink-500);
+  font-size: var(--hm-font-xs);
 }
 
-.page-title {
-  font-size: 22px;
-  font-weight: bold;
-  color: #1a1a2e;
-  margin: 0;
+/* 表格容器：窄屏可横向滚动，避免列被挤压 */
+.table-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.table-scroll :deep(.el-table) {
+  min-width: 730px; /* 低于此宽度列会挤成一团，宁可横向滚动 */
+}
+.table-scroll :deep(.el-table__inner-wrapper::before) {
+  display: none;
+}
+.table-scroll :deep(.el-table th.el-table__cell) {
+  height: 46px;
+}
+.table-scroll :deep(.el-table td.el-table__cell) {
+  padding: 14px 0;
+}
+.order-no {
+  color: var(--hm-ink-800);
+  font-weight: var(--hm-fw-medium);
+  font-variant-numeric: tabular-nums;
+}
+.empty-action {
+  display: inline-block;
+  width: 48px;
+  color: var(--hm-ink-300);
+  text-align: center;
+}
+
+/* 表格内的次要文字 */
+.hm-cell-secondary {
+  color: var(--hm-ink-500);
+  font-size: var(--hm-font-sm);
 }
 
 /* 分页靠右 */
 .pagination-wrap {
-  margin-top: 16px;
   display: flex;
   justify-content: flex-end;
+  padding: var(--hm-space-4) var(--hm-space-5);
+  border-top: 1px solid var(--hm-ink-100);
+  background: var(--hm-bg-subtle);
+  overflow-x: auto;
+}
+
+@media (max-width: 1024px) {
+  .filter-toolbar {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: var(--hm-space-3);
+  }
+}
+
+@media (max-width: 768px) {
+  .data-card__head {
+    align-items: flex-start;
+  }
+}
+
+@media (max-width: 480px) {
+  .order-summary {
+    display: none;
+  }
+  .filter-card :deep(.el-card__body),
+  .data-card :deep(.el-card__header),
+  .pagination-wrap {
+    padding-left: var(--hm-space-4);
+    padding-right: var(--hm-space-4);
+  }
+  .record-count {
+    display: none;
+  }
 }
 </style>

@@ -384,63 +384,92 @@ onMounted(() => {
 </script>
 
 <template>
-  <div>
+  <div class="product-page">
     <!-- ==================== 页面标题 + 工具栏 ==================== -->
-    <div class="toolbar">
-      <h1 class="page-title">商品管理</h1>
-      <div class="toolbar-right">
-        <!-- 搜索框 -->
-        <el-input
-          v-model="keyword"
-          placeholder="搜索商品名称"
-          clearable
-          style="width: 220px"
-          @keyup.enter="handleSearch"
-          @clear="handleSearch"
-        />
-        <el-button type="primary" @click="handleSearch">搜索</el-button>
-        <el-button type="success" @click="handleAdd">新增商品</el-button>
+    <div class="hm-page-header">
+      <div>
+        <h1 class="hm-page-header__title">商品管理</h1>
+        <p class="hm-page-header__desc">维护商品资料、库存与上下架状态</p>
+      </div>
+      <div class="hm-page-header__actions">
+        <el-button type="primary" @click="handleAdd">新增商品</el-button>
       </div>
     </div>
 
+    <el-card class="filter-card" shadow="never">
+      <div class="filter-toolbar">
+        <div class="filter-copy">
+          <strong>商品检索</strong>
+          <span>按商品名称快速定位</span>
+        </div>
+        <div class="toolbar-right">
+          <!-- 搜索框 -->
+          <el-input
+            v-model="keyword"
+            class="search-input"
+            placeholder="搜索商品名称"
+            clearable
+            @keyup.enter="handleSearch"
+            @clear="handleSearch"
+          />
+          <el-button type="primary" @click="handleSearch">搜索</el-button>
+        </div>
+      </div>
+    </el-card>
+
     <!-- ==================== 商品表格 ==================== -->
-    <el-card shadow="never">
-      <el-table :data="productList" v-loading="loading" empty-text="暂无商品" stripe>
-        <el-table-column prop="id" label="ID" width="60" />
-        <el-table-column label="主图" width="80">
+    <el-card class="data-card" shadow="never">
+      <template #header>
+        <div class="data-card__head">
+          <div>
+            <h2>商品列表</h2>
+            <p>集中管理商品信息与销售状态</p>
+          </div>
+          <span class="record-count">共 {{ total }} 件商品</span>
+        </div>
+      </template>
+      <div class="table-scroll">
+      <el-table :data="productList" v-loading="loading" empty-text="暂无商品">
+        <el-table-column prop="id" label="ID" width="70" />
+        <el-table-column label="主图" width="90">
           <!-- 商品缩略图 -->
           <template #default="{ row }">
-            <el-image :src="row.image" fit="cover" style="width: 48px; height: 48px; border-radius: 4px" />
+            <el-image :src="row.image" fit="cover" class="product-thumb" />
           </template>
         </el-table-column>
-        <el-table-column prop="name" label="商品名称" min-width="180" show-overflow-tooltip />
+        <el-table-column prop="name" label="商品名称" min-width="190" show-overflow-tooltip>
+          <template #default="{ row }"><span class="product-name">{{ row.name }}</span></template>
+        </el-table-column>
         <el-table-column prop="categoryName" label="分类" width="120" />
-        <el-table-column label="价格" width="100">
-          <template #default="{ row }">¥{{ Number(row.price).toFixed(2) }}</template>
+        <el-table-column label="价格" width="110">
+          <template #default="{ row }"><span class="hm-price">¥{{ Number(row.price).toFixed(2) }}</span></template>
         </el-table-column>
         <el-table-column prop="stock" label="库存" width="80" />
         <el-table-column prop="sales" label="销量" width="80" />
-        <el-table-column label="状态" width="80">
+        <el-table-column label="状态" width="90">
           <!-- 上架/下架标签 -->
           <template #default="{ row }">
-            <el-tag :type="row.status === 0 ? 'success' : 'info'" size="small">
+            <el-tag :type="row.status === 0 ? 'success' : 'info'" size="small" effect="light" round>
               {{ row.status === 0 ? '上架' : '下架' }}
             </el-tag>
           </template>
         </el-table-column>
         <el-table-column label="操作" width="200" fixed="right">
           <template #default="{ row }">
-            <!-- 编辑 -->
-            <el-button link type="primary" @click="handleEdit(row)">编辑</el-button>
-            <!-- 上架/下架（文案随当前状态切换） -->
-            <el-button link :type="row.status === 0 ? 'warning' : 'success'" @click="handleToggleStatus(row)">
-              {{ row.status === 0 ? '下架' : '上架' }}
-            </el-button>
-            <!-- 删除 -->
-            <el-button link type="danger" @click="handleDelete(row)">删除</el-button>
+            <div class="action-group">
+              <!-- 编辑 -->
+              <el-button link type="primary" class="action-button" @click="handleEdit(row)">编辑</el-button>
+              <!-- 上架/下架（文案随当前状态切换） -->
+              <el-button link :type="row.status === 0 ? 'warning' : 'success'" class="action-button" @click="handleToggleStatus(row)">
+                {{ row.status === 0 ? '下架' : '上架' }}
+              </el-button>
+              <!-- 删除 -->
+              <el-button link type="danger" class="action-button" @click="handleDelete(row)">删除</el-button>
+            </div>
           </template>
         </el-table-column>
       </el-table>
+      </div>
 
       <!-- ==================== 分页 ==================== -->
       <div class="pagination-wrap">
@@ -458,7 +487,8 @@ onMounted(() => {
     </el-card>
 
     <!-- ==================== 新增/编辑弹窗 ==================== -->
-    <el-dialog v-model="dialogVisible" :title="dialogTitle" width="560px" destroy-on-close>
+    <el-dialog v-model="dialogVisible" class="product-dialog" :title="dialogTitle" width="560px" destroy-on-close>
+      <div class="dialog-intro">完善商品基础资料与销售信息，保存后同步至商品列表</div>
       <el-form ref="formRef" :model="form" :rules="rules" label-width="90px">
         <!-- 商品名称 -->
         <el-form-item label="商品名称" prop="name">
@@ -499,7 +529,7 @@ onMounted(() => {
         <!-- 主图：本地上传 + 预览 + 移除（v1.10）
              form.image 仍是字符串 URL：本地图是 /upload/... 相对地址，外部 URL 商品编辑时也能回显 -->
         <el-form-item label="主图" prop="image">
-          <div style="display: flex; align-items: center; gap: 12px;">
+          <div class="main-upload-row">
             <el-upload
               action="/api/admin/upload/image"
               name="file"
@@ -516,7 +546,7 @@ onMounted(() => {
               v-if="form.image"
               :src="form.image"
               fit="cover"
-              style="width: 80px; height: 80px; border-radius: 6px; border: 1px solid #eee"
+              class="upload-preview"
             />
             <el-button v-if="form.image" link type="danger" @click="form.image = ''">移除</el-button>
           </div>
@@ -524,14 +554,14 @@ onMounted(() => {
 
         <!-- 轮播图：多张本地图片上传（v1.10），缩略图 + 移除按钮 -->
         <el-form-item label="轮播图" prop="images">
-          <div style="display: flex; flex-wrap: wrap; gap: 12px; align-items: center;">
+          <div class="carousel-upload-row">
             <!-- :key 用 idx 而不是 url（code-review 修复）：images 数组可能含重复 URL，
                  用 url 当 key 会产生重复 Vue key 导致移除时误删缩略图 -->
-            <div v-for="(url, idx) in carouselUrls" :key="idx" style="text-align: center;">
+            <div v-for="(url, idx) in carouselUrls" :key="idx" class="carousel-item">
               <el-image
                 :src="url"
                 fit="cover"
-                style="width: 80px; height: 80px; border-radius: 6px; border: 1px solid #eee"
+                class="upload-preview"
               />
               <div>
                 <el-button link type="danger" @click="removeCarousel(idx)">移除</el-button>
@@ -559,39 +589,247 @@ onMounted(() => {
 
       <!-- 弹窗底部按钮 -->
       <template #footer>
-        <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="submitting" @click="handleSubmit">保存</el-button>
+        <div class="dialog-footer">
+          <el-button @click="dialogVisible = false">取消</el-button>
+          <el-button type="primary" :loading="submitting" @click="handleSubmit">保存</el-button>
+        </div>
       </template>
     </el-dialog>
   </div>
 </template>
 
 <style scoped>
-/* 工具栏：标题 + 右侧搜索/新增按钮 */
-.toolbar {
+/* ==================== 工具栏（标题 + 右侧操作） ==================== */
+.product-page .hm-page-header {
+  margin-bottom: var(--hm-space-5);
+}
+.filter-card {
+  margin-bottom: var(--hm-space-4);
+  border-radius: var(--hm-radius-lg);
+  background: linear-gradient(110deg, var(--hm-white), var(--hm-bg-subtle));
+}
+.filter-card :deep(.el-card__body) {
+  padding: var(--hm-space-4) var(--hm-space-5);
+}
+.filter-toolbar {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
+  justify-content: space-between;
+  gap: var(--hm-space-4);
 }
-
-.page-title {
-  font-size: 22px;
-  font-weight: bold;
-  color: #1a1a2e;
-  margin: 0;
+.filter-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
-
+.filter-copy strong {
+  color: var(--hm-ink-800);
+  font-size: var(--hm-font-sm);
+}
+.filter-copy span {
+  color: var(--hm-ink-500);
+  font-size: var(--hm-font-xs);
+}
 .toolbar-right {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: var(--hm-space-2);
+}
+.search-input {
+  width: 240px;
+}
+.search-input :deep(.el-input__wrapper) {
+  background: var(--hm-white);
+}
+.data-card {
+  border-radius: var(--hm-radius-lg);
+}
+.data-card :deep(.el-card__header) {
+  padding: var(--hm-space-4) var(--hm-space-5);
+  border-bottom-color: var(--hm-ink-100);
+}
+.data-card :deep(.el-card__body) {
+  padding: 0;
+}
+.data-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--hm-space-3);
+}
+.data-card__head h2 {
+  margin: 0;
+  color: var(--hm-ink-900);
+  font-size: var(--hm-font-md);
+}
+.data-card__head p {
+  margin: 4px 0 0;
+  color: var(--hm-ink-500);
+  font-size: var(--hm-font-xs);
+}
+.record-count {
+  padding: 4px 10px;
+  border-radius: var(--hm-radius-pill);
+  background: var(--hm-primary-soft);
+  color: var(--hm-primary);
+  font-size: var(--hm-font-xs);
+  white-space: nowrap;
+}
+
+/* 表格容器：窄屏可横向滚动，避免列被挤压 */
+.table-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.table-scroll :deep(.el-table) {
+  min-width: 940px; /* 低于此宽度列会挤成一团，宁可横向滚动 */
+}
+.table-scroll :deep(.el-table__inner-wrapper::before) {
+  display: none;
+}
+.table-scroll :deep(.el-table th.el-table__cell) {
+  height: 46px;
+}
+.table-scroll :deep(.el-table td.el-table__cell) {
+  padding: 12px 0;
+}
+.product-thumb {
+  width: 52px;
+  height: 52px;
+  border: 1px solid var(--hm-ink-100);
+  border-radius: 10px;
+  background: var(--hm-bg-subtle);
+}
+.product-name {
+  color: var(--hm-ink-800);
+  font-weight: var(--hm-fw-medium);
+}
+.action-group {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.action-button {
+  padding: 4px 6px;
+  border-radius: var(--hm-radius-sm);
+}
+.action-button:hover {
+  background: var(--hm-primary-soft);
+}
+
+/* 表格内的次要文字 */
+.hm-cell-secondary {
+  color: var(--hm-ink-500);
+  font-size: var(--hm-font-sm);
+}
+
+/* 弹窗与上传预览 */
+.product-dialog :deep(.el-dialog__header) {
+  margin: 0;
+  padding: var(--hm-space-5) var(--hm-space-6);
+  border-bottom: 1px solid var(--hm-ink-100);
+  background: var(--hm-bg-subtle);
+}
+.product-dialog :deep(.el-dialog__body) {
+  padding: var(--hm-space-5) var(--hm-space-6);
+}
+.dialog-intro {
+  margin: -4px 0 var(--hm-space-5);
+  padding: 10px 12px;
+  border-radius: var(--hm-radius-sm);
+  background: var(--hm-primary-soft);
+  color: var(--hm-ink-600);
+  font-size: var(--hm-font-xs);
+}
+.main-upload-row,
+.carousel-upload-row {
+  display: flex;
+  align-items: center;
+  gap: var(--hm-space-3);
+}
+.carousel-upload-row {
+  flex-wrap: wrap;
+}
+.carousel-item {
+  text-align: center;
+}
+.upload-preview {
+  width: 80px;
+  height: 80px;
+  border: 1px solid var(--hm-ink-200);
+  border-radius: var(--hm-radius-md);
+  background: var(--hm-bg-subtle);
+}
+.dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--hm-space-2);
+}
+.product-dialog :deep(.el-dialog__footer) {
+  padding: var(--hm-space-4) var(--hm-space-6);
+  border-top: 1px solid var(--hm-ink-100);
+  background: var(--hm-bg-subtle);
 }
 
 /* 分页居中 */
 .pagination-wrap {
-  margin-top: 16px;
   display: flex;
   justify-content: flex-end;
+  padding: var(--hm-space-4) var(--hm-space-5);
+  border-top: 1px solid var(--hm-ink-100);
+  background: var(--hm-bg-subtle);
+  overflow-x: auto;
+}
+
+@media (max-width: 1024px) {
+  .filter-toolbar {
+    align-items: flex-start;
+  }
+  .search-input {
+    width: 210px;
+  }
+}
+
+@media (max-width: 768px) {
+  .filter-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .toolbar-right {
+    width: 100%;
+  }
+  .search-input {
+    flex: 1;
+    width: auto;
+    min-width: 0;
+  }
+  .data-card__head {
+    align-items: flex-start;
+  }
+  .product-dialog {
+    width: calc(100vw - 32px) !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .product-page .hm-page-header__actions,
+  .product-page .hm-page-header__actions .el-button {
+    width: 100%;
+  }
+  .filter-card :deep(.el-card__body),
+  .data-card :deep(.el-card__header),
+  .pagination-wrap {
+    padding-left: var(--hm-space-4);
+    padding-right: var(--hm-space-4);
+  }
+  .record-count {
+    display: none;
+  }
+  .product-dialog :deep(.el-dialog__header),
+  .product-dialog :deep(.el-dialog__body),
+  .product-dialog :deep(.el-dialog__footer) {
+    padding-left: var(--hm-space-4);
+    padding-right: var(--hm-space-4);
+  }
 }
 </style>

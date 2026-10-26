@@ -534,4 +534,153 @@ const handleKeydown = (e) => {
     max-height: 70vh;
   }
 }
+
+/* ==================== 暖橙市集视觉 ==================== */
+.fab {
+  width: 58px;
+  height: 58px;
+  background: var(--hm-primary);
+  box-shadow: 0 10px 26px rgba(232, 80, 30, 0.32);
+}
+.fab::after {
+  content: '';
+  position: absolute;
+  inset: -5px;
+  border: 1px solid var(--hm-primary-border);
+  border-radius: 50%;
+  pointer-events: none;
+}
+.fab:hover {
+  background: var(--hm-primary-hover);
+  box-shadow: 0 14px 30px rgba(232, 80, 30, 0.38);
+}
+.panel {
+  bottom: 76px;
+  width: 380px;
+  max-height: 560px;
+  border: 1px solid var(--hm-ink-200);
+  border-radius: var(--hm-radius-xl);
+  background: var(--hm-white);
+  box-shadow: 0 24px 60px rgba(67, 40, 20, 0.2);
+}
+.panel-header {
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--hm-ink-100);
+  background: linear-gradient(110deg, #fdeee5, #fff9f3);
+}
+.panel-title {
+  color: var(--hm-ink-900);
+  font-size: var(--hm-font-md);
+  letter-spacing: 0.5px;
+}
+.panel-title .dot {
+  background: var(--hm-success);
+  box-shadow: 0 0 0 3px var(--hm-success-soft);
+}
+.close-btn {
+  color: var(--hm-ink-400);
+}
+.close-btn:hover {
+  background: var(--hm-primary-soft);
+  color: var(--hm-primary);
+}
+.message-list {
+  padding: 18px 16px;
+  background: var(--hm-bg-page);
+}
+.avatar {
+  border-radius: 10px;
+  background: var(--hm-white);
+  color: var(--hm-ink-500);
+}
+.message.assistant .avatar {
+  background: var(--hm-primary);
+  color: #fff;
+  box-shadow: 0 4px 10px rgba(232, 80, 30, 0.18);
+}
+.msg-body {
+  max-width: 258px;
+}
+.bubble {
+  border: 1px solid var(--hm-ink-100);
+  border-radius: 14px;
+  background: var(--hm-white);
+  color: var(--hm-ink-700);
+  box-shadow: 0 2px 5px rgba(90, 50, 20, 0.03);
+}
+.message.user .bubble {
+  border-bottom-right-radius: 4px;
+  background: var(--hm-ink-900);
+  color: #fff;
+}
+.message.assistant .bubble {
+  border-bottom-left-radius: 4px;
+}
+.sources-label {
+  color: var(--hm-ink-400);
+  letter-spacing: 1px;
+}
+.source-card {
+  border: 1px solid var(--hm-ink-100);
+  border-radius: var(--hm-radius-md);
+  background: var(--hm-white);
+}
+.source-card:hover {
+  border-color: var(--hm-primary-border);
+  background: var(--hm-primary-soft);
+  box-shadow: var(--hm-shadow-sm);
+}
+.source-img {
+  border-radius: 9px;
+  background: var(--hm-ink-050);
+}
+.source-title {
+  color: var(--hm-ink-800);
+}
+.source-price {
+  color: var(--hm-primary);
+  font-variant-numeric: tabular-nums;
+}
+.panel-footer {
+  padding: 12px 14px;
+  border-top: 1px solid var(--hm-ink-100);
+  background: var(--hm-white);
+}
+.message-input {
+  border: 1px solid var(--hm-ink-200);
+  background: var(--hm-ink-050);
+  color: var(--hm-ink-800);
+}
+.message-input::placeholder {
+  color: var(--hm-ink-400);
+}
+.message-input:focus {
+  border-color: var(--hm-primary);
+  background: var(--hm-white);
+  box-shadow: 0 0 0 3px var(--hm-primary-soft);
+}
+.send-btn {
+  background: var(--hm-primary);
+}
+.send-btn:hover:not(:disabled) {
+  background: var(--hm-primary-hover);
+}
+.typing-dot {
+  background: var(--hm-primary-border);
+}
+
+@media (max-width: 480px) {
+  .fab {
+    width: 54px;
+    height: 54px;
+  }
+  .panel {
+    width: calc(100vw - 32px);
+    bottom: 70px;
+    max-height: 70vh;
+  }
+  .msg-body {
+    max-width: calc(100vw - 130px);
+  }
+}
 </style>

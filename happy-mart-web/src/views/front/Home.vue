@@ -8,6 +8,7 @@ import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { getHotProducts } from '@/api/product'
 import { getCategoryTree } from '@/api/category'
+import StateBlock from '@/components/StateBlock.vue'   // 统一加载/空/错误状态展示
 
 // 路由实例，用于页面跳转
 const router = useRouter()
@@ -51,6 +52,16 @@ const categoryList = ref([])
 const hotProducts = ref([])
 
 /**
+ * 热门推荐区加载状态（仅用于展示骨架屏，数据请求逻辑未变）
+ */
+const hotLoading = ref(true)
+
+/**
+ * 热门推荐区加载失败标记（仅用于展示错误提示，可点击重试）
+ */
+const hotError = ref(false)
+
+/**
  * 跳转到分类商品列表
  * @param {number} categoryId - 分类ID
  */
@@ -79,14 +90,37 @@ onMounted(async () => {
     categoryList.value = []
   }
 
+  // 加载热门商品 Top 8（loading/error 仅用于展示，接口调用与参数保持原样）
+  hotLoading.value = true
+  hotError.value = false
   try {
-    // 获取热门商品 Top 8
     hotProducts.value = await getHotProducts()
   } catch (err) {
     console.error('加载热门商品失败:', err)
     hotProducts.value = []
+    hotError.value = true
+  } finally {
+    hotLoading.value = false
   }
 })
+
+/**
+ * 重新加载热门推荐（供 StateBlock 的 retry 事件调用）
+ * 复用同一接口，不新增请求参数
+ */
+async function reloadHotProducts() {
+  hotLoading.value = true
+  hotError.value = false
+  try {
+    hotProducts.value = await getHotProducts()
+  } catch (err) {
+    console.error('重新加载热门商品失败:', err)
+    hotProducts.value = []
+    hotError.value = true
+  } finally {
+    hotLoading.value = false
+  }
+}
 </script>
 
 <template>
@@ -100,12 +134,32 @@ onMounted(async () => {
         :interval="4000"
       >
         <el-carousel-item v-for="banner in banners" :key="banner.id">
-          <!-- 每个 banner 使用背景图展示，标题文字白色带阴影 -->
-          <div
-            class="banner-item"
-            :style="{ backgroundImage: `url(${banner.image})` }"
-          >
-            <div class="banner-title">{{ banner.title }}</div>
+          <div class="banner-item">
+            <div class="hero-copy">
+              <span class="hero-kicker">HAPPY MART · 全品类自营</span>
+              <h1>{{ banner.title }}</h1>
+              <p>把日常所需，一次买齐。<br>手机数码到食品生鲜，热门好物安心选。</p>
+              <router-link to="/products" class="hero-cta">
+                去逛逛
+                <span aria-hidden="true">→</span>
+              </router-link>
+            </div>
+            <div v-if="hotProducts[banner.id - 1]" class="hero-visual">
+              <div class="hero-image-wrap">
+                <img
+                  :src="hotProducts[banner.id - 1].image"
+                  :alt="hotProducts[banner.id - 1].name"
+                  class="hero-image"
+                >
+              </div>
+              <div class="hero-price-tag">
+                <span>热门爆款</span>
+                <strong>¥{{ hotProducts[banner.id - 1].price.toFixed(2) }}</strong>
+              </div>
+            </div>
+            <div v-else class="hero-placeholder">
+              <span>众</span>
+            </div>
           </div>
         </el-carousel-item>
       </el-carousel>
@@ -113,9 +167,10 @@ onMounted(async () => {
 
     <!-- ==================== 分类快捷入口区域 ==================== -->
     <section class="category-section">
-      <!-- section-title：左侧红色边框线 4px -->
-      <div class="section-title">分类快捷入口</div>
-      <!-- 8 列网格，2 行 x 4 列 -->
+      <div class="hm-section-head">
+        <h2 class="hm-section-title">分类快捷入口</h2>
+        <router-link to="/products" class="hm-section-head__more">全部分类 →</router-link>
+      </div>
       <div class="category-grid">
         <div
           v-for="cat in categoryList"
@@ -123,13 +178,11 @@ onMounted(async () => {
           class="category-item"
           @click="goToCategory(cat.id)"
         >
-          <!-- 分类图标，使用 <component :is> 动态渲染 Element Plus 图标 -->
           <div class="category-icon">
-            <el-icon :size="32">
+            <el-icon :size="28">
               <component :is="categoryIconMap[cat.name]" />
             </el-icon>
           </div>
-          <!-- 分类名称 -->
           <span class="category-name">{{ cat.name }}</span>
         </div>
       </div>
@@ -137,43 +190,69 @@ onMounted(async () => {
 
     <!-- ==================== 热门商品推荐区域 ==================== -->
     <section class="hot-section">
-      <div class="section-title">热门推荐</div>
-      <!-- 4 列商品卡片网格 -->
-      <div class="product-grid">
+      <div class="hm-section-head">
+        <h2 class="hm-section-title">热门推荐</h2>
+        <router-link to="/products" class="hm-section-head__more">查看全部 →</router-link>
+      </div>
+
+      <!-- 加载中：骨架屏占位，避免布局跳动 -->
+      <StateBlock
+        v-if="hotLoading"
+        type="loading"
+        compact
+        :rows="4"
+        message="正在加载热门推荐…"
+      />
+
+      <!-- 加载失败：提示并可重试（复用同一接口） -->
+      <StateBlock
+        v-else-if="hotError"
+        type="error"
+        compact
+        message="热门推荐加载失败"
+        @retry="reloadHotProducts"
+      />
+
+      <!-- 无数据：空状态提示 -->
+      <StateBlock
+        v-else-if="hotProducts.length === 0"
+        type="empty"
+        compact
+        message="暂无热门推荐"
+        description="稍后再来看看"
+      />
+
+      <!-- 有数据：4 列商品卡片网格 -->
+      <div v-else class="hm-product-grid">
         <div
           v-for="product in hotProducts"
           :key="product.id"
-          class="product-card"
+          class="hm-product-card"
           @click="goToProduct(product.id)"
         >
-          <!-- 商品图片，aspect-ratio: 1 保持正方形 -->
-          <div class="product-image-wrapper">
+          <div class="hm-product-card__thumb">
+            <span class="hm-product-card__flag">热卖</span>
             <el-image
               :src="product.image"
               :alt="product.name"
-              class="product-image"
               fit="cover"
             />
           </div>
-          <!-- 商品信息 -->
-          <div class="product-info">
-            <!-- 商品名称（单行省略） -->
-            <div class="product-name" :title="product.name">{{ product.name }}</div>
-            <!-- 价格行：现价 + 原价（划线） -->
-            <div class="product-price-row">
-              <span class="product-price">¥{{ product.price.toFixed(2) }}</span>
-              <span class="product-original-price">¥{{ product.originalPrice.toFixed(2) }}</span>
+          <div class="hm-product-card__info">
+            <div class="hm-product-card__name" :title="product.name">{{ product.name }}</div>
+            <div class="hm-product-card__price-row">
+              <span class="hm-product-card__price">¥{{ product.price.toFixed(2) }}</span>
+              <span class="hm-product-card__orig">¥{{ product.originalPrice.toFixed(2) }}</span>
             </div>
-            <!-- 评分和销量 -->
-            <div class="product-meta">
+            <div class="hm-product-card__meta">
               <el-rate
                 :model-value="product.rating"
                 disabled
                 show-score
-                text-color="#ff9900"
+                text-color="#d9992b"
                 score-template="{value}"
               />
-              <span class="product-sales">已售 {{ product.sales }}</span>
+              <span>已售 {{ product.sales }}</span>
             </div>
           </div>
         </div>
@@ -183,198 +262,315 @@ onMounted(async () => {
 </template>
 
 <style scoped>
-/* ==================== 首页容器 ==================== */
 .home-page {
-  /* 父级 main-content 已有 padding，这里不再重复添加 */
+  min-width: 0;
 }
 
-/* ==================== Banner 轮播区域 ==================== */
+/* ==================== 主视觉轮播 ==================== */
 .banner-section {
-  /* 负边距抵消父级的 padding，使 banner 满宽显示 */
-  margin: -20px -20px 30px;
+  margin-bottom: var(--hm-space-2);
 }
-
-/* 每个 Banner 项：背景图居中覆盖 */
 .banner-item {
+  position: relative;
   width: 100%;
   height: 100%;
-  background-size: cover;
-  background-position: center;
+  display: flex;
+  align-items: center;
+  gap: var(--hm-space-10);
+  padding: 34px 64px 40px;
+  overflow: hidden;
+  border: 1px solid #f3d9c5;
+  border-radius: 24px;
+  background: linear-gradient(115deg, #fdeedd 0%, #f9e2cd 58%, #f6e9dc 100%);
+  box-sizing: border-box;
+}
+.banner-item::before,
+.banner-item::after {
+  content: '';
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+}
+.banner-item::before {
+  width: 300px;
+  height: 300px;
+  right: -100px;
+  top: -150px;
+  border: 55px solid rgba(255, 255, 255, 0.28);
+}
+.banner-item::after {
+  width: 140px;
+  height: 140px;
+  left: 46%;
+  bottom: -100px;
+  background: rgba(255, 255, 255, 0.2);
+}
+.hero-copy {
+  position: relative;
+  z-index: 1;
+  flex: 1.1;
+  min-width: 0;
+}
+.hero-kicker {
+  display: inline-block;
+  margin-bottom: var(--hm-space-3);
+  color: var(--hm-primary);
+  font-size: var(--hm-font-xs);
+  font-weight: var(--hm-fw-bold);
+  letter-spacing: 2px;
+}
+.hero-copy h1 {
+  margin: 0;
+  color: var(--hm-ink-900);
+  font-size: 42px;
+  line-height: 1.2;
+  letter-spacing: 3px;
+}
+.hero-copy p {
+  margin: var(--hm-space-4) 0 0;
+  color: var(--hm-ink-500);
+  font-size: var(--hm-font-md);
+  line-height: 1.9;
+}
+.hero-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--hm-space-3);
+  height: 44px;
+  margin-top: var(--hm-space-5);
+  padding: 0 26px;
+  border-radius: var(--hm-radius-pill);
+  background: var(--hm-primary);
+  color: #fff;
+  font-size: var(--hm-font-md);
+  font-weight: var(--hm-fw-bold);
+  box-shadow: 0 8px 20px rgba(232, 80, 30, 0.24);
+  transition: all var(--hm-transition);
+}
+.hero-cta:hover {
+  background: var(--hm-primary-hover);
+  transform: translateY(-2px);
+  box-shadow: 0 12px 24px rgba(232, 80, 30, 0.3);
+}
+.hero-visual {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  height: 250px;
+  min-width: 0;
+}
+.hero-image-wrap {
+  position: absolute;
+  top: 0;
+  right: 34px;
+  width: 250px;
+  height: 250px;
+  padding: 8px;
+  border-radius: 28px;
+  background: rgba(255, 255, 255, 0.75);
+  box-shadow: 0 22px 44px rgba(90, 50, 20, 0.16);
+  transform: rotate(2deg);
+}
+.hero-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 21px;
+}
+.hero-price-tag {
+  position: absolute;
+  right: 0;
+  bottom: -8px;
+  min-width: 118px;
+  padding: 10px 16px;
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  border-radius: var(--hm-radius-lg);
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: var(--hm-shadow-md);
+}
+.hero-price-tag span {
+  display: block;
+  color: var(--hm-ink-500);
+  font-size: var(--hm-font-xs);
+}
+.hero-price-tag strong {
+  display: block;
+  margin-top: 2px;
+  color: var(--hm-primary);
+  font-size: var(--hm-font-lg);
+  font-variant-numeric: tabular-nums;
+}
+.hero-placeholder {
+  flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;
 }
-
-/* Banner 标题：白色文字带深色阴影，突出显示 */
-.banner-title {
-  font-size: 36px;
-  font-weight: bold;
+.hero-placeholder span {
+  display: grid;
+  place-items: center;
+  width: 180px;
+  height: 180px;
+  border-radius: 40px;
+  background: rgba(255, 255, 255, 0.55);
+  color: var(--hm-primary);
+  font-size: 72px;
+  font-weight: 700;
+  transform: rotate(4deg);
+}
+.banner-section :deep(.el-carousel__indicators) {
+  margin-top: 14px;
+}
+.banner-section :deep(.el-carousel__button) {
+  width: 18px;
+  height: 5px;
+  background: var(--hm-ink-300);
+  opacity: 1;
+}
+.banner-section :deep(.el-carousel__indicator.is-active .el-carousel__button) {
+  width: 28px;
+  background: var(--hm-primary);
+}
+.banner-section :deep(.el-carousel__arrow) {
+  background: rgba(255, 255, 255, 0.85);
+  color: var(--hm-ink-800);
+  box-shadow: var(--hm-shadow-sm);
+}
+.banner-section :deep(.el-carousel__arrow:hover) {
+  background: var(--hm-primary);
   color: #fff;
-  text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.6);
-  letter-spacing: 4px;
-  user-select: none;
 }
 
-/* ==================== 公共 Section 标题样式 ==================== */
-.section-title {
-  font-size: 22px;
-  font-weight: bold;
-  color: #1a1a2e;
-  padding-left: 14px;
-  border-left: 4px solid #e4393c;
-  margin-bottom: 20px;
-  line-height: 1;
+/* ==================== 分类快捷入口 ==================== */
+.category-section,
+.hot-section {
+  margin-bottom: var(--hm-space-6);
 }
-
-/* ==================== 分类快捷入口区域 ==================== */
-.category-section {
-  margin-bottom: 40px;
-}
-
-/* 8 列网格布局 */
 .category-grid {
   display: grid;
-  grid-template-columns: repeat(8, 1fr);
-  gap: 12px;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  gap: var(--hm-space-3);
 }
-
-/* 每个分类项：垂直居中布局 */
 .category-item {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 24px 10px;
-  background: #fff;
-  border-radius: 8px;
+  gap: 10px;
+  min-height: 104px;
+  padding: var(--hm-space-4) var(--hm-space-2);
+  border: 1px solid var(--hm-ink-100);
+  border-radius: var(--hm-radius-lg);
+  background: var(--hm-white);
+  box-shadow: var(--hm-shadow-sm);
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all var(--hm-transition);
 }
-
-/* 分类项 hover 效果：背景变红，文字变白，上移 2px */
 .category-item:hover {
-  background: #e4393c;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(228, 57, 60, 0.3);
-}
-
-/* hover 时分类图标变白 */
-.category-item:hover .category-icon :deep(svg) {
-  color: #fff;
-}
-
-/* hover 时分类名称变白 */
-.category-item:hover .category-name {
-  color: #fff;
-}
-
-/* 分类图标容器 */
-.category-icon {
-  margin-bottom: 8px;
-}
-
-/* 分类图标默认颜色（红色） */
-.category-icon :deep(svg) {
-  color: #e4393c;
-  transition: color 0.3s ease;
-}
-
-/* 分类名称文字 */
-.category-name {
-  font-size: 14px;
-  color: #333;
-  transition: color 0.3s ease;
-}
-
-/* ==================== 热门商品推荐区域 ==================== */
-.hot-section {
-  margin-bottom: 40px;
-}
-
-/* 4 列网格布局，16px 间距 */
-.product-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 16px;
-}
-
-/* 商品卡片 */
-.product-card {
-  background: #fff;
-  border-radius: 8px;
-  overflow: hidden;
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-/* 卡片 hover 效果：上移 4px，阴影加深 */
-.product-card:hover {
+  border-color: var(--hm-primary-border);
+  background: var(--hm-primary-soft);
   transform: translateY(-4px);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  box-shadow: var(--hm-shadow-md);
 }
-
-/* 商品图片容器：保持 1:1 宽高比 */
-.product-image-wrapper {
-  aspect-ratio: 1;
-  overflow: hidden;
+.category-icon {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 15px;
+  background: var(--hm-primary-soft);
+  color: var(--hm-primary);
+  transition: all var(--hm-transition);
 }
-
-/* 商品图片 */
-.product-image {
-  width: 100%;
-  height: 100%;
-  display: block;
+.category-item:hover .category-icon {
+  background: var(--hm-primary);
+  color: #fff;
+  transform: rotate(-4deg);
 }
-
-/* 商品信息区 */
-.product-info {
-  padding: 12px;
-}
-
-/* 商品名称：单行省略号 */
-.product-name {
-  font-size: 14px;
-  color: #333;
-  line-height: 1.4;
-  overflow: hidden;
-  text-overflow: ellipsis;
+.category-name {
+  color: var(--hm-ink-700);
+  font-size: var(--hm-font-sm);
   white-space: nowrap;
-  margin-bottom: 8px;
 }
 
-/* 价格行：现价和原价并排 */
-.product-price-row {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  margin-bottom: 8px;
+/* ==================== 响应式 ==================== */
+@media (max-width: 1024px) {
+  .banner-item {
+    padding: 30px 44px 38px;
+  }
+  .hero-copy h1 {
+    font-size: 36px;
+  }
+  .hero-image-wrap {
+    right: 10px;
+    width: 220px;
+    height: 220px;
+  }
+  .hero-visual {
+    height: 230px;
+  }
+  .category-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
 }
 
-/* 现价：红色 20px 粗体 */
-.product-price {
-  font-size: 20px;
-  font-weight: bold;
-  color: #e4393c;
+@media (max-width: 768px) {
+  .banner-item {
+    padding: 28px 28px 34px;
+  }
+  .hero-copy h1 {
+    font-size: 32px;
+  }
+  .hero-copy p {
+    font-size: var(--hm-font-base);
+  }
+  .hero-visual,
+  .hero-placeholder {
+    display: none;
+  }
+  .banner-section :deep(.el-carousel__arrow) {
+    display: none;
+  }
 }
 
-/* 原价：划线灰色小字 */
-.product-original-price {
-  font-size: 13px;
-  color: #999;
-  text-decoration: line-through;
-}
-
-/* 评分与销量行 */
-.product-meta {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-/* 销量文字 */
-.product-sales {
-  font-size: 12px;
-  color: #999;
-  white-space: nowrap;
+@media (max-width: 480px) {
+  .banner-section :deep(.el-carousel__container) {
+    height: 310px !important;
+  }
+  .banner-item {
+    padding: 26px 22px 30px;
+    border-radius: var(--hm-radius-xl);
+  }
+  .hero-copy h1 {
+    font-size: 28px;
+    letter-spacing: 2px;
+  }
+  .hero-copy p {
+    font-size: var(--hm-font-sm);
+  }
+  .hero-kicker {
+    font-size: 10px;
+    letter-spacing: 1px;
+  }
+  .hero-cta {
+    height: 40px;
+    padding: 0 22px;
+    font-size: var(--hm-font-base);
+  }
+  .category-grid {
+    gap: var(--hm-space-2);
+  }
+  .category-item {
+    min-height: 88px;
+    padding: var(--hm-space-3) 2px;
+  }
+  .category-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+  }
+  .category-name {
+    font-size: var(--hm-font-xs);
+  }
 }
 </style>

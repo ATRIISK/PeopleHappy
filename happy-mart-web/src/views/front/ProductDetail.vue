@@ -192,7 +192,7 @@ async function handleAddToCart() {
  *
  * 流程：
  * 1. 先把这个商品+数量加入购物车
- * 2. 再跳转到购物车页，用户可继续结算
+ * 2. 再跳转到购物车页，用户可继续勾选/结算
  *
  * 未登录：提示并跳转登录页
  */
@@ -243,7 +243,7 @@ onMounted(() => {
   <div class="product-detail-page">
     <!-- ==================== 加载中状态 ==================== -->
     <div v-if="loading" class="loading-container">
-      <el-icon class="loading-icon" :size="32" color="#409eff">
+      <el-icon class="loading-icon" :size="32">
         <Loading />
       </el-icon>
       <span class="loading-text">加载中...</span>
@@ -252,7 +252,7 @@ onMounted(() => {
     <!-- ==================== 错误/不存在状态 ==================== -->
     <div v-else-if="error" class="error-container">
       <el-empty :description="error" />
-      <el-button type="primary" @click="loadProduct">重新加载</el-button>
+      <el-button type="primary" round @click="loadProduct">重新加载</el-button>
     </div>
 
     <!-- ==================== 商品详情内容 ==================== -->
@@ -270,8 +270,8 @@ onMounted(() => {
       <div class="product-main">
         <!-- ===== 左侧图片区 ===== -->
         <div class="image-section">
-          <!-- 主图大图 -->
           <div class="main-image-wrapper">
+            <span class="image-badge">自营精选</span>
             <el-image
               :src="currentImage"
               :alt="product.name"
@@ -301,16 +301,15 @@ onMounted(() => {
 
         <!-- ===== 右侧信息区 ===== -->
         <div class="info-section">
-          <!-- 商品名称 -->
+          <div class="category-eyebrow">{{ product.categoryName }} · HAPPY MART</div>
           <h1 class="product-name">{{ product.name }}</h1>
-
-          <!-- 商品描述 -->
           <p class="product-desc">{{ product.description }}</p>
 
           <!-- 价格区块 -->
           <div class="price-block">
+            <div class="price-caption">到手价</div>
             <div class="price-row">
-              <span class="current-price">¥{{ product.price.toFixed(2) }}</span>
+              <span class="current-price"><small>¥</small>{{ product.price.toFixed(2) }}</span>
               <span class="original-price">¥{{ product.originalPrice.toFixed(2) }}</span>
             </div>
           </div>
@@ -327,7 +326,7 @@ onMounted(() => {
                 :model-value="product.rating"
                 disabled
                 show-score
-                text-color="#ff9900"
+                text-color="#d9992b"
                 score-template="{value}"
               />
             </div>
@@ -364,6 +363,7 @@ onMounted(() => {
             <el-button
               type="danger"
               size="large"
+              class="add-cart-btn"
               :icon="ShoppingCart"
               :disabled="isOutOfStock"
               :loading="addingToCart"
@@ -374,6 +374,7 @@ onMounted(() => {
             <el-button
               type="warning"
               size="large"
+              class="buy-now-btn"
               :disabled="isOutOfStock"
               :loading="addingToCart"
               @click="handleBuyNow"
@@ -391,7 +392,6 @@ onMounted(() => {
           <el-tab-pane label="商品描述">
             <div class="tab-content description-content">
               <p>{{ product.description }}</p>
-              <!-- 商品图片预览（大图） -->
               <div class="detail-images">
                 <el-image
                   v-for="(img, index) in imageList"
@@ -425,276 +425,380 @@ onMounted(() => {
 </template>
 
 <style scoped>
-/* ==================== 页面容器 ==================== */
 .product-detail-page {
-  /* 父级 main-content 已有 padding */
+  min-width: 0;
 }
-
-/* ==================== 加载中状态 ==================== */
-.loading-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 120px 0;
-  gap: 12px;
-}
-
-.loading-icon {
-  animation: rotating 1.5s linear infinite;
-}
-
-@keyframes rotating {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-.loading-text {
-  font-size: 14px;
-  color: #999;
-}
-
-/* ==================== 错误状态 ==================== */
+.loading-container,
 .error-container {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 80px 0;
-  gap: 16px;
+  justify-content: center;
+  gap: var(--hm-space-4);
+  min-height: 420px;
+  border: 1px solid var(--hm-ink-100);
+  border-radius: var(--hm-radius-xl);
+  background: var(--hm-white);
 }
-
-/* ==================== 面包屑导航 ==================== */
+.loading-icon {
+  color: var(--hm-primary);
+  animation: rotating 1.5s linear infinite;
+}
+@keyframes rotating {
+  to { transform: rotate(360deg); }
+}
+.loading-text {
+  color: var(--hm-ink-400);
+  font-size: var(--hm-font-base);
+}
 .breadcrumb {
-  margin-bottom: 24px;
-  font-size: 14px;
+  margin-bottom: var(--hm-space-4);
+  padding: 0 var(--hm-space-1);
+  font-size: var(--hm-font-sm);
 }
 
-/* ==================== 商品主体：左右两栏布局 ==================== */
+/* ==================== 商品主体 ==================== */
 .product-main {
   display: flex;
-  gap: 40px;
-  margin-bottom: 40px;
+  gap: var(--hm-space-10);
   align-items: flex-start;
+  margin-bottom: var(--hm-space-6);
+  padding: var(--hm-space-6);
+  border: 1px solid var(--hm-ink-100);
+  border-radius: var(--hm-radius-xl);
+  background: var(--hm-white);
+  box-shadow: var(--hm-shadow-sm);
 }
-
-/* ===== 左侧图片区 ===== */
 .image-section {
-  width: 480px;
+  width: 46%;
   flex-shrink: 0;
+  min-width: 0;
 }
-
-/* 主图容器 */
 .main-image-wrapper {
+  position: relative;
   aspect-ratio: 1;
-  border-radius: 8px;
+  margin-bottom: var(--hm-space-3);
   overflow: hidden;
-  border: 1px solid #eee;
-  margin-bottom: 12px;
+  border: 1px solid var(--hm-ink-100);
+  border-radius: var(--hm-radius-lg);
+  background: var(--hm-ink-050);
 }
-
 .main-image {
   width: 100%;
   height: 100%;
   display: block;
 }
-
-/* 缩略图列表 */
+.image-badge {
+  position: absolute;
+  z-index: 2;
+  top: 14px;
+  left: 14px;
+  padding: 5px 12px;
+  border-radius: var(--hm-radius-pill);
+  background: rgba(36, 29, 23, 0.82);
+  color: #ffd9a8;
+  font-size: var(--hm-font-xs);
+  letter-spacing: 1px;
+}
 .thumbnail-list {
   display: flex;
-  gap: 8px;
+  gap: var(--hm-space-3);
+  overflow-x: auto;
+  padding: 2px;
 }
-
-/* 单个缩略图项 */
 .thumbnail-item {
-  width: 72px;
-  height: 72px;
-  border-radius: 4px;
-  overflow: hidden;
-  cursor: pointer;
-  border: 2px solid transparent;
-  transition: border-color 0.2s ease;
+  width: 68px;
+  height: 68px;
   flex-shrink: 0;
+  overflow: hidden;
+  border: 2px solid transparent;
+  border-radius: var(--hm-radius-md);
+  cursor: pointer;
+  transition: all var(--hm-transition);
 }
-
-/* 缩略图 hover 效果 */
-.thumbnail-item:hover {
-  border-color: #e4393c;
-}
-
-/* 选中状态：红色边框 */
+.thumbnail-item:hover,
 .thumbnail-item.active {
-  border-color: #e4393c;
+  border-color: var(--hm-primary);
 }
-
+.thumbnail-item.active {
+  box-shadow: 0 0 0 3px var(--hm-primary-soft);
+}
 .thumbnail-image {
   width: 100%;
   height: 100%;
   display: block;
 }
 
-/* ===== 右侧信息区 ===== */
+/* ==================== 商品信息 ==================== */
 .info-section {
   flex: 1;
   min-width: 0;
+  padding-top: var(--hm-space-2);
 }
-
-/* 商品名称 */
+.category-eyebrow {
+  margin-bottom: var(--hm-space-3);
+  color: var(--hm-primary);
+  font-size: var(--hm-font-xs);
+  font-weight: var(--hm-fw-bold);
+  letter-spacing: 1.5px;
+}
 .product-name {
-  font-size: 22px;
-  font-weight: bold;
-  color: #1a1a2e;
+  margin: 0 0 var(--hm-space-3);
+  color: var(--hm-ink-900);
+  font-size: 28px;
+  font-weight: var(--hm-fw-bold);
   line-height: 1.4;
-  margin-bottom: 8px;
+  letter-spacing: 0.5px;
 }
-
-/* 商品描述 */
 .product-desc {
-  font-size: 14px;
-  color: #999;
-  line-height: 1.6;
-  margin-bottom: 20px;
+  margin: 0 0 var(--hm-space-5);
+  color: var(--hm-ink-500);
+  font-size: var(--hm-font-base);
+  line-height: 1.8;
 }
-
-/* 价格区块 */
 .price-block {
-  background: #fff5f5;
-  padding: 16px 20px;
-  border-radius: 8px;
-  margin-bottom: 20px;
+  position: relative;
+  margin-bottom: var(--hm-space-5);
+  padding: var(--hm-space-4) var(--hm-space-5);
+  overflow: hidden;
+  border: 1px solid #f6ddcd;
+  border-radius: var(--hm-radius-lg);
+  background: linear-gradient(110deg, #fdeee5, #fdf7f0);
 }
-
+.price-block::after {
+  content: 'SALE';
+  position: absolute;
+  right: 16px;
+  bottom: -14px;
+  color: rgba(232, 80, 30, 0.07);
+  font-size: 68px;
+  font-weight: 700;
+  letter-spacing: 3px;
+  pointer-events: none;
+}
+.price-caption {
+  margin-bottom: 2px;
+  color: var(--hm-ink-500);
+  font-size: var(--hm-font-xs);
+}
 .price-row {
+  position: relative;
+  z-index: 1;
   display: flex;
   align-items: baseline;
-  gap: 12px;
+  gap: var(--hm-space-3);
 }
-
-/* 现价：36px 红色粗体 */
 .current-price {
-  font-size: 36px;
-  font-weight: bold;
-  color: #e4393c;
-  line-height: 1;
+  color: var(--hm-primary);
+  font-size: 38px;
+  font-weight: 700;
+  line-height: 1.25;
+  font-variant-numeric: tabular-nums;
 }
-
-/* 原价：划线灰色 */
+.current-price small {
+  margin-right: 3px;
+  font-size: 19px;
+  font-weight: var(--hm-fw-medium);
+}
 .original-price {
-  font-size: 16px;
-  color: #999;
+  color: var(--hm-ink-400);
+  font-size: var(--hm-font-md);
   text-decoration: line-through;
 }
-
-/* 信息行 */
 .meta-row {
-  display: flex;
-  align-items: center;
-  gap: 32px;
-  margin-bottom: 20px;
-  padding: 12px 0;
-  border-top: 1px solid #f0f0f0;
-  border-bottom: 1px solid #f0f0f0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-bottom: var(--hm-space-5);
+  padding: var(--hm-space-4) 0;
+  border-top: 1px solid var(--hm-ink-100);
+  border-bottom: 1px solid var(--hm-ink-100);
 }
-
 .meta-item {
   display: flex;
   align-items: center;
-  gap: 6px;
+  justify-content: center;
+  gap: var(--hm-space-2);
+  min-width: 0;
+  border-right: 1px solid var(--hm-ink-100);
 }
-
+.meta-item:last-child {
+  border-right: none;
+}
 .meta-label {
-  font-size: 14px;
-  color: #999;
+  color: var(--hm-ink-400);
+  font-size: var(--hm-font-sm);
+  white-space: nowrap;
 }
-
 .meta-value {
-  font-size: 14px;
-  color: #333;
-  font-weight: 500;
+  color: var(--hm-ink-800);
+  font-size: var(--hm-font-base);
+  font-weight: var(--hm-fw-medium);
 }
-
-/* 库存紧张：红色标记 */
-.meta-value.low-stock {
-  color: #e4393c;
-  font-weight: bold;
-}
-
-/* 库存为零 */
+.meta-value.low-stock,
 .meta-value.out-of-stock {
-  color: #e4393c;
-  font-weight: bold;
+  color: var(--hm-primary);
+  font-weight: var(--hm-fw-bold);
 }
-
-/* 数量选择行 */
 .quantity-row {
   display: flex;
   align-items: center;
-  gap: 16px;
-  margin-bottom: 24px;
+  flex-wrap: wrap;
+  gap: var(--hm-space-3);
+  margin-bottom: var(--hm-space-6);
 }
-
 .quantity-label {
-  font-size: 14px;
-  color: #999;
+  color: var(--hm-ink-500);
+  font-size: var(--hm-font-base);
 }
-
-/* 库存提示文字（数量选择器右侧） */
 .stock-tip {
-  font-size: 13px;
-  color: #999;
+  color: var(--hm-ink-400);
+  font-size: var(--hm-font-xs);
 }
-
-/* 操作按钮行 */
 .action-row {
   display: flex;
-  gap: 12px;
+  gap: var(--hm-space-3);
 }
-
 .action-row .el-button {
-  padding: 12px 28px;
-  font-size: 15px;
+  height: 46px;
+  margin: 0;
+  padding: 0 28px;
+  border-radius: var(--hm-radius-pill);
+  font-size: var(--hm-font-md);
+}
+.action-row :deep(.add-cart-btn.el-button) {
+  border-color: var(--hm-primary);
+  background: var(--hm-primary);
+  box-shadow: 0 8px 20px rgba(232, 80, 30, 0.2);
+}
+.action-row :deep(.add-cart-btn.el-button:hover) {
+  border-color: var(--hm-primary-hover);
+  background: var(--hm-primary-hover);
+}
+.action-row :deep(.buy-now-btn.el-button) {
+  border-color: var(--hm-ink-900);
+  background: var(--hm-ink-900);
+  color: #fff;
+}
+.action-row :deep(.buy-now-btn.el-button:hover) {
+  border-color: var(--hm-ink-700);
+  background: var(--hm-ink-700);
+  color: #fff;
 }
 
-/* ==================== 商品详情 Tab ==================== */
+/* ==================== 详情 Tab ==================== */
 .detail-tabs {
-  margin-bottom: 40px;
+  margin-bottom: var(--hm-space-6);
 }
-
-/* Tab 内容区 */
+.detail-tabs :deep(.el-tabs--border-card) {
+  overflow: hidden;
+  border: 1px solid var(--hm-ink-100);
+  border-radius: var(--hm-radius-lg);
+  background: var(--hm-white);
+  box-shadow: var(--hm-shadow-sm);
+}
+.detail-tabs :deep(.el-tabs--border-card > .el-tabs__header) {
+  border-bottom-color: var(--hm-ink-100);
+  background: var(--hm-bg-subtle);
+}
+.detail-tabs :deep(.el-tabs--border-card > .el-tabs__header .el-tabs__item) {
+  color: var(--hm-ink-500);
+  border: none;
+}
+.detail-tabs :deep(.el-tabs--border-card > .el-tabs__header .el-tabs__item.is-active) {
+  background: var(--hm-white);
+  color: var(--hm-primary);
+  font-weight: var(--hm-fw-bold);
+}
 .tab-content {
-  padding: 20px;
   min-height: 200px;
+  padding: var(--hm-space-5);
 }
-
-/* 商品描述内容 */
 .description-content {
-  line-height: 1.8;
-  color: #555;
-  font-size: 14px;
+  color: var(--hm-ink-600);
+  font-size: var(--hm-font-base);
+  line-height: 1.9;
 }
-
-/* 商品详情大图列表 */
 .detail-images {
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  margin-top: 20px;
+  align-items: center;
+  gap: var(--hm-space-4);
+  margin-top: var(--hm-space-5);
 }
-
 .detail-image {
   width: 100%;
   max-width: 800px;
-  border-radius: 8px;
-  border: 1px solid #eee;
+  overflow: hidden;
+  border: 1px solid var(--hm-ink-100);
+  border-radius: var(--hm-radius-lg);
 }
-
-/* 占位内容居中 */
 .placeholder-content {
   display: flex;
-  justify-content: center;
   align-items: center;
+  justify-content: center;
+}
+
+@media (max-width: 1024px) {
+  .product-main {
+    gap: var(--hm-space-6);
+    padding: var(--hm-space-5);
+  }
+  .product-name {
+    font-size: 24px;
+  }
+  .meta-item {
+    flex-direction: column;
+    gap: 2px;
+  }
+}
+
+@media (max-width: 768px) {
+  .product-main {
+    flex-direction: column;
+  }
+  .image-section {
+    width: 100%;
+  }
+  .info-section {
+    width: 100%;
+  }
+  .meta-item {
+    flex-direction: row;
+  }
+}
+
+@media (max-width: 480px) {
+  .product-main {
+    gap: var(--hm-space-5);
+    padding: var(--hm-space-4);
+    border-radius: var(--hm-radius-lg);
+  }
+  .product-name {
+    font-size: 22px;
+  }
+  .current-price {
+    font-size: 32px;
+  }
+  .meta-row {
+    gap: 0;
+  }
+  .meta-item {
+    flex-direction: column;
+  }
+  .meta-item :deep(.el-rate) {
+    height: 20px;
+  }
+  .stock-tip {
+    width: 100%;
+  }
+  .action-row {
+    flex-direction: column;
+  }
+  .action-row .el-button {
+    width: 100%;
+  }
+  .tab-content {
+    padding: var(--hm-space-3);
+  }
 }
 </style>

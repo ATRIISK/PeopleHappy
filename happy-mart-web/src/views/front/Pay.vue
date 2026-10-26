@@ -1,13 +1,6 @@
 <template>
   <!-- 支付宝扫码支付页面 -->
   <div class="pay-page">
-    <!-- ===== 顶部导航 ===== -->
-    <div class="pay-header">
-      <el-button text @click="goBack">
-        ← 返回订单列表
-      </el-button>
-    </div>
-
     <!-- ===== 状态1：加载中 ===== -->
     <div v-if="pageStatus === 'loading'" class="pay-card">
       <div class="pay-loading">
@@ -18,7 +11,7 @@
     <!-- ===== 状态2：订单状态异常（不是待付款） ===== -->
     <div v-else-if="pageStatus === 'invalid'" class="pay-card">
       <div class="pay-result pay-result-warning">
-        <el-icon :size="64" color="#e6a23c"><WarningFilled /></el-icon>
+        <el-icon :size="64" class="result-icon"><WarningFilled /></el-icon>
         <h2>该订单无法支付</h2>
         <p class="result-desc">订单状态为「{{ statusText }}」，不是待付款状态</p>
         <el-button type="primary" @click="goToOrderDetail">查看订单</el-button>
@@ -26,8 +19,10 @@
     </div>
 
     <!-- ===== 状态3：显示二维码，等待支付 ===== -->
-    <div v-else-if="pageStatus === 'paying'" class="pay-card">
+    <div v-else-if="pageStatus === 'paying'" class="pay-card pay-card--qr">
+      <span class="pay-eyebrow">ALIPAY · SECURE PAYMENT</span>
       <h2 class="pay-title">扫码支付</h2>
+      <p class="pay-subtitle">核对订单信息，使用支付宝完成付款</p>
 
       <!-- 二维码区域 -->
       <div class="qr-wrapper">
@@ -75,7 +70,7 @@
     <!-- ===== 状态4：支付成功 ===== -->
     <div v-else-if="pageStatus === 'success'" class="pay-card">
       <div class="pay-result pay-result-success">
-        <el-icon :size="64" color="#67c23a"><CircleCheckFilled /></el-icon>
+        <el-icon :size="64" class="result-icon"><CircleCheckFilled /></el-icon>
         <h2>支付成功</h2>
         <div class="result-info">
           <div class="info-row">
@@ -98,7 +93,7 @@
     <!-- ===== 状态5：支付失败/错误 ===== -->
     <div v-else-if="pageStatus === 'error'" class="pay-card">
       <div class="pay-result pay-result-error">
-        <el-icon :size="64" color="#f56c6c"><CircleCloseFilled /></el-icon>
+        <el-icon :size="64" class="result-icon"><CircleCloseFilled /></el-icon>
         <h2>支付异常</h2>
         <p class="result-desc">{{ errorMessage }}</p>
         <div class="pay-actions">
@@ -270,7 +265,7 @@ async function fetchQrCode() {
       width: 280,
       margin: 2,
       color: {
-        dark: '#1a1a2e',   // 深色码点
+        dark: '#241d17',   // 深色码点
         light: '#ffffff'    // 白色背景
       }
     })
@@ -429,11 +424,6 @@ function goToOrderDetail() {
   router.push({ name: 'OrderDetail', params: { id: orderId.value } })
 }
 
-/** 返回订单列表 */
-function goBack() {
-  router.push({ name: 'Orders' })
-}
-
 /** 继续购物 */
 function goShopping() {
   router.push({ name: 'Products' })
@@ -443,30 +433,56 @@ function goShopping() {
 <style scoped>
 /* ==================== 页面容器 ==================== */
 .pay-page {
-  max-width: 600px;
+  width: 100%;
+  max-width: 620px;
+  min-width: 0;
+  box-sizing: border-box;
   margin: 0 auto;
-  padding: 20px;
-}
-
-/* ==================== 顶部返回 ==================== */
-.pay-header {
-  margin-bottom: 16px;
+  padding: 28px 20px 48px;
 }
 
 /* ==================== 支付卡片 ==================== */
 .pay-card {
-  background: #fff;
-  border-radius: 12px;
-  padding: 32px;
+  position: relative;
+  box-sizing: border-box;
+  padding: 38px;
+  border: 1px solid var(--hm-ink-100);
+  border-radius: 22px;
+  background: var(--hm-white);
+  box-shadow: var(--hm-shadow-lg);
   text-align: center;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+  overflow: hidden;
+}
+
+.pay-card::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto;
+  height: 5px;
+  background: linear-gradient(90deg, var(--hm-primary), #f29a57, var(--hm-primary));
+}
+
+.pay-eyebrow {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--hm-primary);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.8px;
 }
 
 .pay-title {
-  font-size: 20px;
-  font-weight: 600;
-  color: #1a1a2e;
-  margin: 0 0 24px 0;
+  margin: 0 0 8px;
+  color: var(--hm-ink-900);
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+
+.pay-subtitle {
+  margin: 0 0 24px;
+  color: var(--hm-ink-500);
+  font-size: var(--hm-font-base);
 }
 
 /* ==================== 加载中 ==================== */
@@ -476,25 +492,35 @@ function goShopping() {
 
 /* ==================== 二维码区域 ==================== */
 .qr-wrapper {
+  min-height: 240px;
+  box-sizing: border-box;
+  margin-bottom: 18px;
+  padding: 24px;
+  border: 1px solid var(--hm-primary-border);
+  border-radius: var(--hm-radius-lg);
+  background:
+    radial-gradient(circle at 100% 0, rgba(232, 80, 30, 0.08), transparent 42%),
+    var(--hm-ink-050);
   display: flex;
   justify-content: center;
   align-items: center;
-  margin-bottom: 16px;
-  min-height: 200px;
 }
 
 .qr-image-wrapper {
-  background: #fff;
-  border: 8px solid #fff;
-  border-radius: 12px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-  display: inline-block;
+  max-width: 100%;
+  padding: 10px;
+  border: 1px solid var(--hm-ink-100);
+  border-radius: var(--hm-radius-lg);
+  background: var(--hm-white);
+  box-shadow: 0 10px 24px rgba(90, 50, 20, 0.12);
 }
 
 .qr-image {
   display: block;
-  width: 280px;
-  height: 280px;
+  width: 260px;
+  max-width: 100%;
+  height: auto;
+  aspect-ratio: 1;
 }
 
 .qr-loading {
@@ -502,8 +528,13 @@ function goShopping() {
   flex-direction: column;
   align-items: center;
   gap: 12px;
-  color: #999;
-  font-size: 14px;
+  color: var(--hm-primary);
+  font-size: var(--hm-font-base);
+}
+
+.qr-loading p {
+  margin: 0;
+  color: var(--hm-ink-500);
 }
 
 /* qrcode 库生成时 Loading 图标的旋转动画 */
@@ -518,22 +549,24 @@ function goShopping() {
 
 /* ==================== 支付说明 ==================== */
 .pay-hint {
-  font-size: 14px;
-  color: #666;
-  margin: 0 0 24px 0;
-  line-height: 1.6;
+  margin: 0 0 22px;
+  color: var(--hm-ink-600);
+  font-size: var(--hm-font-base);
+  line-height: 1.7;
 }
 
 .pay-hint strong {
-  color: #e4393c;
+  color: var(--hm-primary);
+  font-weight: 600;
 }
 
 /* ==================== 订单信息 ==================== */
 .order-info {
-  background: #fafafa;
-  border-radius: 8px;
-  padding: 16px 20px;
   margin-bottom: 16px;
+  padding: 14px 20px;
+  border: 1px solid var(--hm-ink-100);
+  border-radius: var(--hm-radius-md);
+  background: var(--hm-ink-050);
   text-align: left;
 }
 
@@ -541,23 +574,29 @@ function goShopping() {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 6px 0;
-  font-size: 14px;
+  gap: 20px;
+  padding: 8px 0;
+  font-size: var(--hm-font-base);
 }
 
 .info-row .label {
-  color: #999;
+  flex-shrink: 0;
+  color: var(--hm-ink-500);
 }
 
 .info-row .value {
-  color: #333;
+  min-width: 0;
+  color: var(--hm-ink-800);
   font-weight: 500;
+  overflow-wrap: anywhere;
+  text-align: right;
 }
 
 .info-row .amount {
-  font-size: 20px;
-  font-weight: bold;
-  color: #e4393c;
+  color: var(--hm-primary);
+  font-size: 26px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
 }
 
 /* ==================== 倒计时 ==================== */
@@ -565,72 +604,174 @@ function goShopping() {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  padding: 10px;
-  background: #f0f9ff;
-  border-radius: 6px;
-  font-size: 13px;
-  color: #409eff;
-  margin-bottom: 20px;
+  gap: 7px;
+  margin-bottom: 22px;
+  padding: 11px 12px;
+  border: 1px solid var(--hm-primary-border);
+  border-radius: var(--hm-radius-md);
+  background: var(--hm-primary-soft);
+  color: var(--hm-primary-active);
+  font-size: var(--hm-font-sm);
+}
+
+.countdown-bar strong {
+  font-size: 16px;
+  font-variant-numeric: tabular-nums;
 }
 
 .countdown-bar.expired {
-  background: #fff5f5;
-  color: #f56c6c;
+  border-color: var(--hm-danger-soft);
+  background: var(--hm-danger-soft);
+  color: var(--hm-danger);
 }
 
 /* ==================== 底部按钮 ==================== */
 .pay-actions {
   display: flex;
   justify-content: center;
+  flex-wrap: wrap;
   gap: 12px;
+}
+
+.pay-actions :deep(.el-button) {
+  min-width: 116px;
+  margin: 0;
+  border-radius: var(--hm-radius-md);
 }
 
 /* ==================== 支付结果页 ==================== */
 .pay-result {
-  padding: 20px 0;
+  padding: 24px 0 12px;
+}
+
+.result-icon {
+  width: 76px;
+  height: 76px;
+  border-radius: 50%;
+}
+
+.pay-result-success .result-icon {
+  color: var(--hm-success);
+  background: var(--hm-success-soft);
+}
+
+.pay-result-error .result-icon {
+  color: var(--hm-danger);
+  background: var(--hm-danger-soft);
+}
+
+.pay-result-warning .result-icon {
+  color: var(--hm-warning);
+  background: var(--hm-warning-soft);
 }
 
 .pay-result h2 {
-  font-size: 22px;
-  margin: 16px 0 12px 0;
-  color: #333;
+  margin: 18px 0 12px;
+  color: var(--hm-ink-900);
+  font-size: 26px;
 }
 
 .pay-result .result-desc {
-  font-size: 14px;
-  color: #999;
-  margin: 0 0 20px 0;
-  line-height: 1.6;
+  margin: 0 0 24px;
+  color: var(--hm-ink-500);
+  font-size: var(--hm-font-base);
+  line-height: 1.7;
+  overflow-wrap: anywhere;
 }
 
 .pay-result .result-info {
-  background: #fafafa;
-  border-radius: 8px;
-  padding: 16px 20px;
-  margin-bottom: 16px;
-  text-align: left;
   max-width: 360px;
-  margin-left: auto;
-  margin-right: auto;
+  box-sizing: border-box;
+  margin: 0 auto 18px;
+  padding: 14px 20px;
+  border: 1px solid var(--hm-ink-100);
+  border-radius: var(--hm-radius-md);
+  background: var(--hm-ink-050);
+  text-align: left;
 }
 
 .auto-redirect {
-  font-size: 13px;
-  color: #999;
-  margin: 0 0 20px 0;
+  margin: 0 0 22px;
+  color: var(--hm-ink-500);
+  font-size: var(--hm-font-sm);
 }
 
 /* ==================== 各结果颜色 ==================== */
 .pay-result-success h2 {
-  color: #67c23a;
+  color: var(--hm-success);
 }
 
 .pay-result-error h2 {
-  color: #f56c6c;
+  color: var(--hm-danger);
 }
 
 .pay-result-warning h2 {
-  color: #e6a23c;
+  color: var(--hm-warning);
+}
+
+@media (max-width: 1024px) {
+  .pay-page {
+    max-width: 600px;
+  }
+}
+
+@media (max-width: 768px) {
+  .pay-page {
+    padding: 24px 16px 40px;
+  }
+
+  .pay-card {
+    padding: 34px 30px;
+  }
+}
+
+@media (max-width: 480px) {
+  .pay-page {
+    padding: 20px 12px 32px;
+  }
+
+  .pay-card {
+    padding: 30px 18px 24px;
+    border-radius: 18px;
+  }
+
+  .pay-title,
+  .pay-result h2 {
+    font-size: 23px;
+  }
+
+  .qr-wrapper {
+    min-height: 220px;
+    padding: 16px;
+  }
+
+  .qr-image-wrapper {
+    padding: 7px;
+  }
+
+  .qr-image {
+    width: min(240px, 100%);
+  }
+
+  .order-info,
+  .pay-result .result-info {
+    padding: 12px 14px;
+  }
+
+  .info-row {
+    gap: 12px;
+  }
+
+  .info-row .amount {
+    font-size: 23px;
+  }
+
+  .pay-actions {
+    flex-direction: column;
+  }
+
+  .pay-actions :deep(.el-button) {
+    width: 100%;
+  }
 }
 </style>

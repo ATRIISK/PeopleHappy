@@ -1,6 +1,6 @@
 # 众乐电子商城 记忆体系一致性报告（memcheck）
 
-> 生成时间：2026-10-05 03:08　模式：**只读扫描**（本报告不改动任何记忆或文档）
+> 生成时间：2026-10-05 03:49　模式：**只读扫描**（本报告不改动任何记忆或文档）
 > 判定：ERROR 必须修；WARN 建议修；INFO 仅记录。本报告只驱动 L1/L2 修正，派生层永不反向写入。
 
 ## 0. 总览
@@ -11,8 +11,8 @@
 | WARN | 2 |
 | INFO | 7 |
 
-- 扫描文件：Claude 记忆 18 个、归档 3 个、WorkBuddy 记忆 6 个、L1 文档 2 个
-- 索引条目：17 条
+- 扫描文件：Claude 记忆 19 个、归档 3 个、WorkBuddy 记忆 6 个、L1 文档 2 个
+- 索引条目：18 条
 
 ## 1. 规模（按字数降序，前 8）
 
@@ -20,12 +20,12 @@
 |---|---|
 | design\众乐电子商城-开发文档.md | 52790 |
 | memory\document-code-sync-audit-archive.md | 19770 |
+| memory\2026-10-05.md | 14921 |
 | E:\PeopleHappy\README.md | 11915 |
-| memory\2026-10-05.md | 10089 |
 | memory\project-progress-archive.md | 9037 |
 | memory\document-code-sync-audit-ledger.md | 5489 |
+| memory\redis-usage-scenarios.md | 4908 |
 | memory\project-sync-complete-archive.md | 4836 |
-| memory\redis-usage-scenarios.md | 4559 |
 
 ## 2. 关键数字一致性（应一致却出现多值的会在这里暴露）
 
@@ -52,6 +52,9 @@
   - memory\project-history.md → 5
   - memory\project-progress.md → 8
 
+**订单状态档数** ✅：3
+  - memory\frontend-visual-baseline.md → 3
+
 ## 3. ERROR 明细（0）
 
 （无）
@@ -71,7 +74,7 @@
 
 ### 超长
 
-- memory\2026-10-05.md = 10089 字（非 L2 条目：L1 交付文档 / 执行日志，不建议拆；可考虑文首加按节导航）
+- memory\2026-10-05.md = 14921 字（非 L2 条目：L1 交付文档 / 执行日志，不建议拆；可考虑文首加按节导航）
 - design\众乐电子商城-开发文档.md = 52790 字（非 L2 条目：L1 交付文档 / 执行日志，不建议拆；可考虑文首加按节导航）
 - E:\PeopleHappy\README.md = 11915 字（非 L2 条目：L1 交付文档 / 执行日志，不建议拆；可考虑文首加按节导航）
 
