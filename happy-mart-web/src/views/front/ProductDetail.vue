@@ -267,7 +267,7 @@ onMounted(() => {
       </el-breadcrumb>
 
       <!-- ========== 商品主体：左右两栏布局 ========== -->
-      <div class="product-main">
+      <div class="product-main hm-reveal">
         <!-- ===== 左侧图片区 ===== -->
         <div class="image-section">
           <div class="main-image-wrapper">
@@ -326,7 +326,7 @@ onMounted(() => {
                 :model-value="product.rating"
                 disabled
                 show-score
-                text-color="#d9992b"
+                text-color="var(--hm-warning)"
                 score-template="{value}"
               />
             </div>
@@ -386,7 +386,7 @@ onMounted(() => {
       </div>
 
       <!-- ========== 商品详情 Tab ========== -->
-      <div class="detail-tabs">
+      <div class="detail-tabs hm-reveal">
         <el-tabs type="border-card">
           <!-- 商品描述 -->
           <el-tab-pane label="商品描述">
@@ -800,5 +800,78 @@ onMounted(() => {
   .tab-content {
     padding: var(--hm-space-3);
   }
+}
+
+/* ==================== Codex 深色商品详情收口 ==================== */
+.loading-container,
+.error-container,
+.product-main,
+.detail-tabs :deep(.el-tabs--border-card) {
+  background: var(--hm-bg-surface);
+  border-color: var(--hm-ink-100);
+  box-shadow: none;
+}
+.product-main {
+  background:
+    radial-gradient(circle at 8% 0%, rgba(139, 233, 176, 0.04), transparent 24%),
+    var(--hm-bg-surface);
+}
+.main-image-wrapper {
+  border-color: var(--hm-ink-100);
+  background:
+    linear-gradient(45deg, rgba(255, 255, 255, 0.02) 25%, transparent 25%),
+    var(--hm-bg-subtle);
+  background-size: 18px 18px;
+}
+.image-badge {
+  border: 1px solid var(--hm-primary-border);
+  background: rgba(5, 6, 8, 0.86);
+  color: var(--hm-primary);
+  backdrop-filter: blur(10px);
+}
+.price-block {
+  border-color: rgba(240, 184, 110, 0.24);
+  background:
+    radial-gradient(circle at 100% 100%, rgba(240, 184, 110, 0.1), transparent 34%),
+    linear-gradient(115deg, rgba(240, 184, 110, 0.08), rgba(17, 19, 24, 0.96));
+}
+.price-block::after {
+  color: rgba(240, 184, 110, 0.06);
+}
+.current-price {
+  color: var(--hm-accent);
+}
+.meta-value.low-stock,
+.meta-value.out-of-stock {
+  color: var(--hm-warning);
+}
+.action-row :deep(.add-cart-btn.el-button) {
+  border-color: var(--hm-primary);
+  background: var(--hm-primary);
+  color: var(--hm-on-primary);
+  box-shadow: 0 8px 24px rgba(139, 233, 176, 0.2);
+}
+.action-row :deep(.add-cart-btn.el-button:hover) {
+  border-color: var(--hm-primary-hover);
+  background: var(--hm-primary-hover);
+  color: var(--hm-on-primary);
+}
+.action-row :deep(.buy-now-btn.el-button) {
+  border-color: var(--hm-accent);
+  background: var(--hm-accent);
+  color: var(--hm-on-primary);
+  box-shadow: 0 8px 24px rgba(240, 184, 110, 0.16);
+}
+.action-row :deep(.buy-now-btn.el-button:hover) {
+  border-color: var(--hm-accent-hover);
+  background: var(--hm-accent-hover);
+  color: var(--hm-on-primary);
+}
+.detail-tabs :deep(.el-tabs--border-card > .el-tabs__header .el-tabs__item.is-active) {
+  background: var(--hm-bg-surface);
+  color: var(--hm-primary);
+}
+.detail-tabs :deep(.el-tabs--border-card > .el-tabs__content) {
+  background: var(--hm-bg-surface);
 }
 </style>

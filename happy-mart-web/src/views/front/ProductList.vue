@@ -273,11 +273,12 @@ watch(
 
       <!-- 有数据时显示商品网格和分页 -->
       <template v-else>
-        <div class="hm-product-grid">
+        <div class="hm-product-grid hm-stagger">
           <div
-            v-for="product in products"
+            v-for="(product, index) in products"
             :key="product.id"
             class="hm-product-card"
+            :style="{ '--hm-stagger-index': index }"
             @click="goToProduct(product.id)"
           >
             <div class="hm-product-card__thumb">
@@ -299,7 +300,7 @@ watch(
                   :model-value="product.rating"
                   disabled
                   show-score
-                  text-color="#d9992b"
+                  text-color="var(--hm-warning)"
                   score-template="{value}"
                 />
                 <span>已售 {{ product.sales }}</span>
@@ -487,5 +488,39 @@ watch(
   .total-info {
     font-size: var(--hm-font-xs);
   }
+}
+
+/* ==================== Codex 深色商品列表收口 ==================== */
+.product-list-page {
+  animation: hm-reveal 0.56s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.sidebar,
+.toolbar,
+.pagination-wrapper {
+  background: var(--hm-bg-surface);
+  border-color: var(--hm-ink-100);
+  box-shadow: none;
+}
+.sidebar {
+  background:
+    linear-gradient(180deg, rgba(139, 233, 176, 0.025), transparent 22%),
+    var(--hm-bg-surface);
+}
+.sidebar :deep(.el-tree-node__content) {
+  border: 1px solid transparent;
+}
+.sidebar :deep(.el-tree-node.is-current > .el-tree-node__content) {
+  border-color: var(--hm-primary-border);
+  box-shadow: inset 2px 0 0 var(--hm-primary);
+}
+.sidebar-mark {
+  color: var(--hm-primary);
+  font-family: 'Cascadia Code', 'SFMono-Regular', Consolas, monospace;
+}
+.toolbar {
+  backdrop-filter: blur(10px);
+}
+.pagination-wrapper {
+  overflow-x: auto;
 }
 </style>

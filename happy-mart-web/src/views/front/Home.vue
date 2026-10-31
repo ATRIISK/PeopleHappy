@@ -126,7 +126,7 @@ async function reloadHotProducts() {
 <template>
   <div class="home-page">
     <!-- ==================== Banner 轮播区域 ==================== -->
-    <section class="banner-section">
+    <section class="banner-section hm-reveal">
       <el-carousel
         height="360px"
         indicator-position="outside"
@@ -136,10 +136,14 @@ async function reloadHotProducts() {
         <el-carousel-item v-for="banner in banners" :key="banner.id">
           <div class="banner-item">
             <div class="hero-copy">
+              <div class="hero-status">
+                <span class="hero-status__dot"></span>
+                <span>CODEX STORE / ONLINE</span>
+              </div>
               <span class="hero-kicker">HAPPY MART · 全品类自营</span>
               <h1>{{ banner.title }}</h1>
               <p>把日常所需，一次买齐。<br>手机数码到食品生鲜，热门好物安心选。</p>
-              <router-link to="/products" class="hero-cta">
+              <router-link to="/products" class="hero-cta hm-sweep">
                 去逛逛
                 <span aria-hidden="true">→</span>
               </router-link>
@@ -166,16 +170,17 @@ async function reloadHotProducts() {
     </section>
 
     <!-- ==================== 分类快捷入口区域 ==================== -->
-    <section class="category-section">
+    <section class="category-section hm-reveal">
       <div class="hm-section-head">
         <h2 class="hm-section-title">分类快捷入口</h2>
         <router-link to="/products" class="hm-section-head__more">全部分类 →</router-link>
       </div>
       <div class="category-grid">
         <div
-          v-for="cat in categoryList"
+          v-for="(cat, index) in categoryList"
           :key="cat.id"
           class="category-item"
+          :style="{ '--hm-stagger-index': index }"
           @click="goToCategory(cat.id)"
         >
           <div class="category-icon">
@@ -189,7 +194,7 @@ async function reloadHotProducts() {
     </section>
 
     <!-- ==================== 热门商品推荐区域 ==================== -->
-    <section class="hot-section">
+    <section class="hot-section hm-reveal">
       <div class="hm-section-head">
         <h2 class="hm-section-title">热门推荐</h2>
         <router-link to="/products" class="hm-section-head__more">查看全部 →</router-link>
@@ -223,11 +228,12 @@ async function reloadHotProducts() {
       />
 
       <!-- 有数据：4 列商品卡片网格 -->
-      <div v-else class="hm-product-grid">
+      <div v-else class="hm-product-grid hm-stagger">
         <div
-          v-for="product in hotProducts"
+          v-for="(product, index) in hotProducts"
           :key="product.id"
           class="hm-product-card"
+          :style="{ '--hm-stagger-index': index }"
           @click="goToProduct(product.id)"
         >
           <div class="hm-product-card__thumb">
@@ -249,7 +255,7 @@ async function reloadHotProducts() {
                 :model-value="product.rating"
                 disabled
                 show-score
-                text-color="#d9992b"
+                text-color="var(--hm-warning)"
                 score-template="{value}"
               />
               <span>已售 {{ product.sales }}</span>
@@ -571,6 +577,124 @@ async function reloadHotProducts() {
   }
   .category-name {
     font-size: var(--hm-font-xs);
+  }
+}
+
+/* ==================== Codex 深色首页收口 ==================== */
+.banner-item {
+  border-color: var(--hm-ink-100);
+  border-radius: var(--hm-radius-xl);
+  background:
+    radial-gradient(circle at 82% 18%, rgba(139, 233, 176, 0.15), transparent 28%),
+    linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+    linear-gradient(125deg, #0c0f13 0%, #12171c 56%, #0a0c0f 100%);
+  background-size: auto, 34px 34px, 34px 34px, auto;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), var(--hm-shadow-md);
+}
+.banner-item::before {
+  width: 360px;
+  height: 360px;
+  right: -120px;
+  top: -180px;
+  border: 1px solid rgba(139, 233, 176, 0.22);
+  box-shadow: inset 0 0 80px rgba(139, 233, 176, 0.05);
+}
+.banner-item::after {
+  width: 180px;
+  height: 180px;
+  left: 48%;
+  bottom: -140px;
+  background: rgba(109, 200, 232, 0.08);
+  filter: blur(2px);
+}
+.hero-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: var(--hm-space-4);
+  padding: 5px 10px;
+  border: 1px solid var(--hm-primary-border);
+  border-radius: var(--hm-radius-pill);
+  background: var(--hm-primary-soft);
+  color: var(--hm-primary);
+  font-family: 'Cascadia Code', 'SFMono-Regular', Consolas, monospace;
+  font-size: 10px;
+  letter-spacing: 1.4px;
+}
+.hero-status__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--hm-primary);
+  box-shadow: 0 0 12px var(--hm-primary);
+  animation: hm-soft-pulse 1.8s ease-in-out infinite;
+}
+.hero-kicker {
+  display: block;
+  font-family: 'Cascadia Code', 'SFMono-Regular', Consolas, 'Microsoft YaHei', monospace;
+  letter-spacing: 2px;
+}
+.hero-copy h1 {
+  font-family: 'Cascadia Code', 'SFMono-Regular', Consolas, 'Microsoft YaHei', sans-serif;
+}
+.hero-cta {
+  color: var(--hm-on-primary);
+  box-shadow: 0 8px 28px rgba(139, 233, 176, 0.2);
+}
+.hero-cta:hover {
+  color: var(--hm-on-primary);
+  box-shadow: 0 12px 32px rgba(139, 233, 176, 0.26);
+}
+.hero-image-wrap {
+  background: var(--hm-ink-050);
+  border: 1px solid var(--hm-primary-border);
+  box-shadow: 0 26px 64px rgba(0, 0, 0, 0.46), 0 0 36px rgba(139, 233, 176, 0.08);
+  transform: rotate(1deg);
+}
+.hero-price-tag {
+  border-color: var(--hm-primary-border);
+  background: rgba(8, 10, 13, 0.92);
+  backdrop-filter: blur(12px);
+}
+.hero-price-tag strong {
+  color: var(--hm-primary);
+}
+.hero-placeholder span {
+  border: 1px solid var(--hm-primary-border);
+  background: var(--hm-ink-050);
+}
+.banner-section :deep(.el-carousel__arrow) {
+  background: rgba(8, 10, 13, 0.88);
+  border: 1px solid var(--hm-ink-100);
+  color: var(--hm-primary);
+}
+.banner-section :deep(.el-carousel__arrow:hover) {
+  background: var(--hm-primary);
+  color: var(--hm-on-primary);
+}
+.category-item {
+  background: var(--hm-bg-surface);
+  border-color: var(--hm-ink-100);
+  box-shadow: none;
+}
+.category-item:hover {
+  background: var(--hm-bg-raised);
+  transform: translateY(-3px);
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.32), 0 0 0 1px rgba(139, 233, 176, 0.08);
+}
+.category-icon {
+  border: 1px solid var(--hm-primary-border);
+  background: var(--hm-primary-soft);
+}
+.category-item:hover .category-icon {
+  background: var(--hm-primary);
+  color: var(--hm-on-primary);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-status__dot {
+    animation: none;
   }
 }
 </style>
