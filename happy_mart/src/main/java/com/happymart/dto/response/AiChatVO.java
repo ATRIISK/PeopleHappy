@@ -7,7 +7,7 @@ import java.util.List;
  * <p>
  * POST /api/ai/chat 的返回 data：
  * {
- *   "response": "通义千问生成的回答文本",
+ *   "response": "大模型生成的回答文本",
  *   "sources": [ {productId, title, price, image, url}, ... ]  // 参考商品卡片
  * }
  * <p>

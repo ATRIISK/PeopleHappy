@@ -37,7 +37,7 @@ public class AiController {
     private final KnowledgeBaseService knowledgeBaseService; // 商品知识库（RAG 检索）
 
     /**
-     * AI 对话：混合检索商品知识库 → 拼 system prompt → 通义千问非流式回答
+     * AI 对话：混合检索商品知识库 → 拼 system prompt → 大模型（glm-4-flash）非流式回答
      */
     @PostMapping("/chat")
     public Result<AiChatVO> chat(@RequestBody Map<String, String> request) {
@@ -69,7 +69,7 @@ public class AiController {
         }
 
         try {
-            // 第三步：非流式调用通义千问，一次性返回回答文本
+            // 第三步：非流式调用大模型（glm-4-flash），一次性返回回答文本
             String response = chatClient.prompt()
                     .system(systemPrompt)   // 系统提示（角色 + 参考资料）
                     .user(userMessage)      // 用户问题

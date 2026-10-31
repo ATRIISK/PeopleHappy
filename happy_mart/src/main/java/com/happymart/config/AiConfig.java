@@ -11,8 +11,8 @@ import java.time.Duration;
 /**
  * AI 购物助手配置类（v1.11，阶段四，见开发文档 §14）
  * <p>
- * API Key 和模型名由 spring-ai-alibaba-starter-dashscope 自动配置
- * 从 application.yml 的 spring.ai.dashscope.* 读取（v1.12：api-key 直接写在 application.yml，随包部署），
+ * API Key 和模型名由 spring-ai-starter-model-openai 自动配置
+ * 从 application.yml 的 spring.ai.openai.* 读取（2026-11-01 由 DashScope 切换为智谱 glm-4-flash-250414），
  * 这里只需注册 ChatClient 对话客户端 + 自定义 RestClient 超时。
  * <p>
  * 代码结构复用自 AI 博客项目 D:\ai_blog_show（同 Boot 3.5.14，已验证可运行）。

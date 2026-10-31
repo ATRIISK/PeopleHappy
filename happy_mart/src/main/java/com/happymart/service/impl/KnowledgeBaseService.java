@@ -29,7 +29,12 @@ import java.util.stream.Collectors;
  * <p>
  * RAG（检索增强生成）核心：把商品数据变成向量文档存入内存向量库，
  * 用户提问时做"混合检索"（关键词 LIKE + 向量相似度），把命中的商品信息拼进
- * system prompt 交给通义千问，让它基于真实商品数据回答，不靠模型瞎编。
+ * system prompt 交给大模型（2026-11-01 起为智谱 glm-4-flash），让它基于真实商品数据回答，不靠模型瞎编。
+ * <p>
+ * <b>无 embedding 时的降级</b>：智谱账号当前没有 embedding 额度，配置里关掉了向量模型，
+ * 此时构造参数 vectorStore / embeddingModel 为 null，本类所有向量相关操作都会跳过，
+ * hybridSearch 退化为纯关键词召回（分词 + LIKE + 权重排序），返回结构与调用方完全兼容。
+ * 恢复额度后无需改代码，配置打开即回到混合检索。
  * <p>
  * 关键方法：
  * - buildIndex()：启动建库（索引文件存在则加载，否则从商品表全量构建）
@@ -45,8 +50,8 @@ import java.util.stream.Collectors;
 public class KnowledgeBaseService {
 
     private final ProductMapper productMapper;    // 商品数据源（关键词召回 + 回表取完整商品）
-    private final EmbeddingModel embeddingModel;  // 向量模型（text-embedding-v2，理论上由 vectorStore 内部使用）
-    private final SimpleVectorStore vectorStore;  // 内存向量库
+    private final EmbeddingModel embeddingModel;  // 向量模型（可为 null：无 embedding 额度时走纯关键词）
+    private final SimpleVectorStore vectorStore;  // 内存向量库（可为 null，与 embeddingModel 同生共死）
     private final String indexFilePath;           // 索引文件路径（持久化用）
     private final int keywordTopK;                // 关键词召回条数
     private final int vectorTopK;                 // 向量召回条数
@@ -78,6 +83,11 @@ public class KnowledgeBaseService {
      * 索引文件不存在 → 从商品表全量取【上架商品】（status=0）向量化写入，然后 save 到文件
      */
     public void buildIndex() {
+        // 无 embedding 额度时不建向量库，直接跳过（关键词召回不依赖索引，无需任何准备）
+        if (vectorStore == null) {
+            log.info("未启用向量模型（embedding 未配置或无额度），跳过知识库建库，检索走纯关键词召回");
+            return;
+        }
         Path path = Path.of(indexFilePath);
         if (Files.exists(path)) {
             try {
@@ -160,6 +170,10 @@ public class KnowledgeBaseService {
         if (product == null || product.getId() == null) {
             return;
         }
+        // 无向量库时无需维护索引（关键词路直接查数据库，不存在索引不一致问题）
+        if (vectorStore == null) {
+            return;
+        }
         try {
             vectorStore.delete(List.of("product:" + product.getId())); // 删旧
             vectorStore.add(List.of(toDocument(product)));             // 加新
@@ -177,6 +191,10 @@ public class KnowledgeBaseService {
      */
     public void remove(Long productId) {
         if (productId == null) {
+            return;
+        }
+        // 无向量库时无需维护索引
+        if (vectorStore == null) {
             return;
         }
         try {
@@ -262,26 +280,30 @@ public class KnowledgeBaseService {
         // 2. 向量召回：embedding 相似度检索（Top-K）
         // ★ 修复：原实现丢弃了 similarity score，导致排序完全由 LinkedHashSet 插入顺序决定。
         //   现在取 score 参与 RRF 融合（rank 越靠前贡献越大）。
-        try {
-            List<Document> docs = vectorStore.similaritySearch(
-                    SearchRequest.builder().query(query).topK(vectorTopK).build());
-            if (docs != null) {
-                // rank 从 1 开始，与 RRF 公式一致
-                int rank = 1;
-                for (Document d : docs) {
-                    Object pid = d.getMetadata().get("productId");
-                    if (pid != null) {
-                        Long id = Long.valueOf(pid.toString());
-                        ids.add(id);
-                        // RRF（Reciprocal Rank Fusion）：score += 1 / (K + rank)
-                        // K 取 60 是社区常用值，作用是压制头部排名的绝对优势、让多路命中更容易叠加
-                        rrfScores.merge(id, 1.0 / (60 + rank), Double::sum);
-                        rank++;
+        // ★ 2026-11-01：vectorStore 为 null（没有 embedding 额度）时整段跳过，
+        //   检索退化为纯关键词路，返回结构与调用方完全一致。
+        if (vectorStore != null) {
+            try {
+                List<Document> docs = vectorStore.similaritySearch(
+                        SearchRequest.builder().query(query).topK(vectorTopK).build());
+                if (docs != null) {
+                    // rank 从 1 开始，与 RRF 公式一致
+                    int rank = 1;
+                    for (Document d : docs) {
+                        Object pid = d.getMetadata().get("productId");
+                        if (pid != null) {
+                            Long id = Long.valueOf(pid.toString());
+                            ids.add(id);
+                            // RRF（Reciprocal Rank Fusion）：score += 1 / (K + rank)
+                            // K 取 60 是社区常用值，作用是压制头部排名的绝对优势、让多路命中更容易叠加
+                            rrfScores.merge(id, 1.0 / (60 + rank), Double::sum);
+                            rank++;
+                        }
                     }
                 }
+            } catch (Exception e) {
+                log.warn("商品向量召回失败: {}", e.getMessage());
             }
-        } catch (Exception e) {
-            log.warn("商品向量召回失败: {}", e.getMessage());
         }
 
         // 两路都没命中 → 返回空（AI 会如实说"暂无相关商品"）

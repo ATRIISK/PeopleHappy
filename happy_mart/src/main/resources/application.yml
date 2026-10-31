@@ -57,27 +57,32 @@ spring:
         initial-interval: 1000ms  # 初始重试间隔：1 秒
         max-attempts: 3  # 最大重试次数：3 次
 
-  # Spring AI（DashScope 通义千问）—— AI 购物助手（v1.11，阶段四，见开发文档 §14）
+  # Spring AI（智谱 GLM，OpenAI 兼容协议）—— AI 购物助手（v1.11，阶段四，见开发文档 §14）
+  # 2026-11-01 从 DashScope 通义千问切换到智谱开放平台 glm-4-flash-250414。
+  # 智谱 v4 接口兼容 OpenAI 协议，故依赖改为 spring-ai-starter-model-openai，只把 base-url 指过去，
+  # 业务代码里的 ChatClient / EmbeddingModel / SimpleVectorStore 都是 Spring AI 通用抽象，无需改动。
+  # ★ completions-path 必须显式配置：OpenAI starter 默认拼 /v1/chat/completions，
+  #   智谱实际路径是 /api/paas/v4/chat/completions，不配会 404。
+  # ★ embedding 关闭：该账号调 embedding-2 / embedding-3 均返回「1113 余额不足或无可用资源包」，
+  #   向量召回不可用。KnowledgeBaseConfig 已做「没有 EmbeddingModel 就跳过向量路」的降级，
+  #   知识库退化为纯关键词召回（extractKeywords + findForKnowledgeBase + 权重排序），
+  #   充值后补回 embedding 段即可恢复混合检索。
+  # ★ 关闭方式必须是 spring.ai.model.embedding=none（Spring AI 1.x 的全局开关）。
+  #   openai 专属的 embedding.enabled 在 1.1.2 里不存在，写了不生效：
+  #   实测照样创建 OpenAiEmbeddingModel 并请求默认路径 /v1/embeddings，智谱返回 404。
+  # ★ API Key 明文写在项目内（私有仓库 + 打包部署的既定做法，v1.12 起如此）；
+  #   生产/多环境建议改 ${GLM_API_KEY} 环境变量注入。
   ai:
-    dashscope:
-      # 通义千问 API Key（v1.12：改为项目内配置，随打包部署到服务器）
-      # ★ 为什么直接写死在这里？
-      #   用户要求"不用环境变量，把 key 放在项目里打包部署到服务器"（简历项目/私有仓库可接受），
-      #   这样服务器上无需再配置 AI_DASHSCOPE_API_KEY 环境变量，key 随 jar 一起走。
-      # ★ 演进说明（code-review F1 的结论仍适用）：
-      #   之前用 ${AI_DASHSCOPE_API_KEY:dummy} 走环境变量 + dummy 兜底（spring-ai 对空 key 有
-      #   启动期非空校验，空串/无默认值都会启动失败）。现在 key 写死后启动一定正常。
-      # ★ 注意事项：
-      #   1. key 随 git 进仓库（私有仓库可接受）；
-      #   2. 生产环境/多环境部署建议改回 ${AI_DASHSCOPE_API_KEY}（环境变量注入，key 不进代码库更安全）。
-      api-key: sk-ws-H.RPYEDLX.chMH.MEYCIQDTeaHAUUiRW7ji5M2LQnKQhzMJasQMYNRYlpQMwOUxzQIhAL0Xgv2R6zvV4RvUFL9GoIHkkQgvY6k-GzRnI_0D7Fjy
+    model:
+      embedding: none                    # 不装配向量模型，检索走纯关键词
+    openai:
+      base-url: https://open.bigmodel.cn/api/paas/v4
+      api-key: 393801ff0ac2460ab371fd9c2031ec68.sDKgmZDHirPtUUG4
       chat:
+        completions-path: /chat/completions
         options:
-          model: qwen-turbo             # 对话模型
-      embedding:
-        enabled: true
-        options:
-          model: text-embedding-v2      # 向量模型（商品知识库建库/检索用）
+          model: glm-4-flash-250414      # 对话模型
+          temperature: 0.7               # 导购回答略放开随机性，避免过于呆板
 
 mybatis-plus:
   mapper-locations: classpath:mapper/**/*.xml  # 映射文件路径

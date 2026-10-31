@@ -131,14 +131,28 @@
             <version>4.40.645.ALL</version>
         </dependency>
 
-        <!-- Spring AI Alibaba（DashScope 通义千问）—— AI 购物助手（v1.11，阶段四，见开发文档 §14）
-             用途：商品知识库 RAG 混合检索（关键词 LIKE + embedding 向量召回）+ 通义千问 qwen-turbo 导购回答
-             API Key 直接配置在 application.yml（v1.12 起项目内配置，随 jar 打包部署；生产环境建议改环境变量）
-             代码复用自 AI 博客项目 D:\ai_blog_show（同 Boot 3.5.14，已验证可运行） -->
+        <!-- Spring AI OpenAI 兼容客户端（智谱 GLM）—— AI 购物助手（v1.11，阶段四，见开发文档 §14）
+             用途：商品知识库检索（关键词 LIKE 召回）+ GLM 导购回答
+             2026-11-01 由 spring-ai-alibaba-starter-dashscope 切换而来：
+             智谱开放平台 v4 接口兼容 OpenAI 协议（/chat/completions），
+             项目代码只依赖 ChatClient / EmbeddingModel / SimpleVectorStore 等通用抽象，
+             换 starter 后 Java 代码无需改动模型相关调用。
+             注意：base-url 由 yml 指向 https://open.bigmodel.cn/api/paas/v4，
+             completions-path 需显式设为 /chat/completions（OpenAI 默认是 /v1/chat/completions） -->
         <dependency>
-            <groupId>com.alibaba.cloud.ai</groupId>
-            <artifactId>spring-ai-alibaba-starter-dashscope</artifactId>
-            <version>1.1.2.1</version>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-starter-model-openai</artifactId>
+            <version>1.1.2</version>
+        </dependency>
+
+        <!-- Spring AI 向量库基础模块（SimpleVectorStore / SearchRequest / Document）
+             必须显式引入：Spring AI 1.x 把向量库拆成了独立模块，
+             spring-ai-starter-model-openai 只带模型调用，不含 vectorstore 包。
+             原先由 spring-ai-alibaba-starter-dashscope 传递进来，换 starter 后需要自己声明。 -->
+        <dependency>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-vector-store</artifactId>
+            <version>1.1.2</version>
         </dependency>
     </dependencies>
 
