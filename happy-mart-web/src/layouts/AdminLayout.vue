@@ -61,7 +61,7 @@ function handleMenuClick() {
       width="220px"
     >
       <div class="admin-aside__brand">
-        <span class="admin-aside__logo">众</span>
+        <span class="admin-aside__logo">&gt;_</span>
         <span class="admin-aside__brand-text">
           <strong>众乐商城</strong>
           <small>ADMIN CONSOLE</small>
@@ -100,7 +100,7 @@ function handleMenuClick() {
         </div>
         <el-button class="admin-header__home" plain @click="handleLogout">返回前台</el-button>
       </el-header>
-      <el-main class="admin-main">
+      <el-main class="admin-main hm-reveal">
         <router-view />
       </el-main>
     </el-container>
@@ -224,7 +224,7 @@ function handleMenuClick() {
   height: 6px;
   border-radius: 50%;
   background: var(--hm-primary);
-  box-shadow: 0 0 0 4px rgba(232, 80, 30, 0.12);
+  box-shadow: 0 0 0 4px rgba(139, 233, 176, 0.12);
 }
 
 /* ---------- 主体 ---------- */
@@ -300,7 +300,7 @@ function handleMenuClick() {
   justify-content: center;
 }
 .admin-mobile-bar__toggle:hover {
-  background: rgba(232, 80, 30, 0.2);
+  background: var(--hm-primary-soft);
 }
 .admin-mobile-bar__title {
   font-size: var(--hm-font-base);
@@ -370,5 +370,60 @@ function handleMenuClick() {
   .admin-header__context strong {
     font-size: var(--hm-font-base);
   }
+}
+
+/* ==================== Codex 深色后台收口 ==================== */
+.admin-aside {
+  background:
+    radial-gradient(circle at 20% 0%, rgba(139, 233, 176, 0.1), transparent 34%),
+    #080a0d;
+  border-right-color: var(--hm-ink-100);
+}
+.admin-aside__logo {
+  background: var(--hm-ink-050);
+  color: var(--hm-primary);
+  border: 1px solid var(--hm-primary-border);
+  font-family: 'Cascadia Code', 'SFMono-Regular', Consolas, monospace;
+  font-size: 15px;
+  box-shadow: 0 0 24px rgba(139, 233, 176, 0.12);
+}
+.admin-menu {
+  --el-menu-text-color: var(--hm-ink-500);
+  --el-menu-active-color: var(--hm-primary);
+  --el-menu-hover-bg-color: var(--hm-bg-raised);
+}
+.admin-menu :deep(.el-menu-item.is-active) {
+  background: var(--hm-primary-soft);
+  color: var(--hm-primary);
+  box-shadow: inset 2px 0 0 var(--hm-primary);
+}
+.admin-menu :deep(.el-menu-item.is-active:hover) {
+  background: rgba(139, 233, 176, 0.18);
+}
+.admin-aside__footer-dot {
+  box-shadow: 0 0 0 4px rgba(139, 233, 176, 0.12);
+}
+.admin-header {
+  background: rgba(11, 13, 16, 0.8);
+  border-bottom-color: var(--hm-ink-100);
+}
+.admin-main {
+  background:
+    radial-gradient(circle at 80% -20%, rgba(109, 200, 232, 0.05), transparent 32%),
+    var(--hm-bg-page);
+}
+.admin-mobile-bar {
+  background: #080a0d;
+  color: var(--hm-ink-900);
+  border-bottom: 1px solid var(--hm-ink-100);
+}
+.admin-mobile-bar__toggle:hover {
+  background: var(--hm-primary-soft);
+  border-color: var(--hm-primary-border);
+  color: var(--hm-primary);
+}
+.admin-aside-mask {
+  background: rgba(5, 6, 8, 0.72);
+  backdrop-filter: blur(4px);
 }
 </style>

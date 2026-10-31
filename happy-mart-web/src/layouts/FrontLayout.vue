@@ -123,7 +123,7 @@ onMounted(async () => {
         <!-- Logo + 主导航 -->
         <router-link to="/" class="logo">
           <span class="logo-mark">众</span>
-          <span class="logo-text">众乐商城</span>
+          <span class="logo-text hm-terminal-cursor">众乐商城</span>
         </router-link>
         <div class="top-nav">
           <router-link to="/" class="top-nav-link" :class="{ active: route.name === 'Home' }">首页</router-link>
@@ -256,7 +256,7 @@ onMounted(async () => {
   background: var(--hm-bg-page);
 }
 
-/* ==================== 顶栏：米白 + 细分割线 + 毛玻璃 ==================== */
+/* ==================== 顶栏：石墨毛玻璃 + 终端高亮 ==================== */
 .top-header {
   position: sticky;
   top: 0;
@@ -276,7 +276,7 @@ onMounted(async () => {
   gap: var(--hm-space-6);
 }
 
-/* Logo：朱橙方块字标 */
+/* Logo：石墨终端字标 */
 .logo {
   display: flex;
   align-items: center;
@@ -682,5 +682,76 @@ onMounted(async () => {
   .breadcrumb-wrapper {
     padding: var(--hm-space-2) var(--hm-space-3) 0;
   }
+}
+
+/* ==================== Codex 深色布局收口 ==================== */
+.front-layout {
+  background:
+    radial-gradient(circle at 50% -28%, rgba(139, 233, 176, 0.09), transparent 34%),
+    var(--hm-bg-page);
+}
+.top-header {
+  background: rgba(11, 13, 16, 0.8);
+  backdrop-filter: blur(18px);
+  border-bottom: 1px solid var(--hm-ink-100);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.025);
+}
+.logo-mark {
+  background: var(--hm-ink-050);
+  color: var(--hm-primary);
+  border: 1px solid var(--hm-primary-border);
+  font-size: 16px;
+  border-radius: 9px;
+  box-shadow: 0 0 22px rgba(139, 233, 176, 0.12);
+}
+.logo-text {
+  font-family: 'Cascadia Code', 'SFMono-Regular', Consolas, 'Microsoft YaHei', monospace;
+  letter-spacing: 0.7px;
+}
+.search-box {
+  background: var(--hm-ink-050);
+  border-color: var(--hm-ink-100);
+}
+.search-btn {
+  background: var(--hm-primary);
+  border-color: var(--hm-primary);
+  color: var(--hm-on-primary);
+  box-shadow: 0 0 20px rgba(139, 233, 176, 0.14);
+}
+.search-btn:hover {
+  background: var(--hm-primary-hover);
+  border-color: var(--hm-primary-hover);
+  color: var(--hm-on-primary);
+}
+.cart-badge :deep(.el-badge__content) {
+  background: var(--hm-primary);
+  color: var(--hm-on-primary);
+  box-shadow: 0 0 0 2px var(--hm-bg-page), 0 0 14px rgba(139, 233, 176, 0.28);
+}
+.header-actions .header-link:last-child {
+  background: var(--hm-primary);
+  color: var(--hm-on-primary);
+  box-shadow: 0 0 20px rgba(139, 233, 176, 0.14);
+}
+.header-actions .header-link:last-child:hover {
+  background: var(--hm-primary-hover);
+  color: var(--hm-on-primary);
+}
+.user-dropdown-trigger {
+  background: var(--hm-ink-050);
+  border-color: var(--hm-ink-100);
+}
+.category-bar {
+  background: rgba(11, 13, 16, 0.76);
+  backdrop-filter: blur(18px);
+  border-bottom-color: var(--hm-ink-100);
+}
+.footer {
+  background: #080a0d;
+  border-top-color: var(--hm-ink-100);
+}
+.back-btn {
+  background: var(--hm-ink-050);
+  border-color: var(--hm-ink-100);
 }
 </style>
