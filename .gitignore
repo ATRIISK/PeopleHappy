@@ -36,3 +36,6 @@ happy_mart/upload/
 # ===== AI 购物助手知识库索引（v1.11） =====
 # 商品向量索引文件（SimpleVectorStore 持久化），运行时自动生成/重建（启动全量建库或管理端增量同步），不入 git
 happy_mart/data/
+
+# ===workbuddy===
+.workbuddy
