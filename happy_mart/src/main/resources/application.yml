@@ -70,14 +70,19 @@ spring:
   # ★ 关闭方式必须是 spring.ai.model.embedding=none（Spring AI 1.x 的全局开关）。
   #   openai 专属的 embedding.enabled 在 1.1.2 里不存在，写了不生效：
   #   实测照样创建 OpenAiEmbeddingModel 并请求默认路径 /v1/embeddings，智谱返回 404。
-  # ★ API Key 明文写在项目内（私有仓库 + 打包部署的既定做法，v1.12 起如此）；
-  #   生产/多环境建议改 ${GLM_API_KEY} 环境变量注入。
+  # ★ API Key 一律走环境变量，密钥不进代码库（2026-11-01 修订，替代 v1.12 起的明文项目内配置）。
+  #   本地/服务器启动前设置 GLM_API_KEY 环境变量：
+  #     Git Bash:  export GLM_API_KEY=你的key && ./mvnw spring-boot:run
+  #     IDEA:      Run Configuration → Environment variables 里加 GLM_API_KEY=你的key
+  #     Docker:    docker-compose 的 backend.environment 里加 GLM_API_KEY
+  #   默认值 dummy 的作用：Spring AI 对空 api-key 有启动期非空校验，无默认值会直接启动失败；
+  #   dummy 保证「没配 key 也能正常启动」，只是调用 AI 时会认证失败，前端降级提示。
   ai:
     model:
       embedding: none                    # 不装配向量模型，检索走纯关键词
     openai:
       base-url: https://open.bigmodel.cn/api/paas/v4
-      api-key: 393801ff0ac2460ab371fd9c2031ec68.sDKgmZDHirPtUUG4
+      api-key: ${GLM_API_KEY:dummy}      # 环境变量注入，切勿提交真实 key
       chat:
         completions-path: /chat/completions
         options:

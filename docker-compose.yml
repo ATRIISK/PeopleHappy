@@ -61,9 +61,12 @@ services:
       SPRING_DATASOURCE_PASSWORD: 123456
       SPRING_DATA_REDIS_HOST: redis
       SPRING_RABBITMQ_HOST: rabbitmq
-      # AI 购物助手（v1.12）：通义千问 API Key 已配置在 application.yml 里（随 jar 打包），
-      # 这里【不再】传 AI_DASHSCOPE_API_KEY 环境变量——如果传 ${AI_DASHSCOPE_API_KEY:-}，
-      # 且服务器没设该环境变量，空串会【覆盖】yml 里的 key，导致 AI 认证失败（DashScope API key must be set）。
+      # AI 购物助手（2026-11-01 修订）：GLM API Key 改为环境变量注入，密钥不再进代码库。
+      # 下面这种「只写变量名、不写值」的形式表示从宿主机环境继承：
+      #   宿主设了 GLM_API_KEY → 容器内就有；宿主没设 → 容器内也没有，
+      #   application.yml 的 ${GLM_API_KEY:dummy} 会用 dummy 兜底，服务照常启动（AI 调用认证失败）。
+      # 刻意不用 ${GLM_API_KEY:-}：空串会覆盖掉 yml 里的默认值，反而让 Spring AI 的非空校验失败。
+      - GLM_API_KEY
     depends_on:
       - mysql
       - redis

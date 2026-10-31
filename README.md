@@ -135,7 +135,7 @@ mysql -uroot -p happy_mart < happy_mart/src/main/resources/db/init-data.sql
    - Redis：`spring.data.redis.*`（默认 `localhost:6379` database 0 无密码）
    - RabbitMQ：`spring.rabbitmq.*`（默认 `guest/guest@localhost:5672`）
    - 支付宝：`alipay.*`（沙箱 APPID / 商户私钥 / 支付宝公钥 / 网关 / 回调隧道地址，见「配置与安全说明」）
-   - AI（可选）：`spring.ai.openai.api-key`（智谱 GLM API Key，无 key 后端照常启动，AI 调用降级提示）
+   - AI（可选）：环境变量 `GLM_API_KEY`（智谱 GLM API Key；不设也能启动，AI 调用认证失败并降级提示）
 2. 启动：
 
 ```bash
@@ -348,7 +348,7 @@ Spring Boot :8074（自定义 JWT 拦截器认证）
 |---|---|---|
 | 数据库 / Redis / RabbitMQ | `application.yml` `spring.*` | 本地联调默认 `localhost`，Docker 环境用 `SPRING_DATASOURCE_*` 等环境变量覆盖 |
 | 支付宝沙箱 | `application.yml` `alipay.*` | APPID / 商户私钥 / 支付宝公钥 / 沙箱网关 / 回调隧道地址；沙箱密钥无真实资金，可入库用于演示，**生产环境严禁提交** |
-| 智谱 GLM API Key | `application.yml` `spring.ai.openai.api-key` | 已按项目内配置随 jar 打包部署；**生产环境建议改回环境变量注入，key 不进代码库** |
+| 智谱 GLM API Key | 环境变量 `GLM_API_KEY` | `application.yml` 里写的是 `${GLM_API_KEY:dummy}`，**密钥不进代码库**；本地启动前 export 或 IDEA 环境变量里配置，Docker 部署由 docker-compose 从宿主环境继承 |
 | 图片上传目录 | `app.upload-dir` | 默认 `./upload`（本仓库 `.gitignore` 已忽略，不上传图片文件） |
 
 > ⚠️ 本仓库 `.gitignore` 已忽略 `happy_mart/upload/`（本地上传图片）与 `happy_mart/data/`（AI 向量索引），推送仓库不会携带运行时生成的图片与索引文件。
