@@ -138,7 +138,7 @@ async function reloadHotProducts() {
             <div class="hero-copy">
               <div class="hero-status">
                 <span class="hero-status__dot"></span>
-                <span>CODEX STORE / ONLINE</span>
+                <span>今日精选 · 限时好价</span>
               </div>
               <span class="hero-kicker">HAPPY MART · 全品类自营</span>
               <h1>{{ banner.title }}</h1>
@@ -696,5 +696,112 @@ async function reloadHotProducts() {
   .hero-status__dot {
     animation: none;
   }
+}
+
+/* ==================== 经典灰白电商首页 ==================== */
+.banner-item {
+  border-color: var(--hm-ink-100);
+  border-radius: var(--hm-radius-xl);
+  background:
+    radial-gradient(circle at 88% 18%, rgba(217, 79, 43, 0.1), transparent 28%),
+    linear-gradient(115deg, #fff8f5 0%, #fffdfc 52%, #fafafa 100%);
+  box-shadow: 0 8px 24px rgba(31, 35, 40, 0.06);
+}
+.banner-item::before {
+  width: 320px;
+  height: 320px;
+  right: -110px;
+  top: -170px;
+  border: 1px solid rgba(217, 79, 43, 0.14);
+  box-shadow: none;
+}
+.banner-item::after {
+  width: 160px;
+  height: 160px;
+  left: 48%;
+  bottom: -120px;
+  background: rgba(217, 79, 43, 0.05);
+  filter: none;
+}
+.hero-status {
+  border-color: var(--hm-ink-100);
+  background: var(--hm-bg-surface);
+  color: var(--hm-primary);
+  font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif;
+  letter-spacing: 1px;
+}
+.hero-status__dot {
+  background: var(--hm-primary);
+  box-shadow: none;
+  animation: none;
+}
+.hero-kicker {
+  color: var(--hm-primary);
+  font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif;
+  letter-spacing: 1.5px;
+}
+.hero-copy h1 {
+  font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif;
+  color: var(--hm-ink-900);
+}
+.hero-cta {
+  background: var(--hm-primary);
+  color: var(--hm-on-primary);
+  box-shadow: 0 4px 12px rgba(217, 79, 43, 0.2);
+}
+.hero-cta:hover {
+  background: var(--hm-primary-hover);
+  color: var(--hm-on-primary);
+  box-shadow: 0 6px 16px rgba(217, 79, 43, 0.24);
+}
+.hero-image-wrap {
+  background: var(--hm-bg-surface);
+  border: 1px solid var(--hm-ink-100);
+  box-shadow: 0 18px 36px rgba(31, 35, 40, 0.12);
+  transform: rotate(1deg);
+}
+.hero-price-tag {
+  border-color: var(--hm-ink-100);
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: var(--hm-shadow-md);
+  backdrop-filter: blur(10px);
+}
+.hero-price-tag strong {
+  color: var(--hm-primary);
+}
+.hero-placeholder span {
+  border: 1px solid var(--hm-ink-100);
+  background: var(--hm-bg-surface);
+  color: var(--hm-primary);
+}
+.banner-section :deep(.el-carousel__arrow) {
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid var(--hm-ink-100);
+  color: var(--hm-ink-700);
+}
+.banner-section :deep(.el-carousel__arrow:hover) {
+  background: var(--hm-primary);
+  border-color: var(--hm-primary);
+  color: var(--hm-on-primary);
+}
+.category-item {
+  background: var(--hm-bg-surface);
+  border-color: var(--hm-ink-100);
+  box-shadow: none;
+}
+.category-item:hover {
+  background: var(--hm-bg-surface);
+  border-color: var(--hm-primary-border);
+  transform: translateY(-3px);
+  box-shadow: 0 8px 20px rgba(31, 35, 40, 0.08);
+}
+.category-icon {
+  border: 1px solid var(--hm-primary-border);
+  background: var(--hm-primary-soft);
+  color: var(--hm-primary);
+}
+.category-item:hover .category-icon {
+  background: var(--hm-primary);
+  color: var(--hm-on-primary);
 }
 </style>

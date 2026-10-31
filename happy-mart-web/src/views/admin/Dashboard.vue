@@ -392,4 +392,44 @@ onMounted(() => {
   background: var(--hm-bg-subtle);
   border-color: var(--hm-ink-100);
 }
+/* ==================== 经典灰白仪表盘 ==================== */
+.stat-card,
+.data-card,
+.filter-card {
+  border-color: var(--hm-ink-100);
+  background: var(--hm-bg-surface);
+  box-shadow: none;
+}
+.stat-card--product,
+.stat-card--order,
+.stat-card--user,
+.stat-card--sales {
+  border-color: var(--hm-ink-100);
+  background: var(--hm-bg-surface);
+}
+.stat-icon,
+.panel-badge {
+  border: 1px solid var(--hm-primary-border);
+  background: var(--hm-primary-soft);
+  color: var(--hm-primary);
+}
+.stat-value,
+.stat-money,
+.order-no,
+.panel-head h2 {
+  color: var(--hm-ink-900);
+}
+.stat-foot,
+.panel-head p {
+  color: var(--hm-ink-500);
+}
+.dashboard-date {
+  border-color: var(--hm-ink-100);
+  background: var(--hm-bg-subtle);
+}
+.data-card :deep(.el-card__header),
+.filter-card :deep(.el-card__body) {
+  background: var(--hm-bg-subtle);
+  border-color: var(--hm-ink-100);
+}
 </style>

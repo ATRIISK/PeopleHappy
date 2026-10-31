@@ -194,4 +194,26 @@
   color: var(--hm-on-primary);
   box-shadow: 0 8px 24px rgba(139, 233, 176, 0.18);
 }
+/* ==================== 经典灰白 404 ==================== */
+.not-found-page {
+  background:
+    radial-gradient(circle at 18% 20%, rgba(217, 79, 43, 0.06), transparent 30%),
+    var(--hm-bg-page);
+}
+.not-found-card {
+  background: var(--hm-bg-surface);
+  border-color: var(--hm-ink-100);
+  box-shadow: var(--hm-shadow-md);
+}
+.not-found-visual h1 {
+  background: linear-gradient(135deg, var(--hm-primary), #e98b70 58%, var(--hm-primary-active));
+  background-clip: text;
+  -webkit-background-clip: text;
+}
+.not-found-btn {
+  background: var(--hm-primary);
+  border-color: var(--hm-primary);
+  color: var(--hm-on-primary);
+  box-shadow: 0 4px 12px rgba(217, 79, 43, 0.18);
+}
 </style>

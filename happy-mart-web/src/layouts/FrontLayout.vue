@@ -123,7 +123,7 @@ onMounted(async () => {
         <!-- Logo + 主导航 -->
         <router-link to="/" class="logo">
           <span class="logo-mark">众</span>
-          <span class="logo-text hm-terminal-cursor">众乐商城</span>
+          <span class="logo-text">众乐商城</span>
         </router-link>
         <div class="top-nav">
           <router-link to="/" class="top-nav-link" :class="{ active: route.name === 'Home' }">首页</router-link>
@@ -753,5 +753,140 @@ onMounted(async () => {
 .back-btn {
   background: var(--hm-ink-050);
   border-color: var(--hm-ink-100);
+}
+
+/* ==================== 经典灰白电商壳层 ==================== */
+.front-layout {
+  background: var(--hm-bg-page);
+}
+.top-header {
+  background: rgba(255, 255, 255, 0.96);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--hm-ink-100);
+  box-shadow: 0 1px 3px rgba(31, 35, 40, 0.04);
+}
+.logo-mark {
+  background: var(--hm-primary);
+  color: var(--hm-on-primary);
+  border: 1px solid var(--hm-primary);
+  border-radius: 9px;
+  box-shadow: none;
+}
+.logo-text {
+  font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif;
+  color: var(--hm-ink-900);
+  letter-spacing: 0.5px;
+}
+.logo:hover .logo-text {
+  color: var(--hm-primary);
+}
+.top-nav-link {
+  color: var(--hm-ink-600);
+  border-radius: 7px;
+}
+.top-nav-link:hover {
+  color: var(--hm-primary);
+  background: var(--hm-primary-soft);
+}
+.top-nav-link.active {
+  color: var(--hm-primary);
+  background: var(--hm-primary-soft);
+}
+.search-box {
+  background: var(--hm-bg-surface);
+  border-color: var(--hm-ink-100);
+}
+.search-box:focus-within {
+  border-color: var(--hm-primary);
+  box-shadow: 0 0 0 3px var(--hm-primary-soft);
+}
+.search-btn {
+  background: var(--hm-primary);
+  border-color: var(--hm-primary);
+  color: var(--hm-on-primary);
+  box-shadow: none;
+}
+.search-btn:hover {
+  background: var(--hm-primary-hover);
+  border-color: var(--hm-primary-hover);
+  color: var(--hm-on-primary);
+}
+.cart-link {
+  color: var(--hm-ink-700);
+}
+.cart-link:hover {
+  background: var(--hm-bg-subtle);
+  color: var(--hm-primary);
+}
+.cart-badge :deep(.el-badge__content) {
+  background: var(--hm-primary);
+  color: var(--hm-on-primary);
+  border: 2px solid var(--hm-white);
+  box-shadow: none;
+}
+.header-link {
+  color: var(--hm-ink-600);
+}
+.header-link:hover {
+  background: var(--hm-bg-subtle);
+  color: var(--hm-primary);
+}
+.header-actions .header-link:last-child,
+.header-actions .header-link--primary {
+  background: var(--hm-primary);
+  border-color: var(--hm-primary);
+  color: var(--hm-on-primary);
+}
+.header-actions .header-link:last-child:hover,
+.header-actions .header-link--primary:hover {
+  background: var(--hm-primary-hover);
+  border-color: var(--hm-primary-hover);
+  color: var(--hm-on-primary);
+}
+.user-dropdown-trigger {
+  background: var(--hm-bg-surface);
+  border-color: var(--hm-ink-100);
+  color: var(--hm-ink-700);
+}
+.user-dropdown-trigger:hover {
+  border-color: var(--hm-primary-border);
+  color: var(--hm-primary);
+}
+.category-bar {
+  background: rgba(255, 255, 255, 0.96);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--hm-ink-100);
+}
+.cat-link {
+  color: var(--hm-ink-600);
+}
+.cat-link:hover {
+  color: var(--hm-primary);
+  background: var(--hm-primary-soft);
+}
+.footer {
+  background: var(--hm-bg-surface);
+  border-top: 1px solid var(--hm-ink-100);
+}
+.footer-brand {
+  color: var(--hm-ink-900);
+}
+.footer-links a {
+  color: var(--hm-ink-500);
+}
+.footer-links a:hover {
+  color: var(--hm-primary);
+}
+.footer-copyright {
+  color: var(--hm-ink-400);
+}
+.back-btn {
+  background: var(--hm-bg-surface);
+  border-color: var(--hm-ink-100);
+}
+.back-btn:hover {
+  background: var(--hm-primary-soft);
+  border-color: var(--hm-primary-border);
+  color: var(--hm-primary);
 }
 </style>

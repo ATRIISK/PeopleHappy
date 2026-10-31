@@ -920,4 +920,52 @@ function goBack() {
   color: var(--hm-on-primary);
   box-shadow: 0 6px 18px rgba(139, 233, 176, 0.16);
 }
+/* ==================== 经典灰白订单详情 ==================== */
+.order-header,
+.info-card,
+.product-item,
+.total-row,
+.action-bar,
+.address-card,
+.loading-wrapper {
+  background: var(--hm-bg-surface);
+  border-color: var(--hm-ink-100);
+}
+.order-header {
+  background: var(--hm-bg-surface);
+  box-shadow: none;
+}
+.info-card,
+.address-card {
+  background: var(--hm-bg-subtle);
+}
+.product-item,
+.total-row,
+.info-row {
+  border-color: var(--hm-ink-100);
+}
+.product-name,
+.info-value,
+.total-label {
+  color: var(--hm-ink-800);
+}
+.product-price,
+.info-label,
+.address-card .addr-detail {
+  color: var(--hm-ink-500);
+}
+.product-subtotal,
+.total-amount {
+  color: var(--hm-primary);
+}
+.countdown-tip {
+  border-color: #f0d8bd;
+  background: var(--hm-warning-soft);
+}
+.countdown-tip strong {
+  color: var(--hm-warning);
+}
+.address-card::before {
+  background: var(--hm-primary);
+}
 </style>

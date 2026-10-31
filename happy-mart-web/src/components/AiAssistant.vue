@@ -776,4 +776,91 @@ const handleKeydown = (e) => {
 .send-btn:hover:not(:disabled) {
   background: var(--hm-primary-hover);
 }
+/* ==================== 经典灰白助手 ==================== */
+.fab {
+  background: var(--hm-primary);
+  color: var(--hm-on-primary);
+  box-shadow: 0 8px 24px rgba(217, 79, 43, 0.24);
+}
+.fab::after {
+  border-color: var(--hm-primary-border);
+  box-shadow: none;
+}
+.fab:hover {
+  background: var(--hm-primary-hover);
+  box-shadow: 0 12px 28px rgba(217, 79, 43, 0.28);
+}
+.panel {
+  background: rgba(255, 255, 255, 0.98);
+  border-color: var(--hm-ink-100);
+  box-shadow: 0 20px 48px rgba(31, 35, 40, 0.16);
+  backdrop-filter: blur(14px);
+}
+.panel-header {
+  background: var(--hm-bg-subtle);
+  border-bottom-color: var(--hm-ink-100);
+}
+.panel-title {
+  color: var(--hm-ink-900);
+}
+.close-btn:hover {
+  background: var(--hm-bg-subtle);
+  color: var(--hm-ink-900);
+}
+.message-list {
+  background: var(--hm-bg-subtle);
+  background-image: none;
+}
+.avatar {
+  background: var(--hm-bg-surface);
+  color: var(--hm-ink-500);
+  border-color: var(--hm-ink-100);
+}
+.message.assistant .avatar {
+  background: var(--hm-primary);
+  color: var(--hm-on-primary);
+  box-shadow: none;
+}
+.bubble {
+  background: var(--hm-bg-surface);
+  border-color: var(--hm-ink-100);
+  color: var(--hm-ink-700);
+  box-shadow: none;
+}
+.message.user .bubble {
+  background: var(--hm-primary);
+  color: var(--hm-on-primary);
+}
+.source-card {
+  background: var(--hm-bg-surface);
+  border-color: var(--hm-ink-100);
+}
+.source-card:hover {
+  background: var(--hm-primary-soft);
+  border-color: var(--hm-primary-border);
+}
+.source-price {
+  color: var(--hm-primary);
+}
+.panel-footer {
+  background: var(--hm-bg-surface);
+  border-top-color: var(--hm-ink-100);
+}
+.message-input {
+  background: var(--hm-bg-subtle);
+  border-color: var(--hm-ink-100);
+  color: var(--hm-ink-900);
+}
+.message-input:focus {
+  background: var(--hm-bg-surface);
+  border-color: var(--hm-primary);
+  box-shadow: 0 0 0 3px var(--hm-primary-soft);
+}
+.send-btn {
+  background: var(--hm-primary);
+  color: var(--hm-on-primary);
+}
+.send-btn:hover:not(:disabled) {
+  background: var(--hm-primary-hover);
+}
 </style>

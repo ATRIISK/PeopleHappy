@@ -511,4 +511,30 @@ async function handleSetDefault(item) {
   color: var(--hm-on-primary);
   box-shadow: 0 6px 20px rgba(139, 233, 176, 0.16);
 }
+/* ==================== 经典灰白地址页 ==================== */
+.address-manager {
+  background: transparent;
+}
+.address-card,
+.loading-wrapper {
+  background: var(--hm-bg-surface);
+  border-color: var(--hm-ink-100);
+  box-shadow: none;
+}
+.address-card {
+  background: var(--hm-bg-surface);
+}
+.address-card:hover {
+  border-color: var(--hm-ink-200);
+  box-shadow: 0 8px 20px rgba(31, 35, 40, 0.07);
+}
+.address-actions {
+  border-color: var(--hm-ink-100);
+}
+.add-address-btn {
+  background: var(--hm-primary);
+  border-color: var(--hm-primary);
+  color: var(--hm-on-primary);
+  box-shadow: none;
+}
 </style>

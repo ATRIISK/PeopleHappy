@@ -555,4 +555,38 @@ onMounted(() => {
 .password-dialog :deep(.el-dialog__body) {
   background: var(--hm-bg-surface);
 }
+/* ==================== 经典灰白用户管理 ==================== */
+.filter-card,
+.data-card {
+  background: var(--hm-bg-surface);
+  border-color: var(--hm-ink-100);
+  box-shadow: none;
+}
+.filter-card {
+  background: var(--hm-bg-surface);
+}
+.search-input :deep(.el-input__wrapper) {
+  background: var(--hm-bg-surface);
+}
+.data-card__head h2,
+.user-name {
+  color: var(--hm-ink-900);
+}
+.data-card__head p,
+.user-email {
+  color: var(--hm-ink-500);
+}
+.data-card :deep(.el-card__header),
+.data-card :deep(.el-card__body),
+.pagination-wrap {
+  background: transparent;
+  border-color: var(--hm-ink-100);
+}
+.password-dialog :deep(.el-dialog__header),
+.password-dialog :deep(.el-dialog__footer) {
+  background: var(--hm-bg-subtle);
+}
+.password-dialog :deep(.el-dialog__body) {
+  background: var(--hm-bg-surface);
+}
 </style>

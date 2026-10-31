@@ -421,4 +421,36 @@ onMounted(() => {
 .pagination-wrap {
   background: var(--hm-bg-subtle);
 }
+/* ==================== 经典灰白订单管理 ==================== */
+.filter-card,
+.data-card {
+  background: var(--hm-bg-surface);
+  border-color: var(--hm-ink-100);
+  box-shadow: none;
+}
+.filter-card {
+  background: var(--hm-bg-surface);
+}
+.data-card__head h2,
+.order-no {
+  color: var(--hm-ink-900);
+}
+.data-card__head p,
+.hm-cell-secondary {
+  color: var(--hm-ink-500);
+}
+.status-filter :deep(.el-radio-button__inner) {
+  background: var(--hm-bg-surface);
+  border-color: var(--hm-ink-100);
+  color: var(--hm-ink-500);
+}
+.status-filter :deep(.el-radio-button__original-radio:checked + .el-radio-button__inner) {
+  background: var(--hm-primary-soft);
+  border-color: var(--hm-primary-border);
+  color: var(--hm-primary);
+  box-shadow: none;
+}
+.pagination-wrap {
+  background: var(--hm-bg-subtle);
+}
 </style>

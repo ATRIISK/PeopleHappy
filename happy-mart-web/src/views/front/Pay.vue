@@ -813,4 +813,33 @@ function goShopping() {
   color: var(--hm-on-primary);
   box-shadow: 0 6px 20px rgba(139, 233, 176, 0.16);
 }
+/* ==================== 经典灰白支付页 ==================== */
+.pay-page {
+  background: var(--hm-bg-page);
+}
+.pay-card {
+  background: var(--hm-bg-surface);
+  border-color: var(--hm-ink-100);
+  box-shadow: 0 18px 46px rgba(31, 35, 40, 0.1);
+}
+.pay-header {
+  border-color: var(--hm-ink-100);
+}
+.order-info,
+.qr-wrapper,
+.qr-image-wrapper,
+.pay-result .result-info {
+  background: var(--hm-bg-subtle);
+  border-color: var(--hm-ink-100);
+  box-shadow: none;
+}
+.qr-image-wrapper {
+  background: #ffffff;
+}
+.info-row {
+  border-color: var(--hm-ink-100);
+}
+.info-row .amount {
+  color: var(--hm-primary);
+}
 </style>

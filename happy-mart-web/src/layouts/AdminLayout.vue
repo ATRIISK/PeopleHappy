@@ -426,4 +426,92 @@ function handleMenuClick() {
   background: rgba(5, 6, 8, 0.72);
   backdrop-filter: blur(4px);
 }
+/* ==================== 经典灰白后台 ==================== */
+.admin-layout {
+  background: var(--hm-bg-page);
+}
+.admin-aside {
+  background: var(--hm-ink-050);
+  border-right: 1px solid var(--hm-ink-100);
+}
+.admin-aside__brand {
+  color: var(--hm-ink-900);
+  border-bottom-color: var(--hm-ink-100);
+}
+.admin-aside__logo {
+  background: var(--hm-primary);
+  color: var(--hm-on-primary);
+  border: 1px solid var(--hm-primary);
+  box-shadow: none;
+}
+.admin-aside__brand-text small,
+.admin-aside__section-label,
+.admin-aside__footer {
+  color: var(--hm-ink-400);
+}
+.admin-menu {
+  --el-menu-text-color: var(--hm-ink-600);
+  --el-menu-active-color: var(--hm-primary);
+  --el-menu-hover-bg-color: var(--hm-white);
+}
+.admin-menu :deep(.el-menu-item) {
+  color: var(--hm-ink-600);
+}
+.admin-menu :deep(.el-menu-item:hover) {
+  background: var(--hm-white);
+  color: var(--hm-ink-900);
+}
+.admin-menu :deep(.el-menu-item.is-active) {
+  background: var(--hm-primary-soft);
+  color: var(--hm-primary);
+  border: 1px solid var(--hm-primary-border);
+  box-shadow: none;
+}
+.admin-menu :deep(.el-menu-item.is-active:hover) {
+  background: var(--hm-primary-soft);
+}
+.admin-aside__footer {
+  border-top-color: var(--hm-ink-100);
+}
+.admin-aside__footer-dot {
+  background: var(--hm-success);
+  box-shadow: none;
+}
+.admin-header {
+  background: rgba(255, 255, 255, 0.94);
+  border-bottom-color: var(--hm-ink-100);
+}
+.admin-main {
+  background: var(--hm-bg-page);
+}
+.admin-header__context strong {
+  color: var(--hm-ink-900);
+}
+.admin-header__home {
+  background: var(--hm-bg-surface);
+  border-color: var(--hm-ink-100);
+}
+.admin-header__home:hover {
+  background: var(--hm-bg-subtle);
+  border-color: var(--hm-ink-300);
+  color: var(--hm-ink-900);
+}
+.admin-mobile-bar {
+  background: var(--hm-bg-surface);
+  color: var(--hm-ink-900);
+  border-bottom-color: var(--hm-ink-100);
+}
+.admin-mobile-bar__toggle {
+  background: var(--hm-bg-subtle);
+  border-color: var(--hm-ink-100);
+  color: var(--hm-ink-700);
+}
+.admin-mobile-bar__toggle:hover {
+  background: var(--hm-ink-050);
+  color: var(--hm-ink-900);
+}
+.admin-aside-mask {
+  background: rgba(31, 35, 40, 0.28);
+  backdrop-filter: blur(2px);
+}
 </style>

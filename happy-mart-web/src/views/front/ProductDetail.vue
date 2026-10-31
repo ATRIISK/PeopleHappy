@@ -874,4 +874,69 @@ onMounted(() => {
 .detail-tabs :deep(.el-tabs--border-card > .el-tabs__content) {
   background: var(--hm-bg-surface);
 }
+/* ==================== 经典灰白商品详情 ==================== */
+.loading-container,
+.error-container,
+.product-main,
+.detail-tabs :deep(.el-tabs--border-card) {
+  background: var(--hm-bg-surface);
+  border-color: var(--hm-ink-100);
+  box-shadow: none;
+}
+.product-main {
+  background: var(--hm-bg-surface);
+}
+.main-image-wrapper {
+  border-color: var(--hm-ink-100);
+  background: var(--hm-bg-subtle);
+}
+.image-badge {
+  border: 1px solid var(--hm-ink-100);
+  background: rgba(255, 255, 255, 0.94);
+  color: var(--hm-primary);
+  backdrop-filter: blur(8px);
+}
+.price-block {
+  border-color: var(--hm-primary-border);
+  background: linear-gradient(115deg, var(--hm-primary-soft), #fffdfc);
+}
+.price-block::after {
+  color: rgba(217, 79, 43, 0.06);
+}
+.current-price {
+  color: var(--hm-primary);
+}
+.meta-value.low-stock,
+.meta-value.out-of-stock {
+  color: var(--hm-warning);
+}
+.action-row :deep(.add-cart-btn.el-button) {
+  border-color: var(--hm-primary-border);
+  background: var(--hm-primary-soft);
+  color: var(--hm-primary);
+  box-shadow: none;
+}
+.action-row :deep(.add-cart-btn.el-button:hover) {
+  border-color: var(--hm-primary);
+  background: #ffe7df;
+  color: var(--hm-primary);
+}
+.action-row :deep(.buy-now-btn.el-button) {
+  border-color: var(--hm-primary);
+  background: var(--hm-primary);
+  color: var(--hm-on-primary);
+  box-shadow: 0 4px 12px rgba(217, 79, 43, 0.18);
+}
+.action-row :deep(.buy-now-btn.el-button:hover) {
+  border-color: var(--hm-primary-hover);
+  background: var(--hm-primary-hover);
+  color: var(--hm-on-primary);
+}
+.detail-tabs :deep(.el-tabs--border-card > .el-tabs__header .el-tabs__item.is-active) {
+  background: var(--hm-bg-surface);
+  color: var(--hm-primary);
+}
+.detail-tabs :deep(.el-tabs--border-card > .el-tabs__content) {
+  background: var(--hm-bg-surface);
+}
 </style>

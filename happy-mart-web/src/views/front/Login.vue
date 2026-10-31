@@ -467,4 +467,45 @@ async function handleLogin() {
   color: var(--hm-on-primary);
   box-shadow: 0 8px 24px rgba(139, 233, 176, 0.18);
 }
+/* ==================== 经典灰白登录页 ==================== */
+.login-page {
+  background:
+    radial-gradient(circle at 12% 18%, rgba(217, 79, 43, 0.06), transparent 30%),
+    linear-gradient(180deg, #fafafa, #f3f3f4);
+}
+.login-card {
+  background: var(--hm-bg-surface);
+  border-color: var(--hm-ink-100);
+  box-shadow: 0 18px 50px rgba(31, 35, 40, 0.1);
+}
+.login-brand {
+  background:
+    radial-gradient(circle at 90% 8%, rgba(217, 79, 43, 0.12) 0 72px, transparent 73px),
+    linear-gradient(145deg, #fff8f5 0%, #fffdfc 55%, #f6f6f6 100%);
+  border-right: 1px solid var(--hm-ink-100);
+  color: var(--hm-ink-900);
+}
+.brand-mark {
+  background: var(--hm-primary);
+  color: var(--hm-on-primary);
+  border: 1px solid var(--hm-primary);
+  box-shadow: 0 6px 16px rgba(217, 79, 43, 0.16);
+}
+.login-title {
+  color: var(--hm-ink-900);
+}
+.brand-desc,
+.brand-points {
+  color: var(--hm-ink-600);
+}
+.login-submit {
+  background: var(--hm-primary);
+  border-color: var(--hm-primary);
+  color: var(--hm-on-primary);
+  box-shadow: 0 4px 12px rgba(217, 79, 43, 0.18);
+}
+.login-submit:hover {
+  background: var(--hm-primary-hover);
+  border-color: var(--hm-primary-hover);
+}
 </style>

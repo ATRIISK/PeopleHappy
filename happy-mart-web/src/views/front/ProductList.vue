@@ -523,4 +523,26 @@ watch(
 .pagination-wrapper {
   overflow-x: auto;
 }
+/* ==================== 经典灰白商品列表 ==================== */
+.sidebar,
+.toolbar,
+.pagination-wrapper {
+  background: var(--hm-bg-surface);
+  border-color: var(--hm-ink-100);
+  box-shadow: none;
+}
+.sidebar {
+  background: var(--hm-bg-surface);
+}
+.sidebar :deep(.el-tree-node__content) {
+  border: 1px solid transparent;
+}
+.sidebar :deep(.el-tree-node.is-current > .el-tree-node__content) {
+  border-color: var(--hm-primary-border);
+  background: var(--hm-primary-soft);
+  box-shadow: none;
+}
+.sidebar-mark {
+  color: var(--hm-primary);
+}
 </style>

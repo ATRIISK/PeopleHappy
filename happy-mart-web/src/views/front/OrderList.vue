@@ -771,4 +771,51 @@ onMounted(() => {
   color: var(--hm-on-primary);
   box-shadow: 0 5px 16px rgba(139, 233, 176, 0.16);
 }
+/* ==================== 经典灰白订单列表 ==================== */
+.order-list-page,
+.order-card,
+.status-tabs,
+.pagination-wrap {
+  background: var(--hm-bg-surface);
+  border-color: var(--hm-ink-100);
+}
+.order-card {
+  background: var(--hm-bg-surface);
+  box-shadow: none;
+}
+.order-card:hover {
+  border-color: var(--hm-ink-200);
+  box-shadow: 0 8px 20px rgba(31, 35, 40, 0.07);
+}
+.order-header,
+.order-items,
+.order-footer {
+  border-color: var(--hm-ink-100);
+}
+.order-header {
+  background: var(--hm-bg-subtle);
+}
+.status-tabs :deep(.el-radio-button__inner) {
+  background: var(--hm-bg-surface);
+  border-color: var(--hm-ink-100);
+  color: var(--hm-ink-600);
+}
+.status-tabs :deep(.el-radio-button__original-radio:checked + .el-radio-button__inner) {
+  background: var(--hm-primary-soft);
+  border-color: var(--hm-primary-border);
+  color: var(--hm-primary);
+  box-shadow: none;
+}
+.item-name,
+.total-label {
+  color: var(--hm-ink-800);
+}
+.item-price,
+.order-no,
+.item-count {
+  color: var(--hm-ink-500);
+}
+.total-amount {
+  color: var(--hm-primary);
+}
 </style>

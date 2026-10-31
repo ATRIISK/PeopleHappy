@@ -872,4 +872,36 @@ onMounted(() => {
 .product-dialog :deep(.el-dialog__body) {
   background: var(--hm-bg-surface);
 }
+/* ==================== 经典灰白商品管理 ==================== */
+.filter-card,
+.data-card {
+  background: var(--hm-bg-surface);
+  border-color: var(--hm-ink-100);
+  box-shadow: none;
+}
+.filter-card {
+  background: var(--hm-bg-surface);
+}
+.search-input :deep(.el-input__wrapper) {
+  background: var(--hm-bg-surface);
+}
+.product-thumb {
+  background: var(--hm-bg-subtle);
+  border-color: var(--hm-ink-100);
+}
+.product-name,
+.data-card__head h2 {
+  color: var(--hm-ink-900);
+}
+.data-card :deep(.el-card__header),
+.pagination-wrap,
+.dialog-footer,
+.product-dialog :deep(.el-dialog__header),
+.product-dialog :deep(.el-dialog__footer) {
+  background: var(--hm-bg-subtle);
+  border-color: var(--hm-ink-100);
+}
+.product-dialog :deep(.el-dialog__body) {
+  background: var(--hm-bg-surface);
+}
 </style>

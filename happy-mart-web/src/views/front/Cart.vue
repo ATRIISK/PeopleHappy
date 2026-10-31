@@ -1348,4 +1348,56 @@ onMounted(async () => {
   color: var(--hm-on-primary);
   box-shadow: 0 8px 24px rgba(139, 233, 176, 0.18);
 }
+/* ==================== 经典灰白购物车 ==================== */
+.cart-page {
+  background: var(--hm-bg-surface);
+  border-color: var(--hm-ink-100);
+}
+.page-title,
+.product-name,
+.total-label,
+.addr-name {
+  color: var(--hm-ink-900);
+}
+.page-heading,
+.cart-item-row,
+.cart-footer,
+.addr-dialog-footer {
+  border-color: var(--hm-ink-100);
+}
+.table-header {
+  background: var(--hm-bg-subtle);
+  border-bottom-color: var(--hm-ink-100);
+}
+.table-header th,
+.price,
+.addr-phone,
+.addr-detail-text {
+  color: var(--hm-ink-500);
+}
+.cart-item-row:hover {
+  background: var(--hm-bg-subtle);
+}
+.cart-item-row.is-checked,
+.cart-item-row.is-checked:hover {
+  background: var(--hm-primary-soft);
+}
+.subtotal,
+.total-amount {
+  color: var(--hm-primary);
+}
+.addr-select-item {
+  background: var(--hm-bg-surface);
+  border-color: var(--hm-ink-100);
+}
+.addr-select-item.is-active {
+  border-color: var(--hm-primary);
+  background: var(--hm-primary-soft);
+  box-shadow: 0 0 0 2px rgba(217, 79, 43, 0.06);
+}
+.footer-right .checkout-btn {
+  background: var(--hm-primary);
+  color: var(--hm-on-primary);
+  box-shadow: 0 4px 12px rgba(217, 79, 43, 0.18);
+}
 </style>
