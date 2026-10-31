@@ -2,6 +2,10 @@
    众乐电子商城 · 设计系统（经典灰白电商版）
    ------------------------------------------------------------
    分层：1 令牌  2 基础  3 Element Plus 主题对齐  4 组件  5 响应式
+         6 Codex 深色主题  7 Codex 动效原语  8 经典灰白电商覆盖
+   改色入口：只改「1 令牌层」与「8 经典灰白电商覆盖」。
+   第 3 段与第 6 段的 :root 变量已被第 8 段全量覆盖（等价死代码），
+   但它们内部的 .el-* 选择器规则、以及第 7 段动效类仍然生效，不要删。
    仅视觉层，不含任何业务逻辑。
    ============================================================ */
 
@@ -175,7 +179,7 @@ img {
   border: 0;
 }
 
-/* ==================== 3. Element Plus 主题对齐 ==================== */
+/* ==================== 3. Element Plus 主题对齐（历史层：:root 变量已被第 8 段全量覆盖，勿改变量；本段的 .el-* 选择器规则仍生效） ==================== */
 :root {
   --el-color-white: #ffffff;
   --el-color-black: #241d17;
@@ -1064,7 +1068,7 @@ img {
     font-size: 19px;
   }
 }
-/* ==================== 6. Codex 深色主题覆盖 ==================== */
+/* ==================== 6. Codex 深色主题（历史层：:root 变量已被第 8 段全量覆盖，勿改变量；本段的 .el-* 选择器规则仍生效） ==================== */
 :root {
   --el-color-white: var(--hm-white);
   --el-color-black: var(--hm-bg-dark);
@@ -1458,7 +1462,7 @@ img {
   color: var(--hm-ink-400);
 }
 
-/* ==================== 7. Codex 动效原语 ==================== */
+/* ==================== 7. Codex 动效原语（生效中，与主题无关，勿删） ==================== */
 @keyframes hm-reveal {
   from { opacity: 0; transform: translateY(14px); }
   to { opacity: 1; transform: translateY(0); }
@@ -1528,7 +1532,7 @@ img {
   }
 }
 
-/* ==================== 8. 经典灰白电商覆盖 ==================== */
+/* ==================== 8. 经典灰白电商覆盖（当前生效层：Element Plus 变量唯一改色入口） ==================== */
 :root {
   --el-color-white: #ffffff;
   --el-color-black: #1f2328;
@@ -1580,6 +1584,47 @@ img {
   --el-box-shadow-dark: 0 20px 48px rgba(31, 35, 40, 0.14);
   --el-mask-color: rgba(31, 35, 40, 0.34);
   --el-mask-color-extra-light: rgba(31, 35, 40, 0.2);
+
+  /* 以下补齐第 3 段与第 6 段 :root 中存在、本段原先未覆盖的变量。
+     补齐后本段成为三层变量的完整并集，第 3 段与第 6 段的 :root 即等价死代码。
+     颜色档位按 Element Plus 规则从灰白主色派生：light-N = N×10% 白 + 其余主色，dark-2 = 80% 主色。 */
+  --el-color-success-light-3: #5da674;
+  --el-color-success-light-5: #8cc09c;
+  --el-color-success-light-7: #bad9c3;
+  --el-color-success-light-8: #d1e6d7;
+  --el-color-warning-light-3: #c8904d;
+  --el-color-warning-light-5: #d8b080;
+  --el-color-warning-light-7: #e7cfb3;
+  --el-color-warning-light-8: #efdfcc;
+  --el-color-danger-light-3: #e46e66;
+  --el-color-danger-light-5: #ec9892;
+  --el-color-danger-light-7: #f4c1be;
+  --el-color-danger-light-8: #f7d6d3;
+  --el-color-error-dark-2: #ae261e;
+  --el-color-error-light-3: #e46e66;
+  --el-color-error-light-5: #ec9892;
+  --el-color-error-light-7: #f4c1be;
+  --el-color-error-light-8: #f7d6d3;
+  --el-color-error-light-9: #fceeed;
+  --el-color-info-dark-2: #4c5056;
+  --el-color-info-light-3: #8f9397;
+  --el-color-info-light-5: #afb2b5;
+  --el-color-info-light-7: #cfd1d3;
+  --el-color-info-light-8: #dfe0e1;
+  --el-border-color-dark: #d8dade;
+  --el-border-color-darker: #c4c7cc;
+  --el-border-radius-base: var(--hm-radius-md);
+  --el-border-radius-small: var(--hm-radius-sm);
+  --el-border-radius-round: var(--hm-radius-pill);
+  --el-font-family: 'Helvetica Neue', Helvetica, 'PingFang SC', 'Hiragino Sans GB',
+    'Microsoft YaHei', sans-serif;
+  --el-button-hover-bg-color: var(--hm-primary-hover);
+  --el-button-hover-border-color: var(--hm-primary-hover);
+  --el-button-active-bg-color: var(--hm-primary-active);
+  --el-button-active-border-color: var(--hm-primary-active);
+  --el-pagination-button-bg-color: var(--hm-bg-surface);
+  --el-pagination-hover-color: var(--hm-primary);
+  --el-rate-icon-size: 15px;
 }
 
 html,
