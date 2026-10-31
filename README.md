@@ -38,7 +38,7 @@
 | Redis 缓存 | 商品详情 / 分类树 `@Cacheable` + 热门榜 ZSet 定时刷新 + 延时双删 + 故障降级 | ✅ |
 | 管理后台 | 商品 / 订单 / 用户管理 + Dashboard 看板 + 用户禁用 + 图片本地上传 | ✅ |
 | AI 购物助手 | 商品知识库 RAG 混合检索（关键词 LIKE + embedding 向量召回）→ 通义千问导购 + 参考商品卡片 | ✅ |
-| 单元测试 | 订单核心业务 16 用例（JUnit 5 + Mockito，不连库秒跑） | ✅ |
+| 单元测试 | 28 用例（订单核心 16 个 + 知识库检索 11 个 + 启动上下文 1 个，JUnit 5 + Mockito，不连库秒跑） | ✅ |
 
 ---
 
@@ -86,7 +86,7 @@ PeopleHappy/
 │   │   ├── application.yml      # 数据源 / Redis / RabbitMQ / 支付宝 / AI / 上传配置
 │   │   ├── mapper/*.xml         # SQL 映射
 │   │   └── db/init-data.sql     # 商品 + 分类初始化数据
-│   ├── src/test/                # OrderServiceImplTest（16 用例）+ 上下文加载测试
+│   ├── src/test/                # OrderServiceImplTest（16 个）+ KnowledgeBaseServiceTest（11 个）+ 上下文加载测试
 │   ├── Dockerfile
 │   └── pom.xml
 ├── happy-mart-web/              # 前端 Vue 3 项目
@@ -266,6 +266,19 @@ docker compose up -d --build
 
 ---
 
+## 前端设计系统
+
+视觉层集中在 `happy-mart-web/src/styles/design-system.css` 一个文件，按 8 段组织：令牌、基础、Element Plus 主题对齐、组件类、响应式、Codex 深色主题、动效原语、经典灰白电商覆盖。
+
+- **令牌层**：主操作色 `#d94f2b`，页面底 `#f5f5f5`，中性灰阶 `#1f2328` 至 `#f2f3f4` 共十一档，圆角 6/10/14/18/999，浅灰三档投影，4px 栅格间距。
+- **Element Plus 对齐**：主色、功能色及其 light/dark 派生档、文字色、边框色、填充色、背景色、阴影、遮罩全部改写为变量，弹窗、表格、分页、步骤条跟随主题。派生色档按 Element Plus 规则由主色计算（light-N 为 N×10% 白与主色混合，dark-2 为 80% 主色）。
+- **组件类**：`.hm-*` 前缀，覆盖商品卡片、价格、区块标题、按钮变体、状态占位等，页面只写类名不写内联样式。
+- **覆盖范围**：前台 11 页、后台 4 页、前台与后台两个布局、AI 助手与状态/页头组件。
+- **改色入口**：只改令牌层与「经典灰白电商覆盖」段。中间两段历史主题的 `:root` 变量已被末段全量覆盖，但它们内部的 Element Plus 选择器规则与动效类仍生效，因此保留。
+- **边界**：视觉改动不涉及 `src/api`、`src/stores`、`src/router`、`src/utils` 与后端，接口契约不变。
+
+---
+
 ## 优化思路
 
 ### 1. 缓存优化（Redis）
@@ -344,8 +357,8 @@ Spring Boot :8074（自定义 JWT 拦截器认证）
 
 ```bash
 cd happy_mart
-mvn test -Dtest=OrderServiceImplTest   # 只跑订单核心业务单元测试（16 用例）
-mvn test                               # 跑全部测试
+mvn test -Dtest=OrderServiceImplTest   # 只跑订单核心业务单元测试（订单核心 16 个）
+mvn test                               # 跑全部测试（28 用例：订单 16 个 + 知识库检索 11 个 + 启动上下文 1 个）
 ```
 
 ---
