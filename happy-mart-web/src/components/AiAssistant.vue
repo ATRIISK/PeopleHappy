@@ -4,7 +4,7 @@
  *
  * 挂在 FrontLayout 上，全前台页面右下角都有悬浮按钮：
  * - 点击展开对话面板，游客也能问（后端 /api/ai/** 已放行）
- * - 后端做 RAG 检索（商品知识库）→ 通义千问回答 → 返回 {response, sources[]}
+ * - 后端做知识库检索（商品索引）→ 大模型回答 → 返回 {response, sources[]}
  * - AI 回答下方展示"参考商品卡片"（缩略图 + 名称 + 价格），点击跳商品详情
  *
  * 代码改写自 AI 博客项目 D:\ai_blog_show 的 AiAssistant.vue（TypeScript → JavaScript）。

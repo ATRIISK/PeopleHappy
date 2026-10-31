@@ -5,7 +5,7 @@
 - 后端：Java 17 · Spring Boot 3.5.14 · MyBatis-Plus · MySQL · Redis · RabbitMQ
 - 前端：Vue 3 · Vite · Pinia · Element Plus
 - 支付：支付宝开放平台**沙箱环境**（`alipay.trade.precreate` 扫码 + RSA2 验签 + refund 退款，无需企业资质）
-- AI：商品知识库 RAG 混合检索 → 通义千问 qwen-turbo 导购（`spring-ai-alibaba`）
+- AI：商品知识库检索 → 智谱 GLM-4-Flash 导购（`spring-ai-starter-model-openai`）
 - 部署：Docker Compose（MySQL + Redis + RabbitMQ + Backend + Nginx）
 
 ---
@@ -37,7 +37,7 @@
 | 订单超时取消 | RabbitMQ 原生 TTL + 死信队列（DLX），30 分钟未支付自动取消并恢复库存 | ✅ |
 | Redis 缓存 | 商品详情 / 分类树 `@Cacheable` + 热门榜 ZSet 定时刷新 + 延时双删 + 故障降级 | ✅ |
 | 管理后台 | 商品 / 订单 / 用户管理 + Dashboard 看板 + 用户禁用 + 图片本地上传 | ✅ |
-| AI 购物助手 | 商品知识库 RAG 混合检索（关键词 LIKE + embedding 向量召回）→ 通义千问导购 + 参考商品卡片 | ✅ |
+| AI 购物助手 | 商品知识库检索（关键词 LIKE 召回 + 权重排序）→ 智谱 GLM-4-Flash 导购 + 参考商品卡片；embedding 向量召回因账号额度暂停用 | ✅ |
 | 单元测试 | 28 用例（订单核心 16 个 + 知识库检索 11 个 + 启动上下文 1 个，JUnit 5 + Mockito，不连库秒跑） | ✅ |
 
 ---
@@ -53,7 +53,7 @@
 | 缓存 | Redis（Spring Cache + StringRedisTemplate + ZSet） |
 | 消息队列 | RabbitMQ（原生 TTL + DLX 死信队列实现延迟任务） |
 | 支付 | 支付宝开放平台沙箱 SDK `alipay-sdk-java 4.40.645.ALL` |
-| AI | `spring-ai-alibaba-starter-dashscope 1.1.2.1` + SimpleVectorStore |
+| AI | `spring-ai-starter-model-openai 1.1.2`（OpenAI 兼容协议 → 智谱 GLM）+ `spring-ai-vector-store 1.1.2` |
 | 前端 | Vue 3 / Vite / Pinia / Vue Router / Element Plus / axios / qrcode |
 | 构建 / 部署 | Maven 3.9+ / Node 18+ / Docker Compose / Nginx |
 
@@ -114,7 +114,7 @@ PeopleHappy/
 - MySQL 8.x（本地或 Docker）
 - Redis（本地或 Docker）
 - RabbitMQ（本地或 Docker；管理插件 `rabbitmq_management` 可选）
-- 支付宝沙箱账号 + AI 通义千问 API Key（可选，跳过则对应功能降级）
+- 支付宝沙箱账号 + 智谱 GLM API Key（可选，跳过则对应功能降级）
 
 ### 1. 创建数据库
 
@@ -135,7 +135,7 @@ mysql -uroot -p happy_mart < happy_mart/src/main/resources/db/init-data.sql
    - Redis：`spring.data.redis.*`（默认 `localhost:6379` database 0 无密码）
    - RabbitMQ：`spring.rabbitmq.*`（默认 `guest/guest@localhost:5672`）
    - 支付宝：`alipay.*`（沙箱 APPID / 商户私钥 / 支付宝公钥 / 网关 / 回调隧道地址，见「配置与安全说明」）
-   - AI（可选）：`spring.ai.dashscope.api-key`（通义千问 API Key，无 key 后端照常启动，AI 调用降级提示）
+   - AI（可选）：`spring.ai.openai.api-key`（智谱 GLM API Key，无 key 后端照常启动，AI 调用降级提示）
 2. 启动：
 
 ```bash
@@ -307,9 +307,11 @@ docker compose up -d --build
 - **上传安全**：类型白名单（jpg/png/gif/webp，排除 svg 防 XSS）+ 大小三层限制（前端/后端/nginx）+ UUID 重命名 + 日期子目录防路径穿越。
 - **密码加密**：BCrypt，不存明文；统一异常体系（5 类异常 + 业务错误码），敏感字段不随 VO 返回。
 
-### 5. AI 购物助手（RAG）
+### 5. AI 购物助手
 
-- **混合检索**：关键词 LIKE（商品名/描述）+ embedding 向量召回，合并后按相关性重排，拼入上下文交给通义千问生成导购回答，并返回参考商品卡片。
+- **商品检索**：把用户问句切成关键词（中文按二元组切分、过滤停用词、转义 LIKE 通配符），按词组 OR 召回商品名/描述命中的商品，再按「名称 3 分 > 分类 2 分 > 描述 1 分」重排；命中的商品信息拼进 system prompt 交给大模型，回答只基于真实商品数据。
+- **模型调用**：智谱 GLM-4-Flash（`glm-4-flash-250414`），走 OpenAI 兼容协议，`base-url` 指向 `https://open.bigmodel.cn/api/paas/v4`，`completions-path` 显式设为 `/chat/completions`。
+- **向量召回暂停用**：原设计是关键词 + embedding 双路混合（RRF 融合），当前智谱账号无 embedding 额度（`1113 余额不足`），已通过 `spring.ai.model.embedding=none` 关闭向量路，检索退化为纯关键词；充值后补回 embedding 配置即恢复混合检索，代码无需改动。
 - **增量同步**：管理后台商品增删改实时 upsert/remove 知识库；应用启动全量重建兜底；无 API Key 时优雅降级不崩。
 
 ### 6. 工程化
@@ -346,7 +348,7 @@ Spring Boot :8074（自定义 JWT 拦截器认证）
 |---|---|---|
 | 数据库 / Redis / RabbitMQ | `application.yml` `spring.*` | 本地联调默认 `localhost`，Docker 环境用 `SPRING_DATASOURCE_*` 等环境变量覆盖 |
 | 支付宝沙箱 | `application.yml` `alipay.*` | APPID / 商户私钥 / 支付宝公钥 / 沙箱网关 / 回调隧道地址；沙箱密钥无真实资金，可入库用于演示，**生产环境严禁提交** |
-| 通义千问 API Key | `application.yml` `spring.ai.dashscope.api-key` | 已按项目内配置随 jar 打包部署；**生产环境建议改回环境变量注入，key 不进代码库** |
+| 智谱 GLM API Key | `application.yml` `spring.ai.openai.api-key` | 已按项目内配置随 jar 打包部署；**生产环境建议改回环境变量注入，key 不进代码库** |
 | 图片上传目录 | `app.upload-dir` | 默认 `./upload`（本仓库 `.gitignore` 已忽略，不上传图片文件） |
 
 > ⚠️ 本仓库 `.gitignore` 已忽略 `happy_mart/upload/`（本地上传图片）与 `happy_mart/data/`（AI 向量索引），推送仓库不会携带运行时生成的图片与索引文件。
