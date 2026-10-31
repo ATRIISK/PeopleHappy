@@ -683,4 +683,97 @@ const handleKeydown = (e) => {
     max-width: calc(100vw - 130px);
   }
 }
+
+/* ==================== Codex 深色助手收口 ==================== */
+.fab {
+  background: var(--hm-primary);
+  color: var(--hm-on-primary);
+  box-shadow: 0 10px 30px rgba(139, 233, 176, 0.24);
+}
+.fab::after {
+  border-color: var(--hm-primary-border);
+  box-shadow: 0 0 24px rgba(139, 233, 176, 0.12);
+}
+.fab:hover {
+  background: var(--hm-primary-hover);
+  box-shadow: 0 14px 36px rgba(139, 233, 176, 0.3);
+}
+.panel {
+  background: rgba(17, 19, 24, 0.97);
+  border-color: var(--hm-ink-100);
+  box-shadow: 0 26px 72px rgba(0, 0, 0, 0.58);
+  backdrop-filter: blur(20px);
+}
+.panel-header {
+  background:
+    radial-gradient(circle at 100% 0, rgba(139, 233, 176, 0.1), transparent 42%),
+    var(--hm-bg-subtle);
+  border-bottom-color: var(--hm-ink-100);
+}
+.panel-title {
+  font-family: 'Cascadia Code', 'SFMono-Regular', Consolas, 'Microsoft YaHei', monospace;
+  letter-spacing: 0.8px;
+}
+.close-btn:hover {
+  background: var(--hm-primary-soft);
+  color: var(--hm-primary);
+}
+.message-list {
+  background:
+    linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+    var(--hm-bg-page);
+  background-size: 24px 24px;
+}
+.avatar {
+  background: var(--hm-ink-050);
+  color: var(--hm-ink-500);
+  border: 1px solid var(--hm-ink-100);
+}
+.message.assistant .avatar {
+  background: var(--hm-primary);
+  color: var(--hm-on-primary);
+  box-shadow: 0 4px 14px rgba(139, 233, 176, 0.18);
+}
+.bubble {
+  background: var(--hm-bg-surface);
+  border-color: var(--hm-ink-100);
+  color: var(--hm-ink-700);
+  box-shadow: none;
+}
+.message.user .bubble {
+  background: var(--hm-primary);
+  color: var(--hm-on-primary);
+}
+.source-card {
+  background: var(--hm-bg-subtle);
+  border-color: var(--hm-ink-100);
+}
+.source-card:hover {
+  background: var(--hm-primary-soft);
+}
+.source-price {
+  color: var(--hm-accent);
+}
+.panel-footer {
+  background: var(--hm-bg-subtle);
+  border-top-color: var(--hm-ink-100);
+}
+.message-input {
+  background: var(--hm-ink-050);
+  border-color: var(--hm-ink-100);
+  color: var(--hm-ink-900);
+}
+.message-input:focus {
+  background: var(--hm-ink-050);
+  border-color: var(--hm-primary);
+  box-shadow: 0 0 0 3px var(--hm-primary-soft);
+}
+.send-btn {
+  background: var(--hm-primary);
+  color: var(--hm-on-primary);
+}
+.send-btn:hover:not(:disabled) {
+  background: var(--hm-primary-hover);
+}
 </style>

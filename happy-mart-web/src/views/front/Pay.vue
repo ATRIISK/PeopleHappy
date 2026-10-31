@@ -774,4 +774,43 @@ function goShopping() {
     width: 100%;
   }
 }
+
+/* ==================== Codex 深色支付页收口 ==================== */
+.pay-page {
+  background:
+    radial-gradient(circle at 50% 0, rgba(139, 233, 176, 0.07), transparent 30%),
+    linear-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.025) 1px, transparent 1px);
+  background-size: auto, 32px 32px, 32px 32px;
+}
+.pay-card {
+  background: var(--hm-bg-surface);
+  border-color: var(--hm-ink-100);
+  box-shadow: 0 30px 72px rgba(0, 0, 0, 0.42);
+}
+.pay-header {
+  border-color: var(--hm-ink-100);
+}
+.order-info,
+.qr-wrapper,
+.qr-image-wrapper,
+.pay-result .result-info {
+  background: var(--hm-bg-subtle);
+  border-color: var(--hm-ink-100);
+  box-shadow: none;
+}
+.qr-image-wrapper {
+  padding: 12px;
+  background: #f2f4f7;
+}
+.info-row {
+  border-color: var(--hm-ink-100);
+}
+.info-row .amount {
+  color: var(--hm-accent);
+}
+.pay-actions :deep(.el-button--primary) {
+  color: var(--hm-on-primary);
+  box-shadow: 0 6px 20px rgba(139, 233, 176, 0.16);
+}
 </style>

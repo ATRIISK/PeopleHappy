@@ -434,4 +434,37 @@ async function handleLogin() {
     font-size: 24px;
   }
 }
+
+/* ==================== Codex 深色登录页收口 ==================== */
+.login-page {
+  background:
+    radial-gradient(circle at 12% 18%, rgba(139, 233, 176, 0.1), transparent 30%),
+    radial-gradient(circle at 88% 82%, rgba(109, 200, 232, 0.07), transparent 32%),
+    linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+    var(--hm-bg-page);
+  background-size: auto, auto, 32px 32px, 32px 32px, auto;
+}
+.login-card {
+  background: var(--hm-bg-surface);
+  border-color: var(--hm-ink-100);
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.46);
+}
+.login-brand {
+  background:
+    radial-gradient(circle at 90% 8%, rgba(139, 233, 176, 0.16) 0 72px, transparent 73px),
+    radial-gradient(circle at 4% 96%, rgba(109, 200, 232, 0.1) 0 110px, transparent 111px),
+    linear-gradient(145deg, #0a0d10 0%, #11161b 52%, #090b0e 100%);
+  border-right: 1px solid var(--hm-ink-100);
+}
+.brand-mark {
+  background: var(--hm-ink-050);
+  color: var(--hm-primary);
+  border: 1px solid var(--hm-primary-border);
+  box-shadow: 0 0 30px rgba(139, 233, 176, 0.14);
+}
+.login-submit {
+  color: var(--hm-on-primary);
+  box-shadow: 0 8px 24px rgba(139, 233, 176, 0.18);
+}
 </style>

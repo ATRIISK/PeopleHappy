@@ -865,4 +865,59 @@ function goBack() {
     padding: 13px 12px;
   }
 }
+
+/* ==================== Codex 深色订单详情收口 ==================== */
+.order-header,
+.info-card,
+.product-item,
+.total-row,
+.action-bar,
+.address-card,
+.loading-wrapper {
+  background: var(--hm-bg-surface);
+  border-color: var(--hm-ink-100);
+}
+.order-header {
+  background:
+    radial-gradient(circle at 100% 0, rgba(139, 233, 176, 0.08), transparent 34%),
+    var(--hm-bg-surface);
+  box-shadow: none;
+}
+.info-card,
+.address-card {
+  background: var(--hm-bg-subtle);
+}
+.product-item,
+.total-row,
+.info-row {
+  border-color: var(--hm-ink-100);
+}
+.product-name,
+.info-value,
+.total-label {
+  color: var(--hm-ink-800);
+}
+.product-price,
+.info-label,
+.address-card .addr-detail {
+  color: var(--hm-ink-500);
+}
+.product-subtotal,
+.total-amount {
+  color: var(--hm-accent);
+}
+.countdown-tip {
+  border-color: rgba(240, 184, 110, 0.28);
+  background: var(--hm-warning-soft);
+}
+.countdown-tip strong {
+  color: var(--hm-warning);
+}
+.address-card::before {
+  background: var(--hm-primary);
+}
+.action-bar :deep(.el-button--primary) {
+  color: var(--hm-on-primary);
+  box-shadow: 0 6px 18px rgba(139, 233, 176, 0.16);
+}
 </style>

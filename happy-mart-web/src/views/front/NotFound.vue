@@ -170,4 +170,28 @@
     width: 100%;
   }
 }
+
+/* ==================== Codex 深色 404 收口 ==================== */
+.not-found-page {
+  background:
+    radial-gradient(circle at 18% 20%, rgba(139, 233, 176, 0.08), transparent 30%),
+    radial-gradient(circle at 82% 80%, rgba(109, 200, 232, 0.06), transparent 32%),
+    linear-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.025) 1px, transparent 1px);
+  background-size: auto, auto, 32px 32px, 32px 32px;
+}
+.not-found-card {
+  background: var(--hm-bg-surface);
+  border-color: var(--hm-ink-100);
+  box-shadow: 0 30px 72px rgba(0, 0, 0, 0.42);
+}
+.not-found-visual h1 {
+  background: linear-gradient(135deg, var(--hm-primary), var(--hm-info) 58%, var(--hm-primary-active));
+  background-clip: text;
+  -webkit-background-clip: text;
+}
+.not-found-btn {
+  color: var(--hm-on-primary);
+  box-shadow: 0 8px 24px rgba(139, 233, 176, 0.18);
+}
 </style>

@@ -717,4 +717,58 @@ onMounted(() => {
     padding: 14px 12px;
   }
 }
+
+/* ==================== Codex 深色订单列表收口 ==================== */
+.order-list-page,
+.order-card,
+.status-tabs,
+.pagination-wrap {
+  background: var(--hm-bg-surface);
+  border-color: var(--hm-ink-100);
+}
+.order-card {
+  background:
+    linear-gradient(180deg, rgba(139, 233, 176, 0.025), transparent 26%),
+    var(--hm-bg-surface);
+  box-shadow: none;
+}
+.order-card:hover {
+  border-color: var(--hm-primary-border);
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.32);
+}
+.order-header,
+.order-items,
+.order-footer {
+  border-color: var(--hm-ink-100);
+}
+.order-header {
+  background: var(--hm-bg-subtle);
+}
+.status-tabs :deep(.el-radio-button__inner) {
+  background: transparent;
+  border-color: var(--hm-ink-100);
+  color: var(--hm-ink-500);
+}
+.status-tabs :deep(.el-radio-button__original-radio:checked + .el-radio-button__inner) {
+  background: var(--hm-primary-soft);
+  border-color: var(--hm-primary-border);
+  color: var(--hm-primary);
+  box-shadow: none;
+}
+.item-name,
+.total-label {
+  color: var(--hm-ink-800);
+}
+.item-price,
+.order-no,
+.item-count {
+  color: var(--hm-ink-500);
+}
+.total-amount {
+  color: var(--hm-accent);
+}
+.order-footer :deep(.el-button--primary) {
+  color: var(--hm-on-primary);
+  box-shadow: 0 5px 16px rgba(139, 233, 176, 0.16);
+}
 </style>

@@ -1293,4 +1293,59 @@ onMounted(async () => {
     padding: 0 24px;
   }
 }
+
+/* ==================== Codex 深色购物车收口 ==================== */
+.cart-page {
+  background: var(--hm-bg-surface);
+  border: 1px solid var(--hm-ink-100);
+}
+.page-title,
+.product-name,
+.total-label,
+.addr-name {
+  color: var(--hm-ink-900);
+}
+.page-heading,
+.cart-item-row,
+.cart-footer,
+.addr-dialog-footer {
+  border-color: var(--hm-ink-100);
+}
+.table-header {
+  background: var(--hm-bg-subtle);
+  border-bottom-color: var(--hm-ink-100);
+}
+.table-header th,
+.price,
+.addr-phone,
+.addr-detail-text {
+  color: var(--hm-ink-500);
+}
+.cart-item-row:hover {
+  background: var(--hm-bg-raised);
+}
+.cart-item-row.is-checked,
+.cart-item-row.is-checked:hover {
+  background: rgba(139, 233, 176, 0.07);
+}
+.subtotal,
+.total-amount {
+  color: var(--hm-accent);
+}
+.addr-select-item {
+  background: var(--hm-bg-subtle);
+  border-color: var(--hm-ink-100);
+}
+.addr-select-item.is-active {
+  border-color: var(--hm-primary-border);
+  background: var(--hm-primary-soft);
+  box-shadow: 0 0 0 2px rgba(139, 233, 176, 0.08);
+}
+.addr-select-item:hover {
+  border-color: var(--hm-primary-border);
+}
+.footer-right .checkout-btn {
+  color: var(--hm-on-primary);
+  box-shadow: 0 8px 24px rgba(139, 233, 176, 0.18);
+}
 </style>

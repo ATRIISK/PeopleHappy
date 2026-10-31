@@ -483,4 +483,32 @@ async function handleSetDefault(item) {
     padding: 0 !important;
   }
 }
+
+/* ==================== Codex 深色地址页收口 ==================== */
+.address-manager {
+  background:
+    radial-gradient(circle at 12% 0, rgba(139, 233, 176, 0.055), transparent 28%),
+    transparent;
+}
+.address-card,
+.loading-wrapper {
+  background: var(--hm-bg-surface);
+  border-color: var(--hm-ink-100);
+  box-shadow: none;
+}
+.address-card {
+  background:
+    linear-gradient(145deg, var(--hm-bg-surface) 55%, rgba(139, 233, 176, 0.035));
+}
+.address-card:hover {
+  border-color: var(--hm-primary-border);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(139, 233, 176, 0.06);
+}
+.address-actions {
+  border-color: var(--hm-ink-100);
+}
+.add-address-btn {
+  color: var(--hm-on-primary);
+  box-shadow: 0 6px 20px rgba(139, 233, 176, 0.16);
+}
 </style>
