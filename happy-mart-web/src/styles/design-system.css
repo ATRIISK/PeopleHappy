@@ -1,5 +1,5 @@
 /* ============================================================
-   众乐电子商城 · 设计系统（暖橙市集版）
+   众乐电子商城 · 设计系统（Codex 石墨工作台版）
    ------------------------------------------------------------
    分层：1 令牌  2 基础  3 Element Plus 主题对齐  4 组件  5 响应式
    仅视觉层，不含任何业务逻辑。
@@ -7,45 +7,48 @@
 
 /* ==================== 1. 令牌层 ==================== */
 :root {
-  /* 品牌主色：朱橙 */
-  --hm-primary: #e8501e;
-  --hm-primary-hover: #f0653a;
-  --hm-primary-active: #c93f12;
-  --hm-primary-soft: #fdeee5;
-  --hm-primary-border: #f3c9b6;
+  /* 主交互色：薄荷绿 */
+  --hm-primary: #8be9b0;
+  --hm-primary-hover: #5dd79a;
+  --hm-primary-active: #3dbf7b;
+  --hm-primary-soft: rgba(139, 233, 176, 0.12);
+  --hm-primary-border: rgba(139, 233, 176, 0.38);
+  --hm-on-primary: #06110b;
 
-  /* 价格 / 促销 */
-  --hm-accent: #e8501e;
-  --hm-accent-hover: #f0653a;
-  --hm-accent-soft: #fdeee5;
+  /* 价格与促销 */
+  --hm-accent: #f0b86e;
+  --hm-accent-hover: #ffd08c;
+  --hm-accent-soft: rgba(240, 184, 110, 0.13);
 
   /* 功能色 */
-  --hm-success: #3d8b5f;
-  --hm-success-soft: #edf5ee;
-  --hm-warning: #b97f16;
-  --hm-warning-soft: #fbf3e2;
-  --hm-danger: #cf4436;
-  --hm-danger-soft: #fcedea;
-  --hm-info: #4a7a96;
-  --hm-info-soft: #edf3f6;
+  --hm-success: #5dd79a;
+  --hm-success-soft: rgba(93, 215, 154, 0.12);
+  --hm-warning: #f0b86e;
+  --hm-warning-soft: rgba(240, 184, 110, 0.13);
+  --hm-danger: #ff7b7b;
+  --hm-danger-soft: rgba(255, 123, 123, 0.13);
+  --hm-info: #6dc8e8;
+  --hm-info-soft: rgba(109, 200, 232, 0.12);
 
-  /* 暖调中性色阶 */
-  --hm-ink-900: #241d17;
-  --hm-ink-800: #3a2f26;
-  --hm-ink-700: #4d3f33;
-  --hm-ink-600: #6b5b4c;
-  --hm-ink-500: #8a7b6c;
-  --hm-ink-400: #b09a86;
-  --hm-ink-300: #ddcdbc;
-  --hm-ink-200: #e7ded2;
-  --hm-ink-100: #f0e8dd;
-  --hm-ink-050: #faf6f0;
-  --hm-white: #ffffff;
+  /* 石墨中性色阶 */
+  --hm-ink-900: #f2f4f7;
+  --hm-ink-800: #e2e6ec;
+  --hm-ink-700: #c5cbd5;
+  --hm-ink-600: #aab2bf;
+  --hm-ink-500: #85909f;
+  --hm-ink-400: #737d8c;
+  --hm-ink-300: #4b535f;
+  --hm-ink-200: #353c47;
+  --hm-ink-100: #282d35;
+  --hm-ink-050: #1d2129;
+  --hm-white: #f2f4f7;
 
-  --hm-bg-page: #f6f2ec;
-  --hm-bg-surface: #ffffff;
-  --hm-bg-subtle: #faf6f0;
-  --hm-bg-dark: #241d17;
+  --hm-bg-page: #0b0d10;
+  --hm-bg-surface: #111318;
+  --hm-bg-subtle: #171a20;
+  --hm-bg-raised: #1d2129;
+  --hm-bg-dark: #050608;
+  --hm-grid-line: rgba(255, 255, 255, 0.045);
 
   /* 字阶 */
   --hm-font-xs: 12px;
@@ -77,16 +80,16 @@
   --hm-space-16: 64px;
 
   /* 圆角 */
-  --hm-radius-sm: 8px;
-  --hm-radius-md: 12px;
-  --hm-radius-lg: 16px;
-  --hm-radius-xl: 20px;
+  --hm-radius-sm: 6px;
+  --hm-radius-md: 10px;
+  --hm-radius-lg: 14px;
+  --hm-radius-xl: 18px;
   --hm-radius-pill: 999px;
 
-  /* 暖色投影 */
-  --hm-shadow-sm: 0 2px 6px rgba(90, 50, 20, 0.05);
-  --hm-shadow-md: 0 6px 18px rgba(90, 50, 20, 0.08);
-  --hm-shadow-lg: 0 16px 32px rgba(90, 50, 20, 0.12);
+  /* 深色投影 */
+  --hm-shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.24);
+  --hm-shadow-md: 0 10px 28px rgba(0, 0, 0, 0.34);
+  --hm-shadow-lg: 0 24px 64px rgba(0, 0, 0, 0.5);
 
   --hm-z-header: 1000;
   --hm-z-float: 1100;
@@ -96,8 +99,9 @@
   --hm-header-h: 68px;
   --hm-category-h: 46px;
 
-  --hm-transition: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  --hm-transition: 0.2s cubic-bezier(0.22, 1, 0.36, 1);
 }
+
 
 /* ==================== 2. 基础层 ==================== */
 html {
@@ -271,7 +275,7 @@ img {
 .el-input__wrapper {
   border-radius: 10px;
   box-shadow: 0 0 0 1px var(--hm-ink-200) inset;
-  background: var(--hm-white);
+  background: var(--hm-ink-050);
 }
 .el-input__wrapper.is-focus {
   box-shadow: 0 0 0 1.5px var(--hm-primary) inset;
@@ -318,7 +322,7 @@ img {
 }
 .el-pagination {
   --el-pagination-hover-color: var(--hm-primary);
-  --el-pagination-button-bg-color: var(--hm-white);
+  --el-pagination-button-bg-color: var(--hm-bg-surface);
 }
 .el-pagination .el-pager li {
   border-radius: var(--hm-radius-sm);
@@ -368,7 +372,7 @@ img {
   color: var(--hm-ink-400);
 }
 .el-loading-mask {
-  background-color: rgba(255, 255, 255, 0.75);
+  background-color: rgba(11, 13, 16, 0.78);
 }
 .el-loading-spinner .path {
   stroke: var(--hm-primary);
@@ -514,7 +518,7 @@ img {
   cursor: pointer;
   white-space: nowrap;
   transition: all var(--hm-transition);
-  background: var(--hm-white);
+  background: var(--hm-ink-050);
   color: var(--hm-ink-700);
   user-select: none;
 }
@@ -535,33 +539,33 @@ img {
 .hm-btn--primary {
   background: var(--hm-primary);
   border-color: var(--hm-primary);
-  color: var(--hm-white);
+  color: var(--hm-on-primary);
   box-shadow: 0 6px 16px rgba(232, 80, 30, 0.22);
 }
 .hm-btn--primary:hover:not(:disabled) {
   background: var(--hm-primary-hover);
   border-color: var(--hm-primary-hover);
-  color: var(--hm-white);
+  color: var(--hm-on-primary);
 }
 .hm-btn--dark {
   background: var(--hm-ink-900);
   border-color: var(--hm-ink-900);
-  color: var(--hm-white);
+  color: var(--hm-on-primary);
 }
 .hm-btn--dark:hover:not(:disabled) {
   background: var(--hm-ink-800);
   border-color: var(--hm-ink-800);
-  color: var(--hm-white);
+  color: var(--hm-on-primary);
 }
 .hm-btn--accent {
   background: var(--hm-accent);
   border-color: var(--hm-accent);
-  color: var(--hm-white);
+  color: var(--hm-on-primary);
 }
 .hm-btn--accent:hover:not(:disabled) {
   background: var(--hm-accent-hover);
   border-color: var(--hm-accent-hover);
-  color: var(--hm-white);
+  color: var(--hm-on-primary);
 }
 .hm-btn--ghost {
   background: transparent;
@@ -772,7 +776,7 @@ img {
 .hm-loading-mask {
   position: absolute;
   inset: 0;
-  background: rgba(255, 255, 255, 0.75);
+  background: rgba(11, 13, 16, 0.78);
   backdrop-filter: blur(1px);
   display: flex;
   align-items: center;
@@ -841,7 +845,7 @@ img {
   gap: var(--hm-space-5);
 }
 .hm-product-card {
-  background: var(--hm-white);
+  background: var(--hm-ink-050);
   border: 1px solid var(--hm-ink-100);
   border-radius: var(--hm-radius-lg);
   overflow: hidden;
@@ -1058,5 +1062,468 @@ img {
   }
   .hm-product-card__price {
     font-size: 19px;
+  }
+}
+/* ==================== 6. Codex 深色主题覆盖 ==================== */
+:root {
+  --el-color-white: var(--hm-white);
+  --el-color-black: var(--hm-bg-dark);
+  --el-color-primary: var(--hm-primary);
+  --el-color-primary-dark-2: var(--hm-primary-active);
+  --el-color-primary-light-3: #a2efc2;
+  --el-color-primary-light-5: #7fdc9f;
+  --el-color-primary-light-7: rgba(139, 233, 176, 0.55);
+  --el-color-primary-light-8: rgba(139, 233, 176, 0.28);
+  --el-color-primary-light-9: rgba(139, 233, 176, 0.12);
+
+  --el-color-success: var(--hm-success);
+  --el-color-success-dark-2: #3dbf7b;
+  --el-color-success-light-3: #8ceeb8;
+  --el-color-success-light-5: rgba(93, 215, 154, 0.6);
+  --el-color-success-light-7: rgba(93, 215, 154, 0.34);
+  --el-color-success-light-8: rgba(93, 215, 154, 0.2);
+  --el-color-success-light-9: var(--hm-success-soft);
+
+  --el-color-warning: var(--hm-warning);
+  --el-color-warning-dark-2: #d99a4a;
+  --el-color-warning-light-3: #f5cb93;
+  --el-color-warning-light-5: rgba(240, 184, 110, 0.62);
+  --el-color-warning-light-7: rgba(240, 184, 110, 0.36);
+  --el-color-warning-light-8: rgba(240, 184, 110, 0.22);
+  --el-color-warning-light-9: var(--hm-warning-soft);
+
+  --el-color-danger: var(--hm-danger);
+  --el-color-danger-dark-2: #e65f5f;
+  --el-color-danger-light-3: #ff9d9d;
+  --el-color-danger-light-5: rgba(255, 123, 123, 0.62);
+  --el-color-danger-light-7: rgba(255, 123, 123, 0.36);
+  --el-color-danger-light-8: rgba(255, 123, 123, 0.22);
+  --el-color-danger-light-9: var(--hm-danger-soft);
+  --el-color-error: var(--hm-danger);
+  --el-color-error-dark-2: #e65f5f;
+  --el-color-error-light-3: #ff9d9d;
+  --el-color-error-light-5: rgba(255, 123, 123, 0.62);
+  --el-color-error-light-7: rgba(255, 123, 123, 0.36);
+  --el-color-error-light-8: rgba(255, 123, 123, 0.22);
+  --el-color-error-light-9: var(--hm-danger-soft);
+
+  --el-color-info: var(--hm-info);
+  --el-color-info-dark-2: #49a9ce;
+  --el-color-info-light-3: #9ddff3;
+  --el-color-info-light-5: rgba(109, 200, 232, 0.62);
+  --el-color-info-light-7: rgba(109, 200, 232, 0.36);
+  --el-color-info-light-8: rgba(109, 200, 232, 0.22);
+  --el-color-info-light-9: var(--hm-info-soft);
+
+  --el-text-color-primary: var(--hm-ink-900);
+  --el-text-color-regular: var(--hm-ink-700);
+  --el-text-color-secondary: var(--hm-ink-500);
+  --el-text-color-placeholder: var(--hm-ink-400);
+  --el-text-color-disabled: var(--hm-ink-400);
+
+  --el-border-color: var(--hm-ink-100);
+  --el-border-color-light: var(--hm-ink-100);
+  --el-border-color-lighter: var(--hm-ink-200);
+  --el-border-color-extra-light: var(--hm-ink-200);
+  --el-border-color-dark: var(--hm-ink-200);
+  --el-border-color-darker: var(--hm-ink-300);
+  --el-border-color-hover: var(--hm-ink-300);
+
+  --el-fill-color: var(--hm-ink-050);
+  --el-fill-color-light: var(--hm-bg-surface);
+  --el-fill-color-lighter: var(--hm-bg-subtle);
+  --el-fill-color-extra-light: var(--hm-bg-surface);
+  --el-fill-color-dark: var(--hm-ink-100);
+  --el-fill-color-darker: var(--hm-ink-200);
+  --el-fill-color-blank: var(--hm-bg-surface);
+
+  --el-bg-color: var(--hm-bg-surface);
+  --el-bg-color-page: var(--hm-bg-page);
+  --el-bg-color-overlay: var(--hm-bg-subtle);
+  --el-disabled-bg-color: var(--hm-ink-050);
+  --el-disabled-text-color: var(--hm-ink-400);
+  --el-disabled-border-color: var(--hm-ink-100);
+
+  --el-border-radius-base: var(--hm-radius-md);
+  --el-border-radius-small: var(--hm-radius-sm);
+  --el-border-radius-round: var(--hm-radius-pill);
+  --el-box-shadow: var(--hm-shadow-md);
+  --el-box-shadow-light: var(--hm-shadow-sm);
+  --el-box-shadow-lighter: 0 2px 8px rgba(0, 0, 0, 0.2);
+  --el-box-shadow-dark: var(--hm-shadow-lg);
+  --el-mask-color: rgba(5, 6, 8, 0.72);
+  --el-mask-color-extra-light: rgba(5, 6, 8, 0.48);
+}
+
+.el-input__wrapper,
+.el-textarea__inner,
+.el-select__wrapper {
+  background-color: var(--hm-ink-050);
+  box-shadow: 0 0 0 1px var(--hm-ink-100) inset;
+  color: var(--hm-ink-900);
+}
+.el-input__wrapper:hover,
+.el-textarea__inner:hover,
+.el-select__wrapper:hover {
+  box-shadow: 0 0 0 1px var(--hm-ink-300) inset;
+}
+.el-input__wrapper.is-focus,
+.el-textarea__inner:focus,
+.el-select__wrapper.is-focused {
+  box-shadow: 0 0 0 1px var(--hm-primary) inset, 0 0 0 4px var(--hm-primary-soft);
+}
+.el-input__inner,
+.el-textarea__inner {
+  color: var(--hm-ink-900);
+}
+.el-input__inner::placeholder,
+.el-textarea__inner::placeholder {
+  color: var(--hm-ink-400);
+}
+.el-dialog,
+.el-message-box,
+.el-drawer,
+.el-popper,
+.el-dropdown-menu,
+.el-select-dropdown,
+.el-date-picker,
+.el-picker-panel {
+  background: var(--hm-bg-subtle);
+  color: var(--hm-ink-700);
+  border-color: var(--hm-ink-100);
+}
+.el-overlay {
+  backdrop-filter: blur(4px);
+}
+.el-table {
+  --el-table-bg-color: transparent;
+  --el-table-tr-bg-color: transparent;
+  --el-table-expanded-cell-bg-color: var(--hm-bg-surface);
+  --el-table-header-bg-color: var(--hm-bg-subtle);
+  --el-table-header-text-color: var(--hm-ink-700);
+  --el-table-row-hover-bg-color: var(--hm-bg-raised);
+  --el-table-border-color: var(--hm-ink-100);
+  --el-table-text-color: var(--hm-ink-700);
+  background: transparent;
+}
+.el-table__inner-wrapper::before {
+  background-color: var(--hm-ink-100);
+}
+.el-table th.el-table__cell,
+.el-table td.el-table__cell {
+  background: transparent;
+  border-bottom-color: var(--hm-ink-100);
+}
+.el-table--enable-row-hover .el-table__body tr:hover > td.el-table__cell {
+  background: var(--hm-bg-raised);
+}
+.el-pagination button,
+.el-pager li {
+  background: var(--hm-bg-surface);
+  color: var(--hm-ink-600);
+}
+.el-pager li.is-active,
+.el-pager li.active {
+  background: var(--hm-primary);
+  color: var(--hm-on-primary);
+}
+.el-tag {
+  border-color: var(--hm-ink-200);
+  background: var(--hm-ink-050);
+  color: var(--hm-ink-700);
+}
+.el-tag--primary {
+  border-color: var(--hm-primary-border);
+  background: var(--hm-primary-soft);
+  color: var(--hm-primary);
+}
+.el-tag--success {
+  border-color: rgba(93, 215, 154, 0.4);
+  background: var(--hm-success-soft);
+  color: var(--hm-success);
+}
+.el-tag--warning {
+  border-color: rgba(240, 184, 110, 0.4);
+  background: var(--hm-warning-soft);
+  color: var(--hm-warning);
+}
+.el-tag--danger {
+  border-color: rgba(255, 123, 123, 0.4);
+  background: var(--hm-danger-soft);
+  color: var(--hm-danger);
+}
+.el-message,
+.el-notification {
+  background: var(--hm-bg-subtle);
+  border: 1px solid var(--hm-ink-100);
+  color: var(--hm-ink-700);
+}
+.el-loading-mask {
+  background-color: rgba(11, 13, 16, 0.78);
+  backdrop-filter: blur(3px);
+}
+.el-loading-spinner .path {
+  stroke: var(--hm-primary);
+}
+.el-loading-spinner .el-loading-text {
+  color: var(--hm-primary);
+}
+.el-checkbox__inner,
+.el-radio__inner {
+  background: var(--hm-ink-050);
+  border-color: var(--hm-ink-300);
+}
+.el-checkbox__label,
+.el-radio__label,
+.el-form-item__label,
+.el-descriptions__label,
+.el-descriptions__content {
+  color: var(--hm-ink-700);
+}
+.el-card {
+  background: var(--hm-bg-surface);
+  border-color: var(--hm-ink-100);
+  color: var(--hm-ink-700);
+}
+.el-empty__description p {
+  color: var(--hm-ink-400);
+}
+
+/* 复用组件在深色背景上的语义修正 */
+.hm-btn {
+  background: var(--hm-bg-surface);
+  border-color: var(--hm-ink-200);
+  color: var(--hm-ink-700);
+}
+.hm-btn:hover:not(:disabled) {
+  background: var(--hm-primary-soft);
+  border-color: var(--hm-primary-border);
+  color: var(--hm-primary);
+}
+.hm-btn--primary,
+.hm-btn--accent {
+  background: var(--hm-primary);
+  border-color: var(--hm-primary);
+  color: var(--hm-on-primary);
+  box-shadow: 0 8px 24px rgba(139, 233, 176, 0.18);
+}
+.hm-btn--primary:hover:not(:disabled),
+.hm-btn--accent:hover:not(:disabled) {
+  background: var(--hm-primary-hover);
+  border-color: var(--hm-primary-hover);
+  color: var(--hm-on-primary);
+}
+.hm-btn--dark {
+  background: var(--hm-ink-050);
+  border-color: var(--hm-ink-200);
+  color: var(--hm-ink-900);
+}
+.hm-btn--dark:hover:not(:disabled) {
+  background: var(--hm-bg-raised);
+  border-color: var(--hm-primary-border);
+  color: var(--hm-primary);
+}
+.hm-btn--ghost {
+  background: transparent;
+  border-color: transparent;
+  color: var(--hm-ink-600);
+}
+.hm-btn--ghost:hover:not(:disabled) {
+  background: var(--hm-ink-050);
+  border-color: transparent;
+  color: var(--hm-ink-900);
+}
+.hm-card {
+  background: var(--hm-bg-surface);
+  border-color: var(--hm-ink-100);
+}
+.hm-card__head,
+.hm-card__foot {
+  border-color: var(--hm-ink-100);
+}
+.hm-card__foot {
+  background: var(--hm-bg-subtle);
+}
+.hm-card__title,
+.hm-page-header__title,
+.hm-section-title,
+.hm-text-strong {
+  color: var(--hm-ink-900);
+}
+.hm-page-header__desc,
+.hm-section-head__more,
+.hm-text-muted,
+.hm-text-secondary {
+  color: var(--hm-ink-500);
+}
+.hm-table-wrap {
+  background: var(--hm-bg-surface);
+  border-color: var(--hm-ink-100);
+}
+.hm-table thead th {
+  background: var(--hm-bg-subtle);
+  color: var(--hm-ink-700);
+  border-bottom-color: var(--hm-ink-100);
+}
+.hm-table tbody td {
+  color: var(--hm-ink-600);
+  border-bottom-color: var(--hm-ink-100);
+}
+.hm-table tbody tr:hover {
+  background: var(--hm-bg-raised);
+}
+.hm-form-label {
+  color: var(--hm-ink-700);
+}
+.hm-form-hint {
+  color: var(--hm-ink-500);
+}
+.hm-state__title {
+  color: var(--hm-ink-700);
+}
+.hm-state__desc {
+  color: var(--hm-ink-500);
+}
+.hm-state__icon {
+  color: var(--hm-ink-300);
+}
+.hm-spinner {
+  border-color: var(--hm-primary-soft);
+  border-top-color: var(--hm-primary);
+}
+.hm-skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--hm-ink-050) 25%,
+    var(--hm-ink-100) 37%,
+    var(--hm-ink-050) 63%
+  );
+}
+.hm-tag {
+  background: var(--hm-ink-050);
+  color: var(--hm-ink-600);
+  border: 1px solid var(--hm-ink-100);
+}
+.hm-tag--primary {
+  background: var(--hm-primary-soft);
+  border-color: var(--hm-primary-border);
+  color: var(--hm-primary);
+}
+.hm-tag--success {
+  background: var(--hm-success-soft);
+  border-color: rgba(93, 215, 154, 0.32);
+  color: var(--hm-success);
+}
+.hm-tag--warning {
+  background: var(--hm-warning-soft);
+  border-color: rgba(240, 184, 110, 0.32);
+  color: var(--hm-warning);
+}
+.hm-tag--danger {
+  background: var(--hm-danger-soft);
+  border-color: rgba(255, 123, 123, 0.32);
+  color: var(--hm-danger);
+}
+.hm-product-card {
+  background: var(--hm-bg-surface);
+  border-color: var(--hm-ink-100);
+  box-shadow: none;
+}
+.hm-product-card:hover {
+  border-color: var(--hm-primary-border);
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.38), 0 0 0 1px rgba(139, 233, 176, 0.08);
+}
+.hm-product-card__thumb {
+  background: var(--hm-bg-subtle);
+}
+.hm-product-card__flag {
+  background: rgba(5, 6, 8, 0.84);
+  border: 1px solid var(--hm-primary-border);
+  color: var(--hm-primary);
+}
+.hm-product-card__name {
+  color: var(--hm-ink-800);
+}
+.hm-product-card__price {
+  color: var(--hm-ink-900);
+}
+.hm-product-card__orig,
+.hm-product-card__meta {
+  color: var(--hm-ink-500);
+}
+.hm-price {
+  color: var(--hm-accent);
+}
+.hm-price--strike {
+  color: var(--hm-ink-400);
+}
+
+/* ==================== 7. Codex 动效原语 ==================== */
+@keyframes hm-reveal {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes hm-cursor-blink {
+  0%, 45% { opacity: 1; }
+  50%, 95% { opacity: 0; }
+  100% { opacity: 1; }
+}
+@keyframes hm-soft-pulse {
+  0%, 100% { opacity: 0.45; }
+  50% { opacity: 0.9; }
+}
+.hm-reveal {
+  animation: hm-reveal 0.56s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.hm-stagger > * {
+  animation: hm-reveal 0.56s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: calc(var(--hm-stagger-index, 0) * 55ms);
+}
+.hm-sweep {
+  position: relative;
+  overflow: hidden;
+}
+.hm-sweep::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: translateX(-115%);
+  background: linear-gradient(100deg, transparent 20%, rgba(255, 255, 255, 0.16) 50%, transparent 80%);
+  transition: transform 0.45s ease;
+  pointer-events: none;
+}
+.hm-sweep:hover::after {
+  transform: translateX(115%);
+}
+.hm-terminal-cursor::after {
+  content: '_';
+  display: inline-block;
+  margin-left: 4px;
+  color: var(--hm-primary);
+  animation: hm-cursor-blink 1.25s steps(1, end) infinite;
+}
+.hm-soft-pulse {
+  animation: hm-soft-pulse 1.8s ease-in-out infinite;
+}
+.hm-shell-grid {
+  background-image:
+    linear-gradient(var(--hm-grid-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--hm-grid-line) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hm-reveal,
+  .hm-stagger > *,
+  .hm-terminal-cursor::after,
+  .hm-soft-pulse {
+    animation: none !important;
+  }
+  .hm-sweep::after {
+    display: none;
+  }
+  .hm-card--hover:hover,
+  .hm-product-card:hover {
+    transform: none;
   }
 }
