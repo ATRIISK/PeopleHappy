@@ -1,7 +1,7 @@
 ﻿# Codex 风格深色 UI 改造设计
 
 日期：2026-10-31
-状态：已确认范围 A1，待实现
+状态：已废弃，由 `2026-10-31-codex-light-ui-design.md` 取代
 范围：`E:\PeopleHappy\happy-mart-web`
 
 ## 1. 目标
