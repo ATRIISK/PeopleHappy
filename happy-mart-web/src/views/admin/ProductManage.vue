@@ -832,4 +832,44 @@ onMounted(() => {
     padding-right: var(--hm-space-4);
   }
 }
+
+/* ==================== Codex 深色商品管理收口 ==================== */
+.product-page {
+  animation: hm-reveal 0.56s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.filter-card,
+.data-card {
+  background: var(--hm-bg-surface);
+  border-color: var(--hm-ink-100);
+  box-shadow: none;
+}
+.filter-card {
+  background:
+    linear-gradient(110deg, rgba(139, 233, 176, 0.04), transparent 46%),
+    var(--hm-bg-surface);
+}
+.search-input :deep(.el-input__wrapper) {
+  background: var(--hm-ink-050);
+}
+.product-thumb {
+  background: var(--hm-bg-subtle);
+  border-color: var(--hm-ink-100);
+}
+.product-name,
+.data-card__head h2 {
+  color: var(--hm-ink-900);
+}
+.data-card :deep(.el-card__header),
+.pagination-wrap,
+.dialog-footer {
+  background: var(--hm-bg-subtle);
+  border-color: var(--hm-ink-100);
+}
+.product-dialog :deep(.el-dialog__header),
+.product-dialog :deep(.el-dialog__footer) {
+  background: var(--hm-bg-subtle);
+}
+.product-dialog :deep(.el-dialog__body) {
+  background: var(--hm-bg-surface);
+}
 </style>

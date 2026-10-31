@@ -377,4 +377,48 @@ onMounted(() => {
     display: none;
   }
 }
+
+/* ==================== Codex 深色订单管理收口 ==================== */
+.order-page {
+  animation: hm-reveal 0.56s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.filter-card,
+.data-card {
+  background: var(--hm-bg-surface);
+  border-color: var(--hm-ink-100);
+  box-shadow: none;
+}
+.filter-card {
+  background:
+    linear-gradient(110deg, rgba(139, 233, 176, 0.04), transparent 46%),
+    var(--hm-bg-surface);
+}
+.filter-card :deep(.el-card__body),
+.data-card :deep(.el-card__header),
+.data-card :deep(.el-card__body) {
+  background: transparent;
+  border-color: var(--hm-ink-100);
+}
+.data-card__head h2,
+.order-no {
+  color: var(--hm-ink-900);
+}
+.data-card__head p,
+.hm-cell-secondary {
+  color: var(--hm-ink-500);
+}
+.status-filter :deep(.el-radio-button__inner) {
+  background: var(--hm-ink-050);
+  border-color: var(--hm-ink-100);
+  color: var(--hm-ink-500);
+}
+.status-filter :deep(.el-radio-button__original-radio:checked + .el-radio-button__inner) {
+  background: var(--hm-primary-soft);
+  border-color: var(--hm-primary-border);
+  color: var(--hm-primary);
+  box-shadow: none;
+}
+.pagination-wrap {
+  background: var(--hm-bg-subtle);
+}
 </style>

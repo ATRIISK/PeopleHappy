@@ -346,4 +346,50 @@ onMounted(() => {
     padding: var(--hm-space-4);
   }
 }
+
+/* ==================== Codex 深色仪表盘收口 ==================== */
+.dashboard-page {
+  animation: hm-reveal 0.56s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.stat-card,
+.data-card,
+.filter-card {
+  border-color: var(--hm-ink-100);
+  background: var(--hm-bg-surface);
+  box-shadow: none;
+}
+.stat-card--product,
+.stat-card--order,
+.stat-card--user,
+.stat-card--sales {
+  border-color: var(--hm-ink-100);
+  background:
+    linear-gradient(135deg, rgba(139, 233, 176, 0.06), transparent 48%),
+    var(--hm-bg-surface);
+}
+.stat-icon,
+.panel-badge {
+  border: 1px solid var(--hm-primary-border);
+  background: var(--hm-primary-soft);
+  color: var(--hm-primary);
+}
+.stat-value,
+.stat-money,
+.order-no,
+.panel-head h2 {
+  color: var(--hm-ink-900);
+}
+.stat-foot,
+.panel-head p {
+  color: var(--hm-ink-500);
+}
+.dashboard-date {
+  border-color: var(--hm-ink-100);
+  background: var(--hm-ink-050);
+}
+.data-card :deep(.el-card__header),
+.filter-card :deep(.el-card__body) {
+  background: var(--hm-bg-subtle);
+  border-color: var(--hm-ink-100);
+}
 </style>
