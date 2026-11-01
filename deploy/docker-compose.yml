@@ -1,0 +1,169 @@
+# =============================================
+# 众乐电子商城 - 阿里云 2核2G 生产部署编排
+#
+# 与根目录 docker-compose.yml 的区别：
+#   1. 不含 nginx 容器（80 端口交给宝塔面板的 Nginx，前端 dist 由宝塔站点托管）
+#   2. 后端不在此构建（2G 机器跑 Maven 会被 OOM Killer 杀掉），改为挂载本地打好的 app.jar
+#   3. 每个容器显式 mem_limit，防止互相抢内存触发系统 OOM
+#   4. 所有端口只绑 127.0.0.1，公网只暴露宝塔的 80
+#   5. 密码 / 密钥全部走同目录 .env，不进代码库
+#
+# 用法（在本目录下）：
+#   docker compose up -d
+#   docker compose logs -f backend
+# =============================================
+
+services:
+  # ===== 数据库 =====
+  mysql:
+    image: mysql:8.0
+    container_name: hm-mysql
+    restart: unless-stopped
+    mem_limit: 448m
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      # 2G 机器关键参数：默认 128M 缓冲池偏大，压到 80M
+      - --innodb-buffer-pool-size=80M
+      # 关掉 performance_schema 可省约 100MB，小站用不上
+      - --performance-schema=OFF
+      - --innodb-log-buffer-size=8M
+      - --max-connections=80
+      - --table-open-cache=200
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?set MYSQL_ROOT_PASSWORD in .env}
+      MYSQL_DATABASE: happy_mart
+      TZ: Asia/Shanghai
+    ports:
+      # 只绑本机：需要连库时先 SSH 到服务器，或用宝塔的 phpMyAdmin
+      - "127.0.0.1:3306:3306"
+    volumes:
+      - ./data/mysql:/var/lib/mysql
+      # 首次启动自动按文件名顺序执行：01 建表 → 02 灌数据
+      # 注意：只在 data/mysql 为空时执行一次，之后改 sql 不会重跑
+      - ./sql:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-p${MYSQL_ROOT_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 40s
+
+  # ===== 缓存 =====
+  redis:
+    image: redis:7-alpine
+    container_name: hm-redis
+    restart: unless-stopped
+    mem_limit: 96m
+    # maxmemory 必须小于 mem_limit，留出 Redis 自身开销
+    # save "" + appendonly no：纯缓存用途，不落盘（重启后商品详情/分类树自动回填，热门榜定时重建）
+    command: >
+      redis-server
+      --maxmemory 64mb
+      --maxmemory-policy allkeys-lru
+      --save ""
+      --appendonly no
+    environment:
+      TZ: Asia/Shanghai
+    ports:
+      - "127.0.0.1:6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 6
+
+  # ===== 消息队列 =====
+  rabbitmq:
+    # 2026-11-01：从 3.13-management-alpine 降到 3.12-management-alpine。
+    # 原因：3.13 的那个 tag 在第三方加速器（docker.1ms.run）上有坏 blob，
+    # 卡在 9ab46c560811 层反复重试拉不下来，--platform 也绕不过。
+    # 3.12 与 3.13 对本项目功能等价（只用原生 TTL + DLX 做订单超时取消），
+    # 且镜像更小（约 180MB vs 1GB），更适合 2G 小内存机器。
+    image: rabbitmq:3.12-management-alpine
+    container_name: hm-rabbitmq
+    restart: unless-stopped
+    mem_limit: 288m
+    environment:
+      TZ: Asia/Shanghai
+      # 不能用默认 guest 账号：guest 只允许 localhost 登录，
+      # 后端容器从容器网络访问会被拒（PLAIN login refused）
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-hm_admin}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:?set RABBITMQ_PASSWORD in .env}
+      # 注意：不要加 RABBITMQ_VM_MEMORY_HIGH_WATERMARK。
+      # RabbitMQ 3.12+ 已废弃该环境变量，且行为是「检测到即拒绝启动」：
+      #   error: RABBITMQ_VM_MEMORY_HIGH_WATERMARK is set but deprecated
+      #   error: deprecated environment variables detected
+      # 需要限制内存水位就挂配置文件到 /etc/rabbitmq/conf.d/ 下写
+      #   vm_memory_high_watermark.relative = 0.5
+      # 默认水位 0.6 在 288m 的 mem_limit 下够用，无需额外配置。
+    ports:
+      - "127.0.0.1:5672:5672"
+      - "127.0.0.1:15672:15672"   # 管理台，只本机可访问
+    volumes:
+      - ./data/rabbitmq:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 15s
+      timeout: 10s
+      retries: 8
+      start_period: 40s
+
+  # ===== Spring Boot 后端 =====
+  backend:
+    # 直接用官方 JRE 镜像 + 挂载 jar，服务器上零构建
+    image: eclipse-temurin:17-jre-alpine
+    container_name: hm-backend
+    restart: unless-stopped
+    mem_limit: 620m
+    working_dir: /app
+    command:
+      - java
+      - -Xmx384m                      # 堆上限，配合 mem_limit 620m
+      - -Xss512k                      # 线程栈压小（默认 1M，容器里浪费）
+      - -XX:MaxMetaspaceSize=160m     # 元空间上限，防类加载撑爆
+      - -XX:+UseSerialGC              # 小内存单核场景 SerialGC 比 G1 省
+      - -XX:+HeapDumpOnOutOfMemoryError
+      - -XX:HeapDumpPath=/app/logs
+      - -Duser.timezone=Asia/Shanghai
+      - -Dfile.encoding=UTF-8
+      # ★ 位置规则：-jar app.jar 之前只能放 JVM 参数（-Xxx / -Dxx），
+      #   放 --key=value 这类应用参数会被 JVM 报 "Unrecognized option" 直接退出。
+      #   之前这里误加过 --mybatis-plus.configuration.log-impl=...，导致容器启动即崩。
+      #   如要关 SQL 日志，必须追加在 /app/app.jar 之后。
+      - -jar
+      - /app/app.jar
+    environment:
+      TZ: Asia/Shanghai
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/happy_mart?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=false
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: 6379
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: 5672
+      SPRING_RABBITMQ_USERNAME: ${RABBITMQ_USER:-hm_admin}
+      SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:?set RABBITMQ_PASSWORD in .env}
+      # 支付宝异步回调地址，必须是公网可达的 http://公网IP/api/pay/notify
+      ALIPAY_NOTIFY_URL: ${ALIPAY_NOTIFY_URL:?set ALIPAY_NOTIFY_URL in .env}
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in .env}
+      # 注意用 :-dummy 而非裸 ${GLM_API_KEY}：
+      # .env 里写 GLM_API_KEY=（空值）时，裸引用会注入空字符串，
+      # 反而覆盖 application.yml 里的 ${GLM_API_KEY:dummy} 兜底值，导致 Spring AI 非空校验启动失败
+      GLM_API_KEY: ${GLM_API_KEY:-dummy}
+    ports:
+      - "127.0.0.1:8074:8074"
+    volumes:
+      - ./backend/app.jar:/app/app.jar:ro
+      # 上传的商品图片（宝塔反代 /upload/ 到这里）
+      - ./data/upload:/app/upload
+      # AI 知识库索引
+      - ./data/kb:/app/data
+      - ./logs:/app/logs
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy

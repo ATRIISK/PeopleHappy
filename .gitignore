@@ -37,5 +37,12 @@ happy_mart/upload/
 # 商品向量索引文件（SimpleVectorStore 持久化），运行时自动生成/重建（启动全量建库或管理端增量同步），不入 git
 happy_mart/data/
 
+# ===== 部署产物（deploy/ 只提交编排、脚本与手册） =====
+deploy/dist/
+deploy/dist.zip
+deploy/data/
+deploy/.env
+*.tar.gz
+
 # ===workbuddy===
 .workbuddy
