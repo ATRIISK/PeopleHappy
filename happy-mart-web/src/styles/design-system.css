@@ -1892,3 +1892,36 @@ body {
 .hm-stagger > * {
   animation-duration: 0.2s;
 }
+
+/* ==================== 9. 长表单弹窗限高（追加层） ====================
+ * el-dialog 默认不设 max-height：margin-top 15vh + 内容自然高 + margin-bottom 50px，
+ * 内容一多（如商品编辑的主图 + 轮播图 + 描述）就整体溢出视口，
+ * 表现为「弹窗无法上下滑动、底部保存按钮点不到」。
+ * 这里给指定弹窗（.product-dialog）限高：头部/底部常驻，正文区内部滚动。
+ * 注：用全局选择器而非组件 scoped，避免依赖 scope 属性是否落在 .el-dialog 根节点上。
+ */
+.el-dialog.product-dialog {
+  display: flex;
+  flex-direction: column;
+  margin-top: 6vh;
+  margin-bottom: 32px;
+  max-height: calc(100vh - 6vh - 32px);
+  overflow: hidden;
+}
+.el-dialog.product-dialog .el-dialog__header,
+.el-dialog.product-dialog .el-dialog__footer {
+  flex: 0 0 auto;
+}
+.el-dialog.product-dialog .el-dialog__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+@media (max-width: 768px) {
+  .el-dialog.product-dialog {
+    /* 移动端用 dvh，避开地址栏伸缩造成的 100vh 偏差 */
+    max-height: calc(100dvh - 6vh - 24px);
+    margin-bottom: 24px;
+  }
+}

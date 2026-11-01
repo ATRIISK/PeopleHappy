@@ -270,8 +270,10 @@ onMounted(() => {
       </div>
     </el-card>
 
-    <!-- ==================== 重置密码弹窗 ==================== -->
-    <el-dialog v-model="pwdDialogVisible" class="password-dialog" title="重置密码" width="420px" destroy-on-close>
+    <!-- ==================== 重置密码弹窗 ====================
+         append-to-body 同 ProductManage：本页带 hm-reveal 动画残留 transform，
+         会让 .el-overlay 的 fixed 相对页面容器定位而非视口 -->
+    <el-dialog v-model="pwdDialogVisible" class="password-dialog" title="重置密码" width="420px" destroy-on-close append-to-body>
       <div class="dialog-intro">为当前用户设置新密码，至少输入 6 位字符</div>
       <el-form ref="pwdFormRef" :model="pwdForm" :rules="pwdRules" label-width="80px">
         <el-form-item label="用户名">

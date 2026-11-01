@@ -6,7 +6,7 @@
  * 数据来源：GET /api/admin/product/list 等（见 @/api/admin.js）
  * 项目首次引入 el-table 的后台页面（Element Plus 全量引入，无需额外配置）
  */
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, nextTick } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getAdminProducts, saveAdminProduct, deleteAdminProduct, updateAdminProductStatus } from '@/api/admin'
 import { getCategoryTree } from '@/api/category'
@@ -255,6 +255,24 @@ function handleSizeChange() {
 // ==================== 新增/编辑 ====================
 
 /**
+ * 把弹窗正文区的滚动位置复位到顶部
+ *
+ * Element Plus 打开对话框时只重置 .el-overlay-dialog 和 .el-dialog 自身的 scrollTop，
+ * 不重置 .el-dialog__body（正文滚动容器）。弹窗 DOM 在关闭后不会被销毁，
+ * 于是「上次滚到底部 → 关掉 → 再打开」会直接停在最底部，上面的字段看不到。
+ * 每次打开都主动归零；@opened 再补一次，兜住动画/内容渲染完成后才确定的布局。
+ */
+function resetDialogScroll() {
+  nextTick(() => {
+    const body = document.querySelector('.el-dialog.product-dialog .el-dialog__body')
+    if (!body) return
+    body.scrollTop = 0
+    const overlayDialog = document.querySelector('.el-dialog.product-dialog')?.parentElement
+    if (overlayDialog) overlayDialog.scrollTop = 0
+  })
+}
+
+/**
  * 打开"新增商品"弹窗
  * 清空表单（id=null）
  */
@@ -267,6 +285,7 @@ function handleAdd() {
   carouselUrls.value = []   // 清空轮播图上传列表
   refreshUploadHeaders()    // 刷新上传 token（防登出重登后旧 token 快照）
   dialogVisible.value = true
+  resetDialogScroll()       // 复位正文滚动（上次可能停在底部）
 }
 
 /**
@@ -294,6 +313,7 @@ function handleEdit(row) {
   syncCarousel()
   refreshUploadHeaders()    // 刷新上传 token（防登出重登后旧 token 快照）
   dialogVisible.value = true
+  resetDialogScroll()       // 复位正文滚动（上次可能停在底部）
 }
 
 /**
@@ -304,7 +324,19 @@ async function handleSubmit() {
   if (!formRef.value) return
   // 表单校验：validate() 校验失败会 reject，用 catch 拿到 false 后 return 阻止提交
   // （code-review 修复：原来 .catch(() => false) 后继续执行，校验失败也会发出请求）
-  const valid = await formRef.value.validate().catch(() => false)
+  let valid = false
+  try {
+    valid = await formRef.value.validate()
+  } catch (fields) {
+    valid = false
+    // 弹窗正文区可滚动，出错的表单项可能在可视区之外 → 主动滚到第一处错误并提示，
+    // 否则用户会觉得「点了保存没反应」
+    const firstProp = fields && Object.keys(fields)[0]
+    if (firstProp) {
+      formRef.value.scrollToField(firstProp, { behavior: 'smooth', block: 'center' })
+    }
+    ElMessage.warning('请先补全必填项')
+  }
   if (!valid) return
 
   submitting.value = true
@@ -486,8 +518,13 @@ onMounted(() => {
       </div>
     </el-card>
 
-    <!-- ==================== 新增/编辑弹窗 ==================== -->
-    <el-dialog v-model="dialogVisible" class="product-dialog" :title="dialogTitle" width="560px" destroy-on-close>
+    <!-- ==================== 新增/编辑弹窗 ====================
+         append-to-body 必须加：本页 .product-page 带 hm-reveal 动画（fill-mode: both），
+         动画结束后元素残留 transform，会把自己变成 position:fixed 后代的包含块。
+         弹窗默认不 teleport，.el-overlay 就会相对 .product-page 定位而不是视口，
+         遮罩与弹窗被截在内容区高度内 → 弹窗滚不动、底部保存按钮点不到。
+         teleport 到 body 后包含块变回视口，限高与内滚才真正生效。 -->
+    <el-dialog v-model="dialogVisible" class="product-dialog" :title="dialogTitle" width="560px" destroy-on-close append-to-body @opened="resetDialogScroll">
       <div class="dialog-intro">完善商品基础资料与销售信息，保存后同步至商品列表</div>
       <el-form ref="formRef" :model="form" :rules="rules" label-width="90px">
         <!-- 商品名称 -->
