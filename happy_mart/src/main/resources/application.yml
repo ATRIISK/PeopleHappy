@@ -103,7 +103,8 @@ mybatis-plus:
       logic-not-delete-value: 0
 
 jwt:
-  secret: happymart-jwt-secret-key-for-happy-mart-online-shop-2026
+  # 生产部署务必用环境变量 JWT_SECRET 覆盖：仓库里这串是公开的，公网部署沿用等于任何人都能伪造 token
+  secret: ${JWT_SECRET:happymart-jwt-secret-key-for-happy-mart-online-shop-2026}
   expiration: 86400000
 
 # 支付宝开放平台沙箱环境配置
@@ -116,7 +117,10 @@ alipay:
   alipay-public-key: |
     MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAivL4zVUkGPId04gd0UYKY7cWVUWDUyjxHfmYXkTL+gLSKKFvW2wZpLiJZKqpOy8nb/b1k16hzFSmScEtIXi+QdqCwFd/ZMjeMbU5zdZ3i+b5H0j6OFOLgkFXaKY2T2WuA3PkGWZInlZ+YudOMZ2VBTrsU87Ft18R7zuozh4NPBSzL0izl8Oz3Yv7K11A4B/zvs7bNgVh2RFMQWGzA6Rq0q54r7J7V0kUSWz+4lhQMTGpo4X6whe2pjyoMcpjhOK97XfaBDLLhr0ZlxaIYgQ3rHRMLyPuH7TtMr8/+e9uuwYMs2ADvqL4i/Oa6+B3B0OpggxvTcax4Ocid9bpBPOG3QIDAQAB
   gateway-url: https://openapi-sandbox.dl.alipaydev.com/gateway.do   # 新版沙箱网关（旧版 openapi.alipaydev.com 已废弃）
-  notify-url: https://0654527ccb32ad.lhr.life/api/pay/notify   # 本地开发隧道地址（localhost.run，重启后需更新）
+  # 异步回调地址必须公网可达：
+  #   本地开发 → localhost.run 隧道地址（重启后变，需手动更新）
+  #   服务器部署 → 环境变量 ALIPAY_NOTIFY_URL 注入 http://公网IP/api/pay/notify
+  notify-url: '${ALIPAY_NOTIFY_URL:https://0654527ccb32ad.lhr.life/api/pay/notify}'
   sign-type: RSA2
   charset: UTF-8
   format: json
