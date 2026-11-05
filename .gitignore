@@ -42,6 +42,7 @@ deploy/dist/
 deploy/dist.zip
 deploy/data/
 deploy/.env
+deploy/.release/
 *.tar.gz
 
 # ===workbuddy===
