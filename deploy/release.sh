@@ -136,6 +136,31 @@ EOF
   return 0
 }
 
+# ---------- 推送到 Gitee ----------
+# 用 GIT_ASKPASS 临时注入凭据：token 不进命令行、不进 .git/config，
+# 失败信息里也不会带 token（git 只会打印不含密码的 remote URL）
+push_to_gitee() {
+  local branch="$1"
+  if [[ -z "$GITEE_TOKEN" ]]; then
+    git push origin "$branch"
+    return $?
+  fi
+  local askpass
+  askpass="$(mktemp)"
+  cat > "$askpass" <<EOF
+#!/bin/sh
+case "\$1" in
+  *[Uu]sername*) echo "${GITEE_USER:-$REPO_OWNER}" ;;
+  *) echo "$GITEE_TOKEN" ;;
+esac
+EOF
+  chmod +x "$askpass"
+  GIT_ASKPASS="$askpass" GIT_TERMINAL_PROMPT=0 git push origin "$branch"
+  local rc=$?
+  rm -f "$askpass"
+  return $rc
+}
+
 # ---------- Gitee Release ----------
 create_release() {
   [[ -n "$GITEE_TOKEN" ]] || die "缺少 GITEE_TOKEN 环境变量（创建 Release 需要）"
@@ -197,7 +222,7 @@ main() {
   git add deploy/manifest.txt
   git -c user.name="${GIT_AUTHOR_NAME:-ATRI}" -c user.email="${GIT_AUTHOR_EMAIL:-atri@local}" \
     commit -m "chore(release): $TAG" || log WARN "无改动可提交（清单与上次相同）"
-  git push origin "$REPO_BRANCH"
+  push_to_gitee "$REPO_BRANCH" || die "推送到 Gitee 失败：检查 GITEE_TOKEN 与网络"
 
   create_release
 

@@ -41,6 +41,10 @@ TMP_DIR="/tmp/hm-release"
 KEEP_RELEASES=2
 
 HEALTH_URL="${HEALTH_URL:-http://127.0.0.1:8074/api/health}"
+# 探活降级地址：/api/health 是跟着新 jar 一起上线的，
+# 冷启动阶段（服务器还跑旧 jar）打它会返回 404，此时自动降级用业务接口探活，
+# 否则会被误判成"服务不健康"→ 触发回滚 → 新版永远发不上去。
+FALLBACK_HEALTH_URL="${FALLBACK_HEALTH_URL:-http://127.0.0.1:8074/api/product/list}"
 HEALTH_TIMEOUT="${HEALTH_TIMEOUT:-60}"
 HEALTH_INTERVAL="${HEALTH_INTERVAL:-3}"
 
@@ -245,13 +249,25 @@ rollback_jar() {
 }
 
 # ---------- 健康检查 ----------
+# 探一次，返回 HTTP 状态码
+probe() {
+  curl -s -o /dev/null -w '%{http_code}' --connect-timeout 3 --max-time 5 "$1" 2>/dev/null || true
+}
+
 wait_healthy() {
   local deadline=$(( $(date +%s) + HEALTH_TIMEOUT ))
-  log INFO "健康检查: $HEALTH_URL（最多 ${HEALTH_TIMEOUT}s）"
+  local url="$HEALTH_URL"
+  local code
+
+  code="$(probe "$url")"
+  if [[ "$code" == "404" && -n "$FALLBACK_HEALTH_URL" ]]; then
+    log WARN "探活接口 $url 返回 404（该接口可能还没上线），降级改用 $FALLBACK_HEALTH_URL"
+    url="$FALLBACK_HEALTH_URL"
+  fi
+
+  log INFO "健康检查: $url（最多 ${HEALTH_TIMEOUT}s）"
   while [[ $(date +%s) -lt $deadline ]]; do
-    local code
-    code="$(curl -s -o /dev/null -w '%{http_code}' --connect-timeout 3 --max-time 5 "$HEALTH_URL" 2>/dev/null || true)"
-    code="${code:-000}"
+    code="$(probe "$url")"
     if [[ "$code" == "200" ]]; then
       log INFO "健康检查通过"
       return 0
