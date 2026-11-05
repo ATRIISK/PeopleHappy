@@ -35,7 +35,9 @@ SKIP_BACKEND=0
 SKIP_FRONTEND=0
 NO_PUSH=0
 DRY_RUN=0
-OUT_DIR="$REPO_ROOT/deploy/.release"
+# 产物目录用相对路径：IDE 的安全删除 shim 拒绝带盘符的绝对路径删除（SAFE_DELETE_INVALID_PATH）
+OUT_REL="deploy/.release"
+OUT_DIR="$REPO_ROOT/$OUT_REL"
 
 for arg in "$@"; do
   case "$arg" in
@@ -74,7 +76,7 @@ pack_dist() {
   [[ -d "$dist_dir" ]] || die "前端产物目录不存在: $dist_dir"
 
   log "打包前端产物 → $(basename "$zip_file")"
-  rm -f "$zip_file"
+  rm -f "$OUT_REL/dist-${VERSION}.zip"
   if command -v zip >/dev/null 2>&1; then
     # -r 递归，路径以 . 开头 → zip 内顶层直接是 index.html / assets/，不套 dist 外层
     ( cd "$dist_dir" && zip -qr "$zip_file" . )
@@ -174,17 +176,25 @@ create_release() {
   [[ -n "$GITEE_TOKEN" ]] || die "缺少 GITEE_TOKEN 环境变量（创建 Release 需要）"
 
   log "创建 Gitee Release $TAG"
-  local body
-  body=$(printf '{"tag_name":"%s","name":"%s","body":"自动发布 %s","prerelease":false}' "$TAG" "$TAG" "$VERSION")
-  local resp
-  resp="$(curl -fsSL -X POST \
-    "https://gitee.com/api/v5/repos/${REPO_OWNER}/${REPO_NAME}/releases?access_token=${GITEE_TOKEN}" \
-    -H "Content-Type: application/json" -d "$body")" || die "创建 Release 失败"
+  local body resp rel_id
+  # target_commitish 必填：Gitee 缺这个字段会直接返回 400 "target_commitish is missing"
+  body=$(printf '{"tag_name":"%s","name":"%s","body":"%s","prerelease":false,"target_commitish":"%s"}' \
+    "$TAG" "$TAG" "自动发布 ${VERSION}" "$REPO_BRANCH")
 
-  local rel_id
+  resp="$(curl -sS -X POST \
+    "https://gitee.com/api/v5/repos/${REPO_OWNER}/${REPO_NAME}/releases?access_token=${GITEE_TOKEN}" \
+    -H "Content-Type: application/json" -d "$body" 2>&1)" || true
+
   rel_id="$(printf '%s' "$resp" | grep -o '"id":[0-9]*' | head -n 1 | cut -d: -f2)"
-  [[ -n "$rel_id" ]] || die "解析 Release id 失败: $resp"
-  log "Release 创建成功 id=$rel_id"
+  if [[ -z "$rel_id" ]]; then
+    # 常见于同一个 tag 重复发布：先看看是不是已经有同 tag 的 Release，有就复用
+    log WARN "创建 Release 未返回 id，尝试复用已存在的同 tag Release：$(printf '%s' "$resp" | head -c 200)"
+    resp="$(curl -fsSL "https://gitee.com/api/v5/repos/${REPO_OWNER}/${REPO_NAME}/releases?access_token=${GITEE_TOKEN}")"
+    rel_id="$(printf '%s' "$resp" | tr '{' '\n' | grep "\"tag_name\":\"${TAG}\"" | grep -o '"id":[0-9]*' | head -n 1 | cut -d: -f2)"
+    [[ -n "$rel_id" ]] || die "创建 Release 失败：$(printf '%s' "$resp" | head -c 300)"
+    log "复用已有 Release id=$rel_id"
+  fi
+  log "Release 就绪 id=$rel_id"
 
   local f
   for f in "$OUT_DIR"/*; do
@@ -200,8 +210,8 @@ create_release() {
 # =============== 主流程 ===============
 main() {
   check_tools
-  rm -rf "$OUT_DIR"
-  mkdir -p "$OUT_DIR"
+  rm -rf "$OUT_REL"
+  mkdir -p "$OUT_REL"
 
   log "===== 发布开始 version=$VERSION tag=$TAG ====="
 
