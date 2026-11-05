@@ -123,7 +123,7 @@ sed -i 's/\r$//' /www/wwwroot/happy-mart/deploy/update.sh /www/wwwroot/happy-mar
 | 任务类型 | Shell 脚本 |
 | 任务名称 | 众乐商城自动部署 |
 | 执行周期 | 每 10 分钟 |
-| 脚本内容 | `bash /www/wwwroot/happy-mart/deploy/update.sh >> /www/wwwlogs/hm-deploy.log 2>&1` |
+| 脚本内容 | `bash /www/wwwroot/happy-mart/deploy/update.sh 2>&1 | tee -a /www/wwwlogs/hm-deploy.log` |
 
 提交后点「执行」手动跑一次，面板里能看到输出；日志同时落在 `/www/wwwlogs/hm-deploy.log`。
 

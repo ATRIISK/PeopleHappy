@@ -69,8 +69,12 @@ mkdir -p "$(dirname "$LOG_FILE")" "$TMP_DIR"
 log() {
   local level="$1"; shift
   local line="[$(date '+%Y-%m-%d %H:%M:%S')] [$level] $*"
+  # 只写 stdout，不自己追加日志文件。
+  # 原因：计划任务里常写成 `bash update.sh >> /www/wwwlogs/hm-deploy.log 2>&1`，
+  # stdout 已经被重定向进日志文件，这里再写一遍会导致每行重复两遍。
+  # 日志文件由调用方负责：推荐 `bash update.sh 2>&1 | tee -a /www/wwwlogs/hm-deploy.log`
+  # （面板能看到输出，文件也留一份，且不会重复）。
   echo "$line"
-  echo "$line" >> "$LOG_FILE"
 }
 
 # ---------- 前置依赖检查 ----------
@@ -232,7 +236,7 @@ apply_jar() {
   log INFO "重启后端容器"
   local cmd
   cmd="$(compose_cmd)" || { log ERROR "找不到 docker compose / docker-compose 命令"; return 1; }
-  if ! ( cd "$BASE_DIR" && $cmd restart backend ) >>"$LOG_FILE" 2>&1; then
+  if ! ( cd "$BASE_DIR" && $cmd restart backend 2>&1 ); then
     log ERROR "$cmd restart backend 失败"
     return 1
   fi
@@ -244,7 +248,7 @@ rollback_jar() {
     cp -f "$JAR_PREV_PATH" "$JAR_PATH"
     local cmd
     cmd="$(compose_cmd)" || { log ERROR "找不到 docker compose 命令，回滚中断"; return 1; }
-    ( cd "$BASE_DIR" && $cmd restart backend ) >>"$LOG_FILE" 2>&1 || true
+    ( cd "$BASE_DIR" && $cmd restart backend 2>&1 ) || true
     log WARN "后端已回滚到上一版本"
   else
     log ERROR "没有 app.jar.prev，无法回滚后端"
