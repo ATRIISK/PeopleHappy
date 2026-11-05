@@ -155,8 +155,8 @@ push_to_gitee() {
     git push origin "$branch"
     return $?
   fi
-  local askpass
-  askpass="$(mktemp)"
+  local askpass_rel="$OUT_REL/.git-askpass.sh"
+  local askpass="$REPO_ROOT/$askpass_rel"
   cat > "$askpass" <<EOF
 #!/bin/sh
 case "\$1" in
@@ -167,7 +167,8 @@ EOF
   chmod +x "$askpass"
   GIT_ASKPASS="$askpass" GIT_TERMINAL_PROMPT=0 git push origin "$branch"
   local rc=$?
-  rm -f "$askpass"
+  # 用相对路径删：IDE 的安全删除 shim 拒绝带盘符的绝对路径删除
+  rm -f "$askpass_rel"
   return $rc
 }
 
