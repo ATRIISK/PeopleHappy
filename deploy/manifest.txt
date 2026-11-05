@@ -1,21 +1,9 @@
 # 众乐电子商城 - 版本清单
-#
-# 由 deploy/release.sh 自动生成并提交到 master 分支，**不要手工编辑**。
-# 服务器端 deploy/update.sh 每 10 分钟拉取本文件，比对线上 VERSION，
-# 有新版本就从 Gitee Release 拉产物并原子切换 + 健康检查 + 失败回滚。
-#
-# 字段说明：
-#   version     版本号（时间戳或手工指定），与服务器 VERSION 文件比对
-#   tag         Gitee Release 的 tag
-#   dist        前端产物在 Release 里的资产名（留空表示本次不发前端）
-#   dist_sha256 前端产物校验值
-#   jar         后端产物在 Release 里的资产名（留空表示本次不发后端）
-#   jar_sha256  后端产物校验值
-#
-# 当前状态：尚未发布任何版本
-version=
-tag=
-dist=
-dist_sha256=
-jar=
-jar_sha256=
+# 由 deploy/release.sh 自动生成并提交，勿手工编辑。
+# 服务器端 deploy/update.sh 按此文件拉取产物并原子切换。
+version=20261105-1141
+tag=v20261105-1141
+dist=dist-20261105-1141.zip
+dist_sha256=66ae33c921e5a0c67cc32fe6b58280d131575004c412b88a7844b304afc72260
+jar=app-20261105-1141.jar
+jar_sha256=9c68f460092854299f13c674a56d030cfaeaefb5eec0556615c09b02b4ecd914
