@@ -1,0 +1,28 @@
+# =============================================
+# 换行符与编码规范
+#
+# 背景：Windows 本地开发（core.autocrlf=true）会把 LF 转成 CRLF。
+# 部署脚本要传到 Linux 服务器执行，CRLF 会导致
+#   bash: /www/wwwroot/happy-mart/deploy/update.sh: /bin/bash^M: bad interpreter
+# 或 source 配置时出现 $'\r': command not found。
+# 所以只有「会跑到服务器上执行或被服务器解析」的文件强制 LF，
+# 其余文件保持仓库默认行为，避免 renormalize 时产生全仓 diff。
+# =============================================
+
+# shell 脚本：仓库与工作区都保持 LF
+*.sh text eol=lf
+
+# 服务器端配置（被 update.sh source），必须 LF
+deploy/update.conf text eol=lf
+
+# 版本清单：服务器 curl 拉取后按行解析，CRLF 会让 version 值带上 \r
+deploy/manifest.txt text eol=lf
+
+# 二进制资源不做转换
+*.jpg binary
+*.png binary
+*.gif binary
+*.ico binary
+*.svg binary
+*.jar binary
+*.zip binary

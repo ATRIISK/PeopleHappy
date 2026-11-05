@@ -76,7 +76,22 @@ scp deploy/update.sh deploy/update.conf root@115.29.29.83:/www/wwwroot/happy-mar
 for c in curl unzip sha256sum docker; do command -v $c || echo "缺 $c"; done
 ```
 
-### 3.3 加计划任务
+### 3.3 确认换行符是 LF
+
+脚本传上去必须是 LF，否则会报 `bad interpreter: /bin/bash^M`：
+
+```bash
+file /www/wwwroot/happy-mart/deploy/update.sh    # 应显示 "ASCII text"，不含 "CRLF"
+```
+
+仓库已加 `.gitattributes`（`*.sh` / `deploy/update.conf` / `deploy/manifest.txt` 强制 `eol=lf`），
+从仓库拉下来的不会有问题；若用面板文件管理器从别处上传，先跑一次：
+
+```bash
+sed -i 's/\r$//' /www/wwwroot/happy-mart/deploy/update.sh /www/wwwroot/happy-mart/deploy/update.conf
+```
+
+### 3.4 加计划任务
 
 宝塔面板 → 左侧「**计划任务**」→ 添加任务：
 
@@ -91,7 +106,7 @@ for c in curl unzip sha256sum docker; do command -v $c || echo "缺 $c"; done
 
 > 面板自带的计划任务默认以 root 身份执行，脚本内部路径全是绝对路径，无需设置工作目录。
 
-### 3.4 首次验证
+### 3.5 首次验证
 
 ```bash
 # 只比对版本不部署
