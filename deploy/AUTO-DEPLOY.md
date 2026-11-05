@@ -53,6 +53,29 @@ hm-backend 620m + hm-mysql 448m + hm-rabbitmq 288m + hm-redis 96m = 1452MB
 
 ## 三、一次性配置（服务器侧）
 
+### 3.0 冷启动顺序（第一次必须手动走一遍）
+
+`/api/health` 是**跟着新 jar 一起上线的**。服务器上还跑着旧 jar 时，自动部署的健康检查会打到一个 404，
+脚本判定"不健康"→ 自动回滚 → 新版永远发不上去。
+
+所以第一次要手动走一遍老流程：
+
+```bash
+# 1. 本地打包带 HealthController 的新 jar
+cd happy_mart && ./mvnw clean package -DskipTests
+
+# 2. 传到服务器覆盖 jar（老流程）
+scp happy_mart/target/happy-mart-*.jar root@115.29.29.83:/www/wwwroot/happy-mart/backend/app.jar
+
+# 3. 重启后端容器（必须！jar 是单文件挂载，不重启读不到新文件）
+cd /www/wwwroot/happy-mart && docker compose restart backend
+
+# 4. 验证探活可用，必须返回 status=UP
+curl -s http://127.0.0.1:8074/api/health
+```
+
+确认 `/api/health` 通了，再做 3.1~3.4，之后发版就全自动了。
+
 ### 3.1 传脚本
 
 在宝塔面板「文件」里把仓库 `deploy/` 下的这几个文件传到服务器 `/www/wwwroot/happy-mart/deploy/`：
