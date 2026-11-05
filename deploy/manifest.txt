@@ -1,9 +1,9 @@
 # 众乐电子商城 - 版本清单
 # 由 deploy/release.sh 自动生成并提交，勿手工编辑。
 # 服务器端 deploy/update.sh 按此文件拉取产物并原子切换。
-version=20261105-1142
-tag=v20261105-1142
-dist=dist-20261105-1142.zip
-dist_sha256=e7cfb9710552ac5e9f9f20482565dd0ddd0750e8e9c4a62d69dd14650e716d13
-jar=app-20261105-1142.jar
-jar_sha256=7f83444bdf62c4fa2f4dcf4cb4e36949007d1129a8b58b717d111b4248350ac5
+version=20261105-1156
+tag=v20261105-1156
+dist=dist-20261105-1156.zip
+dist_sha256=a7ad17cb712b4d9b46675884a829616f277408732ee84419cec3dd3f312029d5
+jar=app-20261105-1156.jar
+jar_sha256=b66ae67aba5c144acb1574cd426c6ce1fe53774b3cf542a4faf62d18cf846490
