@@ -78,18 +78,18 @@ curl -s http://127.0.0.1:8074/api/health
 
 ### 3.1 传脚本
 
-在宝塔面板「文件」里把仓库 `deploy/` 下的这几个文件传到服务器 `/www/wwwroot/happy-mart/deploy/`：
-
-- `update.sh`
-- `update.conf`
-- `manifest.txt`（首次可先不放，脚本会自己从 Gitee 拉）
-
-或者用面板终端 + scp：
+**方式 A（推荐，一条命令）**：服务器能访问 Gitee，直接从仓库拉，不用手动上传文件：
 
 ```bash
-# 本地执行
-scp deploy/update.sh deploy/update.conf root@115.29.29.83:/www/wwwroot/happy-mart/deploy/
+curl -fsSL https://gitee.com/liao-zhenhan/happy-mart/raw/master/deploy/update.sh  -o /www/wwwroot/happy-mart/deploy/update.sh
+curl -fsSL https://gitee.com/liao-zhenhan/happy-mart/raw/master/deploy/update.conf -o /www/wwwroot/happy-mart/deploy/update.conf
+# 校验是最新版（应为 2：配置项 + mkdir；旧版是 5）
+grep -c 'LOG_FILE' /www/wwwroot/happy-mart/deploy/update.sh
 ```
+
+**方式 B（宝塔文件管理器上传）**：把仓库 `deploy/` 下的 `update.sh` 和 `update.conf` 传到服务器 `/www/wwwroot/happy-mart/deploy/`。
+
+> 两种方式都用 `/www/wwwroot/happy-mart/deploy/` 这个目录；方式 A 还能用来**更新服务器上的脚本**（改完本地脚本推 Gitee，再在服务器跑一次上面两条 curl）。
 
 ### 3.2 确认依赖
 
