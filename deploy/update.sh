@@ -51,6 +51,9 @@ HEALTH_INTERVAL="${HEALTH_INTERVAL:-3}"
 LOG_FILE="${LOG_FILE:-/www/wwwlogs/hm-deploy.log}"
 NGINX_BIN="${NGINX_BIN:-/www/server/nginx/sbin/nginx}"
 
+# 线上当前版本（首次部署为空）。wait_healthy 用它判断能否降级探活。
+CURRENT_VERSION=""
+
 # ---------- 运行参数 ----------
 MODE="deploy"
 for arg in "$@"; do
@@ -260,7 +263,10 @@ wait_healthy() {
   local code
 
   code="$(probe "$url")"
-  if [[ "$code" == "404" && -n "$FALLBACK_HEALTH_URL" ]]; then
+  # 只有「首次部署」（线上还没有任何版本记录）才允许降级。
+  # 已经部署过的版本如果 /api/health 返回 404，说明新 jar 并没有真的换上，
+  # 这时必须判失败并回滚，不能用业务接口兜底把失败掩盖过去。
+  if [[ "$code" == "404" && -z "$CURRENT_VERSION" && -n "$FALLBACK_HEALTH_URL" ]]; then
     log WARN "探活接口 $url 返回 404（该接口可能还没上线），降级改用 $FALLBACK_HEALTH_URL"
     url="$FALLBACK_HEALTH_URL"
   fi
@@ -324,6 +330,7 @@ main() {
   if [[ -f "$VERSION_FILE" ]]; then
     current="$(tr -d '\r\n ' < "$VERSION_FILE" 2>/dev/null || true)"
   fi
+  CURRENT_VERSION="$current"
 
   log INFO "线上版本: ${current:-无}   待部署版本: $version"
 
