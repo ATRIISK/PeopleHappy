@@ -16,6 +16,10 @@
 
 set -euo pipefail
 
+# cron 环境的 PATH 很窄（通常只有 /usr/bin:/bin），docker / curl / unzip 可能不在里面。
+# 手动在终端跑时这段没影响，但走 crontab 时必须显式补上。
+export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:$PATH"
+
 # ---------- 配置 ----------
 CONF_FILE="${CONF_FILE:-/www/wwwroot/happy-mart/deploy/update.conf}"
 if [[ -f "$CONF_FILE" ]]; then
