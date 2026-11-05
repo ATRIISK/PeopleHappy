@@ -556,3 +556,21 @@ docker compose down && docker compose up -d
    }
    ```
    （正则匹配更保险：`location ~ ^/api/pay/simulate/ { return 403; }`）
+
+---
+
+## 十、自动更新部署（2026-11-05 起）
+
+日常发版不必再手动 `scp` 产物 + 面板里解压：
+
+```bash
+# 本地：构建 + 打包 + 写清单 + 推 git + 建 Gitee Release（需 GITEE_TOKEN）
+bash deploy/release.sh
+```
+
+服务器侧由**宝塔「计划任务」**每 10 分钟轮询 `deploy/manifest.txt`，有新版本就下载 → 原子切换 → `/api/health` 检查 → 失败自动回滚。
+
+- 服务器脚本：`deploy/update.sh`（+ `deploy/update.conf` 配置）
+- 面板配置、故障排查、命令速查：**`deploy/AUTO-DEPLOY.md`**
+
+**服务器上依然不做构建**（2G 内存跑不动 Maven/Vite，见第三节）。
